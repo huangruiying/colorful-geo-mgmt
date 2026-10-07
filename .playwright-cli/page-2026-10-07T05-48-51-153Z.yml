@@ -1,0 +1,42 @@
+- generic [ref=f1e2]:
+  - link [ref=f1e4] [cursor=pointer]:
+    - /url: /
+    - img "Logo" [ref=f1e5]
+  - generic [ref=f1e6]:
+    - generic [ref=f1e7]:
+      - link "下载简书APP" [ref=f1e8] [cursor=pointer]:
+        - /url: https://www.jianshu.com/apps? utm_medium=desktop&utm_source=sign_in_page_click
+      - generic [ref=f1e9] [cursor=pointer]
+    - generic [ref=f1e10]:
+      - heading [level=4] [ref=f1e11]:
+        - generic [ref=f1e12]:
+          - link "登录" [ref=f1e13] [cursor=pointer]:
+            - /url: /sign_in
+          - text: ·
+          - link "注册" [ref=f1e14] [cursor=pointer]:
+            - /url: /sign_up
+      - generic [ref=f1e15]:
+        - generic [ref=f1e16]:
+          - generic [ref=f1e17]:
+            - textbox "手机号或邮箱" [ref=f1e18]
+            - generic [ref=f1e19]: 
+          - generic [ref=f1e20]:
+            - textbox "密码" [ref=f1e21]
+            - generic [ref=f1e22]: 
+          - generic [ref=f1e23]:
+            - checkbox [checked] [ref=f1e24]
+            - text: 记住我
+          - link "登录遇到问题?" [ref=f1e26] [cursor=pointer]:
+            - /url: ""
+          - button "登录" [ref=f1e27] [cursor=pointer]
+        - generic [ref=f1e28]:
+          - heading "社交帐号登录" [level=6] [ref=f1e29]
+          - list [ref=f1e30]:
+            - listitem:
+              - generic: 
+            - listitem [ref=f1e31]:
+              - link "" [ref=f1e32] [cursor=pointer]:
+                - /url: /users/auth/wechat
+            - listitem [ref=f1e34]:
+              - link "" [ref=f1e35] [cursor=pointer]:
+                - /url: /users/auth/qq_connect

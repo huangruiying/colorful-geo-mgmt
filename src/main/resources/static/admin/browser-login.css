@@ -1,0 +1,45 @@
+.browser-list-panel { margin-bottom: 22px; }
+.browser-filter-bar { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; color: #60748f; font-size: 13px; }
+.browser-filter-bar select { min-width: 176px; padding: 9px 12px; border: 1px solid #cbd8eb; border-radius: 8px; color: #285488; background: #fff; font: inherit; }
+.task-actions { display: flex; gap: 10px; }
+.browser-list-panel button { padding: 9px 14px; border: 1px solid #a9c3e7; border-radius: 7px; color: #285488; background: #f5f9ff; cursor: pointer; }
+.browser-list-panel button:hover:not(:disabled) { background: #e6f0ff; }
+.browser-list-panel button:disabled { cursor: not-allowed; opacity: .5; }
+.browser-list-panel table { width: 100%; border-collapse: collapse; }
+.browser-list-panel th, .browser-list-panel td { padding: 12px 10px; border-bottom: 1px solid #e8edf4; text-align: left; font-size: 13px; }
+.browser-list-panel td button + button { margin-left: 8px; }
+.integration-pending { background: #eaf2ff; color: #3569aa; }
+.browser-notice { margin: 0 0 12px; color: #345b8a; }
+.scan-preview { margin: 16px 0; }
+.scan-placeholder { box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; width: min(260px, 100%); min-height: 260px; border: 1px dashed #bfd2ec; border-radius: 12px; color: #57749a; background: #f5f9ff; text-align: center; }
+.scan-spinner { width: 30px; height: 30px; border: 3px solid #dce9fa; border-top-color: #5f9cec; border-radius: 50%; animation: scan-spin .9s linear infinite; }
+@keyframes scan-spin { to { transform: rotate(360deg); } }
+#scan-preview[hidden], #scan-placeholder[hidden], #login-screenshot[hidden] { display: none; }
+#login-screenshot { display: block; max-width: 100%; max-height: 650px; border: 1px solid #e8edf4; }
+.login-dialog { width: min(900px, calc(100vw - 32px)); max-height: 90vh; padding: 24px; border: 1px solid #d3e0f1; border-radius: 14px; color: #183454; background: #fff; overflow: auto; }
+.login-dialog::backdrop { background: rgba(13, 32, 57, .6); }
+.login-dialog-heading, .login-methods { display: flex; align-items: center; gap: 10px; }
+.login-dialog-heading { justify-content: space-between; }
+.login-dialog-heading h2 { margin: 0; }
+.login-dialog button { padding: 9px 14px; border: 1px solid #a9c3e7; border-radius: 7px; color: #285488; background: #f5f9ff; cursor: pointer; }
+.login-dialog button.selected { background: #dcecff; border-color: #5f9cec; }
+.login-dialog p { color: #677f9d; line-height: 1.5; }
+.login-methods { margin: 16px 0; }
+#login-modes[hidden], #scan-methods[hidden] { display: none; }
+.login-dialog #login-feedback.login-feedback-error { padding: 10px 12px; border: 1px solid #f3c4bd; border-radius: 8px; color: #aa3a2d; background: #fff3f1; }
+.login-methods button[hidden] { display: none; }
+#platform-agreement[hidden] { display: none; }
+.login-method-panel { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 12px; }
+.login-method-panel[hidden] { display: none; }
+.login-method-panel[data-login-panel="qr"]:not([hidden]) { display: block; }
+.login-method-panel label { display: flex; flex-direction: column; gap: 5px; min-width: 180px; flex: 1; }
+.login-method-panel input { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid #cbd8eb; border-radius: 7px; }
+.login-dialog #login-screenshot { width: min(260px, 100%); max-height: 300px; object-fit: contain; image-rendering: pixelated; }
+.login-dialog #login-screenshot.full-page { width: auto; max-width: 100%; max-height: 440px; image-rendering: auto; }
+.scan-methods { display: flex; gap: 10px; margin: 8px 0; }
+.douyin-verification { margin: 12px 0; }
+.douyin-verification button { margin-right: 8px; }
+.douyin-verification input { box-sizing: border-box; max-width: 180px; padding: 9px; border: 1px solid #cbd8eb; border-radius: 7px; }
+.douyin-verification[hidden], #douyin-verification-code-form[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .scan-spinner { animation: none; } }
+@media (max-width: 700px) { .browser-list-panel table { min-width: 680px; } }

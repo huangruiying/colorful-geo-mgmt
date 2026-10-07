@@ -1,0 +1,24 @@
+services:
+  mysql:
+    image: mysql:8.4.11
+    container_name: colorful-geo-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 docker/.env 设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: colorful_geo
+      MYSQL_USER: geo_app
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 docker/.env 设置 MYSQL_PASSWORD}
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - geo_mysql_data:/var/lib/mysql
+      - ../src/main/resources/db/mysql/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  geo_mysql_data:

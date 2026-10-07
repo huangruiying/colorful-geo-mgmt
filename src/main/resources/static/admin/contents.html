@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#10233f">
+    <title>内容优化记录 · GEO 管理平台</title>
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./contents.css">
+    <script src="./contents.js" defer></script>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+        <a class="brand" href="./contents.html" aria-label="GEO 管理平台首页">
+            <span class="brand-mark" aria-hidden="true">G</span>
+            <span class="brand-copy"><strong>GEO 管理平台</strong><small>CONTENT OPERATIONS</small></span>
+        </a>
+        <nav class="navigation" aria-label="功能菜单">
+            <span class="navigation-group">内容投放</span>
+            <a class="navigation-item active" href="./contents.html" aria-current="page">
+                <span class="navigation-icon" aria-hidden="true">▤</span><span>内容优化记录</span>
+            </a>
+            <a class="navigation-item" href="./publications.html">
+                <span class="navigation-icon" aria-hidden="true">▧</span><span>发布记录</span>
+            </a>
+            <a class="navigation-item" href="./index.html">
+                <span class="navigation-icon" aria-hidden="true">◎</span><span>平台登录状态</span>
+            </a>
+            <a class="navigation-item" href="./browser-login.html">
+                <span class="navigation-icon" aria-hidden="true">◈</span><span>浏览器登录管理</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">GEO 内容运营工作台</div>
+    </aside>
+
+    <div class="main-area">
+        <header class="topbar">
+            <div class="breadcrumb">内容投放 <span>/</span> <strong>内容优化记录</strong></div>
+            <div class="topbar-label">管理平台</div>
+        </header>
+        <main class="content">
+            <div class="page-heading">
+                <div>
+                    <p class="eyebrow">CONTENT WORKFLOW</p>
+                    <h1>内容优化记录</h1>
+                    <p class="page-description">保存原文与优化稿；预发布时确认最终稿并选择目标平台。</p>
+                </div>
+                <button id="open-optimize" class="primary-button" type="button">＋ 新建优化</button>
+            </div>
+
+            <section class="list-panel" aria-labelledby="record-list-title">
+                <div class="panel-heading">
+                    <div><h2 id="record-list-title">内容列表</h2><p>勾选一篇优化内容，确认最终稿后选择多个平台创建草稿；草稿不等于公开发布。</p></div>
+                    <div class="list-actions"><span id="record-total" class="updated-at">正在加载…</span><button id="prepublish-selected" class="primary-button" type="button" disabled>预发布选中内容</button></div>
+                </div>
+                <div id="page-notice" class="notice" role="status" aria-live="polite" hidden></div>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr><th scope="col">选择</th><th scope="col">内容</th><th scope="col">发布概览</th><th scope="col">平台草稿</th><th scope="col">创建时间</th><th scope="col">操作</th></tr></thead>
+                        <tbody id="record-rows"><tr><td class="table-message" colspan="6">正在读取内容记录…</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <span id="page-label">第 1 页</span>
+                    <div><button id="previous-page" class="text-button" type="button">上一页</button><button id="next-page" class="text-button" type="button">下一页</button></div>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+
+<dialog id="optimize-dialog" class="modal">
+    <form id="optimize-form" class="modal-body">
+        <div class="modal-heading"><div><h2>新建内容优化</h2><p>使用默认安全策略；优化结果成功生成后自动入库。</p></div><button class="close-button" type="button" data-close="optimize-dialog" aria-label="关闭">×</button></div>
+        <label>标题 <input name="title" maxlength="200" required placeholder="请输入待发布标题"></label>
+        <label>优化前正文 <textarea name="content" rows="8" required placeholder="粘贴需要优化的正文"></textarea></label>
+        <label>优化偏好（可选） <input name="optimizationPreference" maxlength="1000" placeholder="例如：面向新手，表达更清晰"></label>
+        <p id="optimize-error" class="form-error" role="alert" hidden></p>
+        <div class="modal-actions"><button class="text-button" type="button" data-close="optimize-dialog">取消</button><button id="submit-optimize" class="primary-button" type="submit">优化并保存</button></div>
+    </form>
+</dialog>
+
+<dialog id="detail-dialog" class="modal modal-wide">
+    <div class="modal-body">
+        <div class="modal-heading"><div><h2 id="detail-title">内容详情</h2><p>原文、优化稿与各平台发布记录</p></div><button class="close-button" type="button" data-close="detail-dialog" aria-label="关闭">×</button></div>
+        <div class="detail-columns"><section><h3>优化前正文</h3><div id="original-content" class="article-preview"></div></section><section><h3>模型优化稿</h3><div id="optimized-content" class="article-preview"></div></section></div>
+        <div id="optimization-warnings" class="detail-note" hidden></div>
+        <div id="optimization-citations" class="citation-list" hidden></div>
+        <div id="publish-record-list" class="publish-record-list"></div>
+        <div class="modal-actions"><button class="text-button" type="button" data-close="detail-dialog">关闭</button></div>
+    </div>
+</dialog>
+
+<dialog id="platform-dialog" class="modal modal-wide">
+    <div class="modal-body">
+        <div class="modal-heading"><div><h2>确认最终稿并选择预发布平台</h2><p id="platform-dialog-title">确认后才会创建逐平台发布记录和草稿。</p></div><button class="close-button" type="button" data-close="platform-dialog" aria-label="关闭">×</button></div>
+        <label>最终发布标题 <input id="publication-title" maxlength="200" required></label>
+        <label>最终发布正文 <textarea id="publication-content" rows="10" required></textarea></label>
+        <div class="platform-toolbar"><button id="select-all-platforms" class="text-button" type="button">全选可选平台</button><button id="clear-platforms" class="text-button" type="button">清空</button></div>
+        <div id="platform-options" class="platform-options"></div>
+        <p class="platform-hint">已有发布记录的平台不可重复提交；草稿创建后仍需单独执行公开发布。</p>
+        <p id="platform-error" class="form-error" role="alert" hidden></p>
+        <div class="modal-actions"><button class="text-button" type="button" data-close="platform-dialog">取消</button><button id="submit-prepublish" class="primary-button" type="button">确认并创建草稿</button></div>
+    </div>
+</dialog>
+</body>
+</html>

@@ -1,0 +1,80 @@
+server:
+  port: 8010
+
+spring:
+  datasource:
+    url: ${GEO_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/colorful_geo?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${GEO_MYSQL_USER:geo_app}
+    password: ${GEO_MYSQL_PASSWORD:6631850f11b335721ca203dca2893a883acf70b580547d94}
+
+colorful:
+  geo:
+    llm:
+      # 第一版只读取此配置指定的通道；后续可扩展为多模型横向查询。
+      enabled_llm_provider: custom
+      providers:
+        mock:
+          type: mock
+          description: 不调用真实大模型，供本地开发和降级场景使用。
+
+        openai:
+          type: openai_compatible
+          description: OpenAI 官方接口，支持可选的官方联网搜索与网页引用。
+          base-url: https://api.openai.com/v1
+          api-key: ""
+          api-key-env: OPENAI_API_KEY
+          model: gpt-4o-mini
+          temperature: 0.3
+          max-tokens: 1400
+          timeout-seconds: 60
+          ssl-verify: true
+          web-search-supported: true
+
+        deepseek:
+          type: openai_compatible
+          description: DeepSeek OpenAI-compatible 接口。
+          base-url: https://api.deepseek.com/v1
+          api-key: ""
+          api-key-env: DEEPSEEK_API_KEY
+          model: deepseek-chat
+          temperature: 0.3
+          max-tokens: 1400
+          timeout-seconds: 60
+          ssl-verify: true
+
+        qwen:
+          type: openai_compatible
+          description: 通义千问 DashScope OpenAI-compatible 接口。
+          base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+          api-key: ""
+          api-key-env: DASHSCOPE_API_KEY
+          model: qwen-plus
+          temperature: 0.3
+          max-tokens: 1400
+          timeout-seconds: 60
+          ssl-verify: true
+
+        kimi:
+          type: openai_compatible
+          description: Moonshot Kimi OpenAI-compatible 接口。
+          base-url: https://api.moonshot.cn/v1
+          api-key: ""
+          api-key-env: MOONSHOT_API_KEY
+          model: moonshot-v1-8k
+          temperature: 0.3
+          max-tokens: 1400
+          timeout-seconds: 60
+          ssl-verify: true
+
+        custom:
+          type: openai_compatible
+          description: 自定义 OpenAI-compatible 网关。
+          base-url: https://newapi.newlink.com/v1
+          api-key: "sk-g5U1FMLxHviTOjxNx9kX7ezJSp0gD48f5I2TcuNq3cFfsWu0"
+          api-key-env: COLORFUL_GEO_LLM_CUSTOM_API_KEY
+          model: claude-sonnet-4-6
+          temperature: 0.3
+          max-tokens: 1400
+          timeout-seconds: 60
+          # 仅在网关使用无法被 JDK 信任的内部证书时改为 false。
+          ssl-verify: true

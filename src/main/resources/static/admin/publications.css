@@ -1,0 +1,11 @@
+.publication-table { min-width: 1040px; }
+.publication-table td { vertical-align: top; line-height: 1.6; }
+.publication-table a, .detail-meta a { color: #286bbd; overflow-wrap: anywhere; }
+.publication-table small { display: block; color: #8b9bb0; }
+.publication-title { max-width: 220px; overflow-wrap: anywhere; }
+.publication-result { max-width: 250px; overflow-wrap: anywhere; }
+.publication-failure { color: #a63d39; }
+.delete-button { border-color: #e7c2c0; color: #a63d39; }
+.delete-button:hover:not(:disabled) { background: #fff0ef; }
+.detail-meta { display: grid; gap: 7px; color: #49617c; font-size: 12px; overflow-wrap: anywhere; }
+.modal h3 { margin: 0 0 8px; color: #49617c; font-size: 12px; }

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#10233f">
+    <title>平台登录状态 · GEO 管理平台</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./login-status.js" defer></script>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+        <a class="brand" href="./index.html" aria-label="GEO 管理平台首页">
+            <span class="brand-mark" aria-hidden="true">G</span>
+            <span class="brand-copy"><strong>GEO 管理平台</strong><small>CONTENT OPERATIONS</small></span>
+        </a>
+
+        <nav class="navigation" aria-label="功能菜单">
+            <span class="navigation-group">内容投放</span>
+            <a class="navigation-item" href="./contents.html">
+                <span class="navigation-icon" aria-hidden="true">▤</span>
+                <span>内容优化记录</span>
+            </a>
+            <a class="navigation-item" href="./publications.html">
+                <span class="navigation-icon" aria-hidden="true">▧</span>
+                <span>发布记录</span>
+            </a>
+            <a class="navigation-item active" href="./index.html" aria-current="page">
+                <span class="navigation-icon" aria-hidden="true">◎</span>
+                <span>平台登录状态</span>
+            </a>
+            <a class="navigation-item" href="./browser-login.html">
+                <span class="navigation-icon" aria-hidden="true">◈</span><span>浏览器登录管理</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">GEO 内容运营工作台</div>
+    </aside>
+
+    <div class="main-area">
+        <header class="topbar">
+            <div class="breadcrumb">内容投放 <span>/</span> <strong>平台登录状态</strong></div>
+            <div class="topbar-label">管理平台</div>
+        </header>
+
+        <main class="content">
+            <div class="page-heading">
+                <div>
+                    <p class="eyebrow">PUBLISHING CHANNELS</p>
+                    <h1>平台登录状态</h1>
+                    <p class="page-description">查看已接入发布策略的平台账号状态，发布前确认目标平台是否可用。</p>
+                </div>
+                <button id="refresh-button" class="refresh-button" type="button">
+                    <span class="refresh-icon" aria-hidden="true">↻</span>
+                    <span>刷新状态</span>
+                </button>
+            </div>
+
+            <section class="summary-grid" aria-label="登录状态概览">
+                <div class="summary-card"><span>接入平台</span><strong id="total-count">—</strong><small>已配置发布策略</small></div>
+                <div class="summary-card"><span>已登录</span><strong id="logged-in-count">—</strong><small>可使用当前浏览器登录态</small></div>
+                <div class="summary-card"><span>未登录</span><strong id="not-logged-in-count">—</strong><small>需在浏览器完成登录</small></div>
+                <div class="summary-card"><span>状态未知</span><strong id="unknown-count">—</strong><small>暂时无法确认登录状态</small></div>
+            </section>
+
+            <section class="list-panel" aria-labelledby="list-title">
+                <div class="panel-heading">
+                    <div>
+                        <h2 id="list-title">平台列表</h2>
+                        <p>状态来自当前服务连接的发布通道；“未知”不代表未登录。</p>
+                    </div>
+                    <span id="updated-at" class="updated-at">尚未查询</span>
+                </div>
+
+                <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                        <tr><th scope="col">平台</th><th scope="col">登录状态</th><th scope="col">账号</th></tr>
+                        </thead>
+                        <tbody id="platform-rows">
+                        <tr><td class="table-message" colspan="3">正在获取平台状态…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+</body>
+</html>
