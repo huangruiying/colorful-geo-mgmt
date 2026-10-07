@@ -1,29 +1,25 @@
 package org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser;
 
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.juejin.JuejinPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.weibo.WeiboPublicationStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.AbstractWechatsyncPrePublicationStrategy;
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.bilibili.BilibiliPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.baijiahao.BaijiahaoPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.yuque.YuquePublicationStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.dayu.DayuPublicationStrategy;
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.douban.DoubanPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.sohu.SohuPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.xueqiu.XueqiuPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.woshipm.WoshipmPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.cto51.Cto51PublicationStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.douyin.DouyinPublicationStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.eastmoney.EastmoneyPublicationStrategy;
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.imooc.ImoocPublicationStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.netease.NeteasePublicationStrategy;
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.oschina.OschinaPublicationStrategy;
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.segmentfault.SegmentfaultPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.cnblogs.CnblogsPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.eastmoney.EastmoneyPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.dayu.DayuPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.douyin.DouyinPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.jianshu.JianshuPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.netease.NeteasePublicationStrategy;
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.smzdm.SmzdmPublicationStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.sohu.SohuPublicationStrategy;
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.sohufocus.SohufocusPublicationStrategy;
-import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.toutiao.ToutiaoPublicationStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.woshipm.WoshipmPublicationStrategy;
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.xiaohongshu.XiaohongshuPublicationStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.xueqiu.XueqiuPublicationStrategy;
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.yidian.YidianPublicationStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.yuque.YuquePublicationStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.cto51.Cto51PublicationStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.browser.cnblogs.CnblogsPublicationStrategy;
 import org.huangry.colorful.geo.infrastructure.client.publish.model.PlatformPublicationRequest;
 import org.huangry.colorful.geo.infrastructure.client.publish.model.PrePublicationRequest;
 import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationResult;
@@ -46,6 +42,10 @@ import static org.mockito.Mockito.*;
  *
  * <p>仅模拟共享 CLI，不连接浏览器扩展、不创建真实草稿或公开发布。</p>
  *
+ * <p>注意：百家号、掘金、今日头条、微博已迁出自管浏览器客户端（见各自
+ * XxxBrowserClient / XxxPublicationStrategy），不再计入 Wechatsync 策略，故此处清单与计数
+ * 同步减少 4 个。</p>
+ *
  * @author huangry
  */
 class WechatsyncPrePublicationStrategyTest {
@@ -57,7 +57,7 @@ class WechatsyncPrePublicationStrategyTest {
         List<PlatformCase> cases = platformCases(client);
         PublicationPlatformStrategyRouter router = new PublicationPlatformStrategyRouter(
                 cases.stream().map(PlatformCase::strategy).toList());
-        assertEquals(24, cases.size());
+        assertEquals(19, cases.size());
 
         for (PlatformCase platformCase : cases) {
             String platform = platformCase.wechatsyncPlatform();
@@ -79,10 +79,10 @@ class WechatsyncPrePublicationStrategyTest {
     /** 草稿成功行后的链接可返回；未返回的草稿标识保持为空。 */
     @Test
     void 草稿链接应按CLI结果返回() {
-        AbstractWechatsyncPrePublicationStrategy strategy = new JuejinPublicationStrategy(mock(WechatsyncClient.class));
+        AbstractWechatsyncPrePublicationStrategy strategy = new YuquePublicationStrategy(mock(WechatsyncClient.class));
         PublicationResult result = strategy.parseDraftResult(
-                "同步结果:\n\u001B[32m✓\u001B[0m juejin (草稿)\nhttps://example.com/draft/123\n"
-                        + "同步完成: 1 成功, 0 失败\n", "juejin");
+                "同步结果:\n\u001B[32m✓\u001B[0m yuque (草稿)\nhttps://example.com/draft/123\n"
+                        + "同步完成: 1 成功, 0 失败\n", "yuque");
 
         assertEquals(PublicationTaskStatus.DRAFT_CREATED, result.getStatus());
         assertEquals("https://example.com/draft/123", result.getDraftUrl());
@@ -92,25 +92,25 @@ class WechatsyncPrePublicationStrategyTest {
     /** 非草稿结果及其他平台成功均不得被误认为本平台草稿。 */
     @Test
     void 非草稿或失败结果应拒绝() {
-        AbstractWechatsyncPrePublicationStrategy strategy = new JuejinPublicationStrategy(mock(WechatsyncClient.class));
+        AbstractWechatsyncPrePublicationStrategy strategy = new YuquePublicationStrategy(mock(WechatsyncClient.class));
         List<String> invalidOutputs = List.of(
-                "同步结果:\n✓ juejin\n同步完成: 1 成功, 0 失败\n",
+                "同步结果:\n✓ yuque\n同步完成: 1 成功, 0 失败\n",
                 "同步结果:\n✓ zhihu (草稿)\n同步完成: 1 成功, 0 失败\n",
-                "✓ juejin (草稿)\n同步完成: 1 成功, 0 失败\n");
+                "✓ yuque (草稿)\n同步完成: 1 成功, 0 失败\n");
 
         for (String output : invalidOutputs) {
             assertThrows(PublicationOutcomeUnknownException.class,
-                    () -> strategy.parseDraftResult(output, "juejin"));
+                    () -> strategy.parseDraftResult(output, "yuque"));
         }
     }
 
     /** CLI 明确返回单平台失败时记录确定失败，允许用户重新预发布。 */
     @Test
     void 明确同步失败可进入重试状态() {
-        AbstractWechatsyncPrePublicationStrategy strategy = new JuejinPublicationStrategy(mock(WechatsyncClient.class));
+        AbstractWechatsyncPrePublicationStrategy strategy = new YuquePublicationStrategy(mock(WechatsyncClient.class));
 
         PublicationClientException exception = assertThrows(PublicationClientException.class,
-                () -> strategy.parseDraftResult("同步结果:\n✗ juejin\n同步完成: 0 成功, 1 失败\n", "juejin"));
+                () -> strategy.parseDraftResult("同步结果:\n✗ yuque\n同步完成: 0 成功, 1 失败\n", "yuque"));
 
         assertEquals(PublicationClientException.class, exception.getClass());
     }
@@ -119,7 +119,7 @@ class WechatsyncPrePublicationStrategyTest {
     @Test
     void 非本平台内容不应提交给Wechatsync() {
         WechatsyncClient client = mock(WechatsyncClient.class);
-        JuejinPublicationStrategy strategy = new JuejinPublicationStrategy(client);
+        YuquePublicationStrategy strategy = new YuquePublicationStrategy(client);
         PlatformPublicationRequest request = PlatformPublicationRequest.builder()
                 .platformType(PublicationPlatformType.CSDN).title("测试标题").content("测试正文").build();
 
@@ -131,24 +131,21 @@ class WechatsyncPrePublicationStrategyTest {
     @Test
     void 已有草稿公开发布应明确拒绝() {
         WechatsyncClient client = mock(WechatsyncClient.class);
-        JuejinPublicationStrategy strategy = new JuejinPublicationStrategy(client);
+        YuquePublicationStrategy strategy = new YuquePublicationStrategy(client);
         PrePublicationRequest request = PrePublicationRequest.builder()
-                .platformType(PublicationPlatformType.JUEJIN).remoteContentId("draft-123").build();
+                .platformType(PublicationPlatformType.YUQUE).remoteContentId("draft-123").build();
 
         PublicationClientException exception = assertThrows(PublicationClientException.class,
                 () -> strategy.publish(request));
 
-        assertEquals("掘金草稿公开发布暂未接入", exception.getMessage());
+        assertEquals("语雀草稿公开发布暂未接入", exception.getMessage());
         verifyNoInteractions(client);
     }
 
     /** 测试用平台清单与各策略绑定的 CLI 标识一一对应。 */
     private List<PlatformCase> platformCases(WechatsyncClient client) {
         return List.of(
-                new PlatformCase(new JuejinPublicationStrategy(client), PublicationPlatformType.JUEJIN, "juejin"),
-                new PlatformCase(new WeiboPublicationStrategy(client), PublicationPlatformType.WEIBO, "weibo"),
                 new PlatformCase(new BilibiliPublicationStrategy(client), PublicationPlatformType.BILIBILI, "bilibili"),
-                new PlatformCase(new BaijiahaoPublicationStrategy(client), PublicationPlatformType.BAIJIAHAO, "baijiahao"),
                 new PlatformCase(new YuquePublicationStrategy(client), PublicationPlatformType.YUQUE, "yuque"),
                 new PlatformCase(new DoubanPublicationStrategy(client), PublicationPlatformType.DOUBAN, "douban"),
                 new PlatformCase(new SohuPublicationStrategy(client), PublicationPlatformType.SOHU, "sohu"),
@@ -162,11 +159,9 @@ class WechatsyncPrePublicationStrategyTest {
                 new PlatformCase(new EastmoneyPublicationStrategy(client), PublicationPlatformType.EASTMONEY, "eastmoney"),
                 new PlatformCase(new DayuPublicationStrategy(client), PublicationPlatformType.DAYU, "dayu"),
                 new PlatformCase(new DouyinPublicationStrategy(client), PublicationPlatformType.DOUYIN, "douyin"),
-                new PlatformCase(new JianshuPublicationStrategy(client), PublicationPlatformType.JIANSHU, "jianshu"),
                 new PlatformCase(new NeteasePublicationStrategy(client), PublicationPlatformType.NETEASE, "netease"),
                 new PlatformCase(new SmzdmPublicationStrategy(client), PublicationPlatformType.SMZDM, "smzdm"),
                 new PlatformCase(new SohufocusPublicationStrategy(client), PublicationPlatformType.SOHU_FOCUS, "sohufocus"),
-                new PlatformCase(new ToutiaoPublicationStrategy(client), PublicationPlatformType.TOUTIAO, "toutiao"),
                 new PlatformCase(new XiaohongshuPublicationStrategy(client), PublicationPlatformType.XIAOHONGSHU, "xiaohongshu"),
                 new PlatformCase(new YidianPublicationStrategy(client), PublicationPlatformType.YIDIAN, "yidian")
         );
