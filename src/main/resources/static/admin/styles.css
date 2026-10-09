@@ -37,7 +37,35 @@ button { font: inherit; }
 .brand-copy strong { color: white; font-size: 15px; letter-spacing: .3px; }
 .brand-copy small { color: #91a5c2; font-size: 9px; letter-spacing: 1.4px; }
 .navigation { display: flex; flex-direction: column; gap: 7px; }
-.navigation-group { padding: 3px 13px 8px; color: #8ea4c3; font-size: 11px; letter-spacing: .8px; }
+.navigation-group { display: flex; flex-direction: column; }
+.navigation-group-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 13px;
+    border-radius: 9px;
+    color: #b9cce5;
+    font-size: 13px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    transition: background .15s ease, color .15s ease;
+}
+.navigation-group-label::-webkit-details-marker { display: none; }
+.navigation-group-label:focus-visible { outline: 2px solid #4388f7; outline-offset: 2px; }
+.navigation-group-label:hover { background: #1a3457; color: white; }
+.navigation-group[open] > .navigation-group-label { color: white; }
+.navigation-caret { margin-left: auto; font-size: 15px; color: #91bbff; transition: transform .15s ease; }
+.navigation-group[open] > .navigation-group-label .navigation-caret { transform: rotate(90deg); }
+.navigation-subitems {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 1px 0 6px 18px;
+    padding-left: 12px;
+    border-left: 1px solid #294361;
+}
+.navigation-subitems .navigation-item { padding: 9px 13px; font-size: 12.5px; }
 .navigation-item {
     display: flex;
     align-items: center;
@@ -140,8 +168,12 @@ tbody tr:hover { background: #fafcff; }
     .app-shell { display: block; }
     .sidebar { width: 100%; min-height: auto; padding: 14px 16px 12px; }
     .brand { padding: 0 0 13px; }
-    .navigation { flex-direction: row; align-items: center; }
-    .navigation-group, .sidebar-footer { display: none; }
+    .navigation { flex-direction: row; flex-wrap: wrap; align-items: center; }
+    .navigation-group { display: contents; }
+    .navigation-group-label { display: none; }
+    .navigation-subitems { flex-direction: row; flex-wrap: wrap; margin: 0; padding-left: 0; border-left: 0; gap: 6px; }
+    .navigation-subitems .navigation-item { padding: 8px 11px; }
+    .sidebar-footer { display: none; }
     .navigation-item { padding: 9px 11px; }
     .topbar { height: 50px; padding: 0 17px; }
     .content { padding: 28px 16px 40px; }
