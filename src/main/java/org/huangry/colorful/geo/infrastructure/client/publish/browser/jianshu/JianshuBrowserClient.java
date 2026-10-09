@@ -134,10 +134,13 @@ public class JianshuBrowserClient {
 			titleInput.fill(title);
 			bodyInput.click();
 			bodyInput.fill(content);
-			// 关键：简书自动保存是防抖异步，若不等“已保存”就关闭会话，内容不会发到服务端，
-			// 导致笔记在服务端内容为空（打开草稿看不到内容）。verifySavedDraft 的重新加载回读兜底确认。
-			waitForAutosave(page);
-			String draftUrl = page.url();
+		// 关键：简书自动保存是防抖异步，若不等“已保存”就关闭会话，内容不会发到服务端，
+		// 导致笔记在服务端内容为空（打开草稿看不到内容）。
+		// 注意：“已保存”指示在新建笔记时可能已存在，waitForAutosave 会立即返回，不能据此判断“填后保存”已完成；
+		// 故额外静置 4s 确保填充内容真正发到服务端，再由 verifySavedDraft 多次 reload 兜底确认。
+		waitForAutosave(page);
+		page.waitForTimeout(4000);
+		String draftUrl = page.url();
 			String noteId = readNoteId(draftUrl);
 			verifySavedDraft(page, title, content);
 			log.info("简书草稿已创建并回读确认，remoteContentId={}", noteId);
@@ -192,30 +195,74 @@ public class JianshuBrowserClient {
 	 * @param content 预期正文
 	 */
 	private void verifySavedDraft(Page page, String title, String content) {
-		page.reload(new Page.ReloadOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
 		Locator titleInput = page.locator(TITLE_SELECTOR).first();
 		Locator bodyInput = page.locator(BODY_SELECTOR).first();
-		titleInput.waitFor();
-		bodyInput.waitFor();
-		// 重新加载后编辑器外壳立即出现，但内容（标题/正文）是异步从服务端拉取的；
-		// 必须等标题真正等于预期、正文非空，才说明服务端内容已落库并载入，否则会误判“未回读”。
-		try {
-			page.waitForFunction(
-					"([expectedTitle]) => {" +
-							"  const t = document.querySelector('input:not([placeholder=\"请输入文集名...\"])');" +
-							"  const b = document.querySelector('textarea#arthur-editor');" +
-							"  return !!t && t.value === expectedTitle && !!b && b.value.trim().length > 0;" +
-							"}",
-					new Object[]{title},
-					new Page.WaitForFunctionOptions().setTimeout(properties.getTimeoutMillis()));
-		} catch (PlaywrightException exception) {
-			throw new PublicationOutcomeUnknownException("简书草稿内容未完整回读，请核对草稿箱，勿直接重试", exception);
+		String lastTitle = "";
+		int lastBodyLen = -1;
+		boolean persisted = false;
+		// 简书自动保存为防抖异步，落库有延迟；单次 reload 可能仍读到空笔记造成误判。
+		// 最多重试 3 次 reload，每次静置后等待标题==预期且正文非空，确定性确认服务端已落库。
+		for (int attempt = 1; attempt <= 3 && !persisted; attempt++) {
+			if (attempt > 1) {
+				page.reload(new Page.ReloadOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+			}
+			titleInput.waitFor();
+			bodyInput.waitFor();
+			// 重新加载后编辑器外壳立即出现，但内容（标题/正文）是异步从服务端拉取的；
+			// 静置 2.5s 让 SPA 从服务端拉取，再等标题真正等于预期、正文非空。
+			page.waitForTimeout(2500);
+			try {
+				page.waitForFunction(
+						"([expectedTitle]) => {" +
+								"  const t = document.querySelector('input:not([placeholder=\"请输入文集名...\"])');" +
+								"  const b = document.querySelector('textarea#arthur-editor');" +
+								"  return !!t && t.value === expectedTitle && !!b && b.value.trim().length > 0;" +
+								"}",
+						new Object[]{title},
+						new Page.WaitForFunctionOptions()
+								.setTimeout(Math.min(properties.getTimeoutMillis(), 15000)));
+				persisted = true;
+			} catch (PlaywrightException exception) {
+				lastTitle = safeInput(titleInput);
+				lastBodyLen = safeBodyLen(bodyInput);
+				// 本次未命中，循环将再次 reload 重试（覆盖防抖自动保存延迟）
+			}
+		}
+		if (!persisted) {
+			// 超时说明 reload 后服务端内容未按预期落库：打印实际回读值，便于定位是标题不符还是正文为空。
+			throw new PublicationOutcomeUnknownException(
+					"简书草稿内容未完整回读（reload 后标题=[" + lastTitle + "] 正文长度=" + lastBodyLen
+							+ "，预期标题=[" + title + "]）：请核对草稿箱，勿直接重试");
 		}
 		String savedTitle = titleInput.inputValue();
 		String savedContent = bodyInput.inputValue().stripTrailing();
 		// 标题或正文未回读到原文时结果不确定，不能把草稿记录为成功。
-		if (!title.equals(savedTitle) || !content.stripTrailing().equals(savedContent)) {
-			throw new PublicationOutcomeUnknownException("简书草稿内容未完整回读，请核对草稿箱，勿直接重试");
+		if (!title.equals(savedTitle)) {
+			throw new PublicationOutcomeUnknownException(
+					"简书草稿标题未回读一致（实际=[" + savedTitle + "] 预期=[" + title + "]）：请核对草稿箱，勿直接重试");
+		}
+		if (!content.stripTrailing().equals(savedContent)) {
+			throw new PublicationOutcomeUnknownException(
+					"简书草稿正文未回读一致（实际长度=" + savedContent.length() + " 预期长度=" + content.stripTrailing().length()
+							+ "）：请核对草稿箱，勿直接重试");
+		}
+	}
+
+	/** 安全读取标题输入框，读取失败返回占位串，避免回读诊断本身抛异常。 */
+	private static String safeInput(Locator locator) {
+		try {
+			return locator.inputValue();
+		} catch (PlaywrightException e) {
+			return "<read-fail>";
+		}
+	}
+
+	/** 安全读取正文 textarea 长度，读取失败返回 -1。 */
+	private static int safeBodyLen(Locator locator) {
+		try {
+			return locator.inputValue().length();
+		} catch (PlaywrightException e) {
+			return -1;
 		}
 	}
 
