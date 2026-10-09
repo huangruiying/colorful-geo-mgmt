@@ -46,7 +46,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class BaijiahaoBrowserClient {
 
 	private static final String EDITOR_URL = "https://baijiahao.baidu.com/builder/rc/edit?type=news";
-	private static final Pattern DRAFT_ID = Pattern.compile("[?&]id=(\\d+)");
+	private static final Pattern DRAFT_ID = Pattern.compile("[?&]article_id=(\\d+)");
 
 	private static final String TITLE_SELECTOR =
 			"div[data-testid=\"news-title-input\"] div[contenteditable=\"true\"]";
