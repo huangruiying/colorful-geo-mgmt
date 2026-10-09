@@ -2,9 +2,12 @@ package org.huangry.colorful.geo.infrastructure.client.playwright;
 
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 
 /**
@@ -24,7 +27,10 @@ public class PlaywrightBrowserComponent {
         Playwright playwright = Playwright.create();
         Browser browser = null;
         try {
-            browser = playwright.chromium().launch();
+            // 发布自动化不应继承运行环境里的 HTTP(S)_PROXY（例如本机 AI 工具的本地代理 127.0.0.1:xxxx），
+            // 否则 Chromium 会把常规网页请求路由到非通用代理，导致页面加载异常或挂死。强制直连。
+            browser = playwright.chromium().launch(
+                    new BrowserType.LaunchOptions().setArgs(List.of("--no-proxy-server")));
             BrowserContext context = browser.newContext(contextOptions);
             return new BrowserSession(playwright, browser, context);
         } catch (RuntimeException exception) {
