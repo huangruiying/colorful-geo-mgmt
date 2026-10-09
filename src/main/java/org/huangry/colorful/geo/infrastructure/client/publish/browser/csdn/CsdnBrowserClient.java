@@ -1,8 +1,11 @@
 package org.huangry.colorful.geo.infrastructure.client.publish.browser.csdn;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.PlaywrightException;
+import com.microsoft.playwright.Response;
 import com.microsoft.playwright.options.WaitUntilState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,8 +18,7 @@ import org.huangry.colorful.geo.infrastructure.repository.PlatformBrowserLoginDa
 import org.huangry.colorful.geo.infrastructure.repository.entity.PlatformBrowserLoginEntity;
 import org.springframework.stereotype.Component;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -29,8 +31,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class CsdnBrowserClient {
 
     private static final String EDITOR_URL = "https://editor.csdn.net/md/";
-    private static final Pattern DRAFT_URL = Pattern.compile(
-            "^https://editor\\.csdn\\.net/md/?\\?articleId=(\\d+)(?:&.*)?$");
+    private static final String SAVE_ARTICLE_URL = "https://bizapi.csdn.net/blog-console-api/v3/mdeditor/saveArticle";
 
     private final PlatformBrowserLoginDao loginDao;
     private final PlaywrightBrowserComponent browserComponent;
@@ -92,26 +93,78 @@ public class CsdnBrowserClient {
             page.locator("pre.editor__inner[contenteditable=true]").waitFor();
             // 2. 标题输入后平台可能自动建稿；后续异常均不得自动重试。
             draftMayExist = true;
-            page.locator("input[placeholder*='请输入文章标题']").fill(title);
-            page.locator("pre.editor__inner[contenteditable=true]").fill(markdown);
-            page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON,
-                    new Page.GetByRoleOptions().setName("保存草稿")).click();
-            // 3. 只接受平台生成的数字草稿 ID，重新打开并回读内容。
-            page.waitForURL(url -> DRAFT_URL.matcher(url).matches());
-            String draftUrl = page.url();
-            Matcher draftId = DRAFT_URL.matcher(draftUrl);
-            if (!draftId.matches()) {
-                throw new PublicationOutcomeUnknownException("CSDN 草稿标识未确认，请核对草稿箱，勿直接重试");
-            }
+            writeDraftContent(page, title, markdown);
+            // 3. 保存响应中的业务结果和 ID 优先于页面跳转；平台拒绝时直接说明原因。
+            Response response = page.waitForResponse(result -> result.url().equals(SAVE_ARTICLE_URL)
+                            && "POST".equals(result.request().method()),
+                    () -> page.locator("button.btn-save").click());
+            String draftId = readSavedDraftId(response.text());
+            String draftUrl = "https://editor.csdn.net/md?articleId=" + draftId;
+
+            // 4. 重新打开草稿并等待远程内容加载完成，不能把初始欢迎页当成保存结果。
             verifySavedDraft(page, draftUrl, title, markdown);
-            log.info("CSDN 草稿已创建并回读确认，remoteContentId={}", draftId.group(1));
-            return new DraftCreated(draftId.group(1), draftUrl);
+            log.info("CSDN 草稿已创建并回读确认，remoteContentId={}", draftId);
+            return new DraftCreated(draftId, draftUrl);
         } catch (PlaywrightException exception) {
             if (draftMayExist) {
                 throw new PublicationOutcomeUnknownException("CSDN 草稿结果未确认，请核对草稿箱，勿直接重试", exception);
             }
             throw new PublicationClientException("CSDN 编辑器无法打开，请检查浏览器登录态和网络", exception);
         }
+    }
+
+    /**
+     * 确认标题编辑并通过编辑器的粘贴事件写入 Markdown，保留空行和列表格式。
+     *
+     * @param page 当前编辑页
+     * @param title 草稿标题
+     * @param markdown 完整 Markdown 正文
+     */
+    private void writeDraftContent(Page page, String title, String markdown) {
+        // 按 Enter 确认标题，并等展示值更新；只触发失焦仍可能早于内部保存模型更新。
+        var titleInput = page.locator("input[placeholder*='请输入文章标题']");
+        titleInput.fill(title);
+        titleInput.press("Enter");
+        page.waitForFunction("expected => document.querySelector('.article-bar__title-display')?.innerText === expected",
+                title, new Page.WaitForFunctionOptions().setTimeout(properties.getTimeoutMillis()));
+
+        // 清空欢迎正文后调用编辑器自身的纯文本粘贴处理，避免 fill 丢行、Enter 自动续写列表。
+        var editor = page.locator("pre.editor__inner[contenteditable=true]");
+        editor.click();
+        page.keyboard().press("ControlOrMeta+A");
+        page.keyboard().press("Backspace");
+        editor.evaluate("""
+                (editor, markdown) => {
+                    const clipboard = new DataTransfer();
+                    clipboard.setData('text/plain', markdown);
+                    editor.dispatchEvent(new ClipboardEvent('paste', {
+                        clipboardData: clipboard, bubbles: true, cancelable: true
+                    }));
+                }
+                """, markdown);
+    }
+
+    /**
+     * 校验保存接口的业务结果，提取平台生成的草稿 ID。
+     *
+     * @param responseBody 保存接口响应，不写入日志
+     * @return 数字草稿 ID；明确拒绝与无法确认分别抛出对应异常
+     */
+    static String readSavedDraftId(String responseBody) {
+        JSONObject response = JSON.parseObject(responseBody);
+        // HTTP 成功不代表保存成功，例如频率限制通过 code=400 返回。
+        if (response == null || !Integer.valueOf(200).equals(response.getInteger("code"))) {
+            String reason = response == null ? null : response.getString("msg");
+            throw new PublicationClientException("CSDN 草稿保存失败："
+                    + (reason == null || reason.isBlank() ? "平台未确认保存成功" : reason));
+        }
+        JSONObject data = response.getJSONObject("data");
+        String draftId = data == null ? null : data.getString("id");
+        // 保存已被受理但没有可靠 ID 时，不能报告确定失败或自动重试。
+        if (draftId == null || !draftId.matches("[1-9]\\d*")) {
+            throw new PublicationOutcomeUnknownException("CSDN 草稿标识未确认，请核对草稿箱，勿直接重试");
+        }
+        return draftId;
     }
 
     /**
@@ -125,13 +178,16 @@ public class CsdnBrowserClient {
     private void verifySavedDraft(Page page, String draftUrl, String title, String markdown) {
         page.navigate(draftUrl, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
         page.locator(".article-bar__title-display").waitFor();
-        page.waitForFunction("() => document.querySelector('pre.editor__inner')?.innerText?.trim().length > 0");
-        String savedTitle = page.locator(".article-bar__title-display").innerText();
-        String savedMarkdown = page.locator("pre.editor__inner").innerText().stripTrailing();
-        // 标题或正文未回读到原文时结果不确定，不能把草稿记录为成功。
-        if (!title.equals(savedTitle) || !markdown.stripTrailing().equals(savedMarkdown)) {
-            throw new PublicationOutcomeUnknownException("CSDN 草稿内容未完整回读，请核对草稿箱，勿直接重试");
-        }
+        // 先等远程草稿全文加载；textContent 保留高亮 DOM 中的原始换行，innerText 会增加段落空行。
+        page.waitForFunction("""
+                expected => {
+                    const title = document.querySelector('.article-bar__title-display')?.innerText;
+                    const body = document.querySelector('pre.editor__inner')?.textContent;
+                    const normalize = value => (value || '').replace(/\\r\\n?/g, '\\n').trimEnd();
+                    return title === expected[0] && normalize(body) === normalize(expected[1]);
+                }
+                """, List.of(title, markdown),
+                new Page.WaitForFunctionOptions().setTimeout(properties.getTimeoutMillis()));
     }
 
     /** @param remoteContentId 平台草稿 ID @param draftUrl 平台编辑链接 */
