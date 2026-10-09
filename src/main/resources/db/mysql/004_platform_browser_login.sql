@@ -1,4 +1,4 @@
--- Playwright 独立登录态；与 Wechatsync 和内容发布记录无关联。
+-- Playwright 独立登录态；与内容发布记录无关联。
 USE colorful_geo;
 
 CREATE TABLE IF NOT EXISTS platform_browser_login (

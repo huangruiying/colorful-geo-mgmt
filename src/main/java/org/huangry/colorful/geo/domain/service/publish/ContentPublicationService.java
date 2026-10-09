@@ -37,7 +37,7 @@ public class ContentPublicationService {
         validateRequest(request);
         var platforms = new LinkedHashSet<>(request.getPlatformTypes());
         List<PublicationResult> results = new ArrayList<>();
-        // 2. 串行创建草稿，避免 Wechatsync 桥接端口被同一批次争用。
+        // 2. 串行创建草稿，避免同一批次争用浏览器登录上下文。
         for (PublicationPlatformType platform : platforms) {
             PlatformPublicationRequest single = PlatformPublicationRequest.builder()
                     .platformType(platform)

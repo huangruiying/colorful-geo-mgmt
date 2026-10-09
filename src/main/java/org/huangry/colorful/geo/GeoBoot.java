@@ -20,7 +20,7 @@ public class GeoBoot {
 
 	public static void main(String[] args) {
 		SpringApplication.run(GeoBoot.class, args);
-		log.info("localhost:8010/admin/index.html");
+		log.info("localhost:8010/admin/browser-login.html");
 	}
 
 }

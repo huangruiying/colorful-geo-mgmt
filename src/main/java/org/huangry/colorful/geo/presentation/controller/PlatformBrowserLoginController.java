@@ -23,7 +23,6 @@ import java.util.Map;
 
 /**
  * 独立 Playwright 登录接口；提供已接入平台的扫码与状态检测，不负责管理后台鉴权。
- * 不改变现有 Wechatsync 登录状态接口。
  */
 @Slf4j
 @RestController
