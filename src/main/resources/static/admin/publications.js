@@ -66,7 +66,8 @@ function createRecordRow(record) {
     const result = document.createElement("td");
     result.className = "publication-result";
     if (record.remoteContentId) appendText(result, `平台 ID：${record.remoteContentId}`);
-    appendWebLink(result, record.draftUrl, "打开草稿");
+    // 有深链的平台（URL 已含 ID）原样保留；无深链的（东方财富）以 hash 参数携带草稿 ID。
+    appendWebLink(result, withDraftId(record.draftUrl, record.remoteContentId), "打开草稿");
     appendWebLink(result, record.publishedUrl, "打开文章");
     if (record.failureReason) {
         const reason = document.createElement("div");
@@ -127,24 +128,21 @@ function openRecordDetail(record) {
         `创建时间：${formatDate(record.createdAt)}`,
         `更新时间：${formatDate(record.updatedAt)}`
     ].forEach(value => appendText(meta, value));
-    appendWebLink(meta, record.draftUrl, "打开草稿");
+    appendWebLink(meta, withDraftId(record.draftUrl, record.remoteContentId), "打开草稿");
     appendWebLink(meta, record.publishedUrl, "打开文章");
     detailDialog.showModal();
 }
 
-/** URL 只允许 HTTP(S)，平台返回值不直接拼入 HTML。 */
+/** URL 只允许 HTTP(S)（safeWebUrl 定义在 url-utils.js），平台返回值不直接拼入 HTML。 */
 function appendWebLink(container, url, label) {
-    if (!url) return;
-    try {
-        const parsed = new URL(url);
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
-        const link = document.createElement("a");
-        link.href = parsed.href;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.textContent = label;
-        container.append(link);
-    } catch (_) { /* 平台未返回有效网页链接时只展示其他字段。 */ }
+    const href = safeWebUrl(url);
+    if (!href) return;
+    const link = document.createElement("a");
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = label;
+    container.append(link);
 }
 
 function appendText(container, value) {

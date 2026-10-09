@@ -274,7 +274,9 @@ function renderPublishRecords(records) {
         const draftUrl = safeWebUrl(record.draftUrl);
         if (draftUrl) {
             const link = document.createElement("a");
-            link.href = draftUrl;
+            // withDraftId：有草稿深链的平台原样保留；东方财富（hash 路由、无深链）以 hash
+            // 参数携带平台 ID，保证点击「打开草稿」时 ID 随 URL 传递，便于在「草稿箱」按 ID 核对。
+            link.href = withDraftId(draftUrl, record.remoteContentId);
             link.target = "_blank";
             link.rel = "noopener noreferrer";
             link.textContent = "打开草稿";
@@ -309,16 +311,6 @@ function renderCitations(citations) {
         }
         return element;
     }));
-}
-
-/** 只允许网页协议进入可点击链接，避免平台或模型返回可执行的 URL。 */
-function safeWebUrl(value) {
-    try {
-        const url = new URL(value);
-        return ["http:", "https:"].includes(url.protocol) ? url.href : null;
-    } catch {
-        return null;
-    }
 }
 
 function createActionButton(label, action) {
