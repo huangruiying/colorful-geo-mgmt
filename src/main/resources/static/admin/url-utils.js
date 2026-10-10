@@ -21,9 +21,10 @@ function draftEntry(record) {
     if (record.platformType === "WECHAT_OFFICIAL_ACCOUNT" && record.remoteContentId) {
         return {previewRecordId: record.id, label: "打开草稿"};
     }
-    // 小红书纯 SPA 无单篇深链，「打开草稿」只能带到创作者中心草稿箱入口，由用户按标题查找。
+    // 小红书网页草稿仅存于创建它的浏览器本地、不同步账号，用户不可见，故「打开草稿」无意义；
+    // 改为指向创作者中心，引导用户到自己账号手动发布。
     if (record.platformType === "XIAOHONGSHU") {
-        return {url: withDraftId(record.draftUrl, record.remoteContentId), label: "打开草稿", title: "进入创作者中心草稿箱，按标题查找文章"};
+        return {url: withDraftId(record.draftUrl, record.remoteContentId), label: "小红书创作者中心", title: "本平台草稿仅存系统浏览器本地、你不可见；请到自己账号手动发布"};
     }
     return {url: withDraftId(record.draftUrl, record.remoteContentId), label: "打开草稿", title: "打开平台草稿"};
 }

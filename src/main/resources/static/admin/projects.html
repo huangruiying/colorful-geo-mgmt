@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#10233f">
-    <title>效果回收 · GEO 管理平台</title>
+    <title>项目列表 · GEO 管理平台</title>
     <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./contents.css">
+    <link rel="stylesheet" href="./projects.css?v=20261010-project1">
 </head>
 <body>
 <div class="app-shell">
@@ -19,7 +21,7 @@
                 <summary class="navigation-group-label"><span class="navigation-icon" aria-hidden="true">◇</span><span>项目管理</span><span class="navigation-caret" aria-hidden="true">›</span></summary>
                 <div class="navigation-subitems">
                     <a class="navigation-item" href="./project-create.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">＋</span><span>项目创建</span></a>
-                    <a class="navigation-item" href="./projects.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">▦</span><span>项目列表</span></a>
+                    <a class="navigation-item active" href="./projects.html?v=20261010-project1" aria-current="page"><span class="navigation-icon" aria-hidden="true">▦</span><span>项目列表</span></a>
                 </div>
             </details>
             <details class="navigation-group" open>
@@ -42,7 +44,7 @@
                 <div class="navigation-subitems">
                     <a class="navigation-item" href="./contents.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">▤</span><span>内容优化记录</span></a>
                     <a class="navigation-item" href="./publications.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">▧</span><span>发布记录</span></a>
-                    <a class="navigation-item active" href="./effect-recovery.html?v=20261010-project1" aria-current="page"><span class="navigation-icon" aria-hidden="true">↻</span><span>效果回收</span></a>
+                    <a class="navigation-item" href="./effect-recovery.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">↻</span><span>效果回收</span></a>
                     <a class="navigation-item" href="./browser-login.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">◈</span><span>浏览器登录管理</span></a>
                 </div>
             </details>
@@ -50,30 +52,20 @@
         <div class="sidebar-footer">GEO 内容运营工作台</div>
     </aside>
     <div class="main-area">
-        <header class="topbar"><div class="breadcrumb">内容投放 <span>/</span> <strong>效果回收</strong></div><div class="topbar-label">管理平台</div></header>
+        <header class="topbar"><div class="breadcrumb">项目管理 <span>/</span> <strong>项目列表</strong></div><div class="topbar-label">管理平台</div></header>
         <main class="content">
-            <div class="page-heading">
-                <div>
-                    <p class="eyebrow">EFFECT RECOVERY</p>
-                    <h1>效果回收</h1>
-                    <p class="page-description">回收各平台已发布内容的曝光、互动等效果数据并做归因分析；功能建设中，敬请期待。</p>
-                </div>
-            </div>
-            <section class="list-panel" aria-label="效果回收占位">
-                <div class="panel-heading"><div><h2>回收能力规划</h2><p>以下能力将在此页面逐步接入。</p></div></div>
-                <div class="table-scroll">
-                    <table>
-                        <thead><tr><th scope="col">回收项</th><th scope="col">说明</th><th scope="col">状态</th></tr></thead>
-                        <tbody>
-                            <tr><td>曝光回收</td><td>采集各平台内容的曝光量与趋势</td><td class="table-message">待接入</td></tr>
-                            <tr><td>互动回收</td><td>采集点赞、评论、收藏等互动指标</td><td class="table-message">待接入</td></tr>
-                            <tr><td>转化归因</td><td>将效果数据归因到具体发布内容与平台</td><td class="table-message">待接入</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+            <div class="page-heading"><div><p class="eyebrow">PROJECT MANAGEMENT</p><h1>项目列表</h1><p class="page-description">集中查看项目基础资料，使用项目 ID 关联后续监测与分析任务。</p></div><a class="primary-button" href="./project-create.html?v=20261010-project1">＋ 创建项目</a></div>
+            <section class="list-panel" aria-label="项目列表">
+                <div class="panel-heading"><div><h2>基础档案</h2><p id="project-total">正在加载…</p></div><form id="project-search" class="project-search"><label for="keyword" class="visually-hidden">项目名称</label><input id="keyword" maxlength="200" placeholder="按项目名称查询"><button class="refresh-button" type="submit">查询</button></form></div>
+                <p id="project-error" class="notice notice-error" role="alert" hidden></p>
+                <p id="project-success" class="notice notice-loading" role="status" hidden></p>
+                <div class="table-scroll"><table><thead><tr><th>项目 ID</th><th>项目／产品名称</th><th>行业／品类</th><th>官网／资料</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="project-rows"></tbody></table></div>
+                <div class="pagination"><span id="project-page">第 1 页</span><div><button id="previous-page" class="text-button" type="button">上一页</button><button id="next-page" class="text-button" type="button">下一页</button></div></div>
             </section>
+            <section id="project-detail" class="list-panel project-section" aria-label="项目资料" hidden><div class="panel-heading"><div><h2 id="detail-name">项目资料</h2><p>已保存的完整基础信息</p></div><button id="close-detail" class="text-button" type="button">收起</button></div><dl id="detail-fields" class="project-fields"></dl></section>
         </main>
     </div>
 </div>
+<script src="./projects.js?v=20261010-project1"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 /** 内容工作台：优化稿入库后，在预发布弹窗确认最终稿并创建逐平台草稿。 */
 const publishStatusLabels = {
-    INITIALIZED: "待预发布", PRE_PUBLISHING: "预发布中／待核对", PRE_PUBLISHED: "预发布成功",
-    PRE_PUBLISHED_UNCONFIRMED: "草稿已创建·待核对",
+    INITIALIZED: "待预发布", PRE_PUBLISHING: "预发布中", PRE_PUBLISHED: "预发布成功",
+    PRE_PUBLISH_UNSUPPORTED: "预发布不可用",
     PUBLISHING: "实际发布中", PUBLISHED: "实际发布成功",
     PRE_PUBLISH_FAILED: "预发布失败", PUBLISH_FAILED: "实际发布失败", CANCELLED: "已取消"
 };
@@ -99,7 +99,7 @@ function renderContentRows(records) {
         const statusCell = document.createElement("td");
         statusCell.textContent = record.publishRecordCount ? "查看各平台状态" : "待预发布";
         const draftCell = document.createElement("td");
-        draftCell.textContent = `${record.draftCount} 草稿 · ${record.processingCount} 待核对 · ${record.failedCount} 失败`;
+        draftCell.textContent = `${record.draftCount} 草稿 · ${record.processingCount} 进行中 · ${record.failedCount} 失败/不可用`;
         const dateCell = document.createElement("td");
         dateCell.textContent = formatDate(record.createdAt);
         const actionCell = document.createElement("td");
@@ -233,7 +233,7 @@ function createPlatformOption(platform, publishRecord) {
     checkbox.disabled = Boolean(publishRecord) && !retryable;
     const name = document.createElement("span");
     const status = publishRecord
-        ? publishStatusLabels[publishRecord.publishStatus] || "状态未知，待核对" : "";
+        ? publishStatusLabels[publishRecord.publishStatus] || "状态未知" : "";
     name.textContent = `${platform.displayName}${status ? ` · ${status}` : ""}${retryable ? " · 可重试" : ""}`;
     label.append(checkbox, name);
     return label;

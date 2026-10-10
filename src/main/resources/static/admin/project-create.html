@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#10233f">
+    <title>项目创建 · GEO 管理平台</title>
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./contents.css">
+    <link rel="stylesheet" href="./projects.css?v=20261010-project1">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+        <a class="brand" href="./contents.html?v=20261010-project1" aria-label="GEO 管理平台首页">
+            <span class="brand-mark" aria-hidden="true">G</span>
+            <span class="brand-copy"><strong>GEO 管理平台</strong><small>CONTENT OPERATIONS</small></span>
+        </a>
+        <nav class="navigation" aria-label="功能菜单">
+            <details class="navigation-group" open>
+                <summary class="navigation-group-label"><span class="navigation-icon" aria-hidden="true">◇</span><span>项目管理</span><span class="navigation-caret" aria-hidden="true">›</span></summary>
+                <div class="navigation-subitems">
+                    <a class="navigation-item active" href="./project-create.html?v=20261010-project1" aria-current="page"><span class="navigation-icon" aria-hidden="true">＋</span><span>项目创建</span></a>
+                    <a class="navigation-item" href="./projects.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">▦</span><span>项目列表</span></a>
+                </div>
+            </details>
+            <details class="navigation-group" open>
+                <summary class="navigation-group-label">
+                    <span class="navigation-icon" aria-hidden="true">❖</span>
+                    <span>资产诊断</span>
+                    <span class="navigation-caret" aria-hidden="true">›</span>
+                </summary>
+                <div class="navigation-subitems">
+                    <a class="navigation-item" href="./diagnose.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">◉</span><span>即时诊断</span></a>
+                    <a class="navigation-item" href="./history-report.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">▦</span><span>历史报告</span></a>
+                </div>
+            </details>
+            <details class="navigation-group" open>
+                <summary class="navigation-group-label">
+                    <span class="navigation-icon" aria-hidden="true">▣</span>
+                    <span>内容投放</span>
+                    <span class="navigation-caret" aria-hidden="true">›</span>
+                </summary>
+                <div class="navigation-subitems">
+                    <a class="navigation-item" href="./contents.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">▤</span><span>内容优化记录</span></a>
+                    <a class="navigation-item" href="./publications.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">▧</span><span>发布记录</span></a>
+                    <a class="navigation-item" href="./effect-recovery.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">↻</span><span>效果回收</span></a>
+                    <a class="navigation-item" href="./browser-login.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">◈</span><span>浏览器登录管理</span></a>
+                </div>
+            </details>
+        </nav>
+        <div class="sidebar-footer">GEO 内容运营工作台</div>
+    </aside>
+    <div class="main-area">
+        <header class="topbar"><div class="breadcrumb">项目管理 <span>/</span> <strong>项目创建</strong></div><div class="topbar-label">管理平台</div></header>
+        <main class="content">
+            <div class="page-heading"><div><p class="eyebrow">PROJECT MANAGEMENT</p><h1>项目创建</h1><p class="page-description">保存项目或产品的基础资料，后续监测与分析任务可直接关联项目。</p></div></div>
+            <form id="project-form">
+<section class="list-panel project-section"><div class="panel-heading"><div><h2>基础信息</h2><p>以下五项为必填，作为后续监测与分析的基础资料。</p></div></div><div class="project-fields">
+<label class="project-field"><span>项目／产品名称 <em>必填</em></span><input id="name" name="name" placeholder="例如：迈极炫 MAGICSHINE" required maxlength="200" type="text"></label>
+<label class="project-field"><span>官网或资料 URL <em>必填</em></span><input id="websiteUrl" name="websiteUrl" placeholder="https://example.com" required maxlength="2048" type="url"></label>
+<label class="project-field"><span>行业／品类 <em>必填</em></span><input id="industry" name="industry" placeholder="例如：户外运动照明" required maxlength="200" type="text"></label>
+<label class="project-field"><span>核心功能 <em>必填</em></span><textarea id="coreFeatures" name="coreFeatures" placeholder="说明产品能解决哪些问题" required maxlength="5000" rows="3"></textarea></label>
+<label class="project-field"><span>目标用户群体 <em>必填</em></span><textarea id="targetAudience" name="targetAudience" placeholder="说明主要面向哪些人，以及他们的需求" required maxlength="5000" rows="3"></textarea></label>
+</div></section>
+<section class="list-panel project-section"><div class="panel-heading"><div><h2>补充信息</h2><p>补充品牌、竞品和市场信息，让后续分析更准确。</p></div></div><div class="project-fields">
+<label class="project-field"><span>别名／品牌名</span><textarea id="aliases" name="aliases" placeholder="每行一项，可填写简称和英文名" rows="3"></textarea></label>
+<label class="project-field"><span>主要竞品</span><textarea id="competitors" name="competitors" placeholder="每行一个竞品名称" rows="3"></textarea></label>
+<label class="project-field"><span>目标市场</span><input id="targetMarket" name="targetMarket" placeholder="例如：中国、北美" maxlength="200" type="text"></label>
+<label class="project-field"><span>目标语言</span><input id="targetLanguage" name="targetLanguage" placeholder="例如：中文、英语" maxlength="100" type="text"></label>
+</div></section>
+<section class="list-panel project-section"><div class="panel-heading"><div><h2>高级配置</h2><p>按需填写卖点、价格与目标关键词。</p></div></div><div class="project-fields">
+<label class="project-field"><span>核心卖点</span><textarea id="sellingPoints" name="sellingPoints" placeholder="说明产品的差异和优势" maxlength="5000" rows="3"></textarea></label>
+<label class="project-field"><span>价格说明</span><textarea id="pricing" name="pricing" placeholder="例如：免费版、每月 99 元、按用量计费" maxlength="2000" rows="3"></textarea></label>
+<label class="project-field"><span>目标关键词</span><textarea id="keywords" name="keywords" placeholder="每行一个希望监测的问题或关键词" rows="3"></textarea></label>
+</div></section>
+                <p id="project-error" class="form-error" role="alert" hidden></p>
+                <div class="project-actions"><a class="text-button" href="./projects.html?v=20261010-project1">查看项目列表</a><button id="create-project" class="primary-button" type="submit">创建项目</button></div>
+            </form>
+        </main>
+    </div>
+</div>
+<script src="./projects.js?v=20261010-project1"></script>
+</body>
+</html>
