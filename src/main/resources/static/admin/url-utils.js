@@ -16,12 +16,26 @@ function safeWebUrl(value) {
     }
 }
 
-/** 公众号按发布记录打开服务端只读窗口，其他平台保留现有草稿链接。 */
+/** 返回平台草稿入口；公众号进入文章列表，由用户自行选择，不定位具体草稿。 */
 function draftEntry(record) {
     if (record.platformType === "WECHAT_OFFICIAL_ACCOUNT" && record.remoteContentId) {
-        return {previewRecordId: record.id, label: "打开草稿"};
+        return {url: "https://mp.weixin.qq.com/cgi-bin/appmsg?begin=0&count=10&type=77&action=list_card&lang=zh_CN", label: "打开草稿", title: "进入公众号文章列表，自行选择草稿；如平台要求，请先登录"};
     }
     return {url: withDraftId(record.draftUrl, record.remoteContentId), label: "打开草稿", title: "打开平台草稿"};
+}
+
+/** 将平台草稿入口展示为普通链接，不创建额外的查看流程。 */
+function appendDraftEntry(container, record) {
+    const entry = draftEntry(record);
+    const href = safeWebUrl(entry.url);
+    if (!href) return;
+    const link = document.createElement("a");
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = entry.label;
+    link.title = entry.title || "打开平台草稿";
+    container.append(link);
 }
 
 /** 为「打开草稿」链接补上平台草稿 ID。

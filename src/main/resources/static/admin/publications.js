@@ -66,7 +66,7 @@ function createRecordRow(record) {
     const result = document.createElement("td");
     result.className = "publication-result";
     if (record.remoteContentId) appendText(result, `平台 ID：${record.remoteContentId}`);
-    // 公众号按发布记录打开只读窗口，其他平台仍使用草稿链接。
+    // 使用平台草稿入口链接。
     appendDraftEntry(result, record);
     appendWebLink(result, record.publishedUrl, "打开文章");
     if (record.failureReason) {
