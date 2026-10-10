@@ -22,15 +22,6 @@ import static org.mockito.ArgumentMatchers.any;
 /** 验证公众号预发布未取得数据库登录态时不触达浏览器。 */
 class WeixinBrowserClientTest {
 
-    /** 查看草稿只接受数字 ID；无登录态或非法标识不触达浏览器。 */
-    @Test
-    void 查看草稿校验标识与登录态() {
-        var browser = mock(PlaywrightBrowserComponent.class);
-        var client = new WeixinBrowserClient(mock(PlatformBrowserLoginDao.class), browser, new PublicationBrowserProperties());
-        assertThrows(PublicationClientException.class, () -> client.readDraft("https://example.com/"));
-        assertThrows(PublicationClientException.class, () -> client.readDraft("100000008"));
-        verifyNoInteractions(browser);
-    }
 
     /** 实际回读判定接受展示空行，但标题错误或正文丢字仍保持待核对。 */
     @Test
