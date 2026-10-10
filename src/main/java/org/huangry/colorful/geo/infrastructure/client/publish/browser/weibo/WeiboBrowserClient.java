@@ -1,9 +1,14 @@
 package org.huangry.colorful.geo.infrastructure.client.publish.browser.weibo;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONException;
+import com.alibaba.fastjson.JSONObject;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.PlaywrightException;
+import com.microsoft.playwright.Response;
+import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.WaitUntilState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,9 +21,8 @@ import org.huangry.colorful.geo.infrastructure.repository.PlatformBrowserLoginDa
 import org.huangry.colorful.geo.infrastructure.repository.entity.PlatformBrowserLoginEntity;
 import org.springframework.stereotype.Component;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 /**
  * <pre>
@@ -26,7 +30,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * 负责：
  * - 从 platform_browser_login 恢复微博 Playwright 会话
- * - 在微博“头条文章”编辑器写入标题与正文、点击“保存草稿”
+ * - 点击“写文章”创建草稿，再写入标题与正文、点击“保存草稿”
  * - 回读标题与正文，确认平台已落库
  *
  * 不负责：
@@ -36,9 +40,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * 说明：微博短文用首页发博框，长文走独立“头条文章”编辑器（card.weibo.com）。
  * 本项目按文章草稿形态接入头条文章编辑器。正文为 TipTap/ProseMirror。
  * 以下选择器依据真实已登录会话探索获得（见 .doc/平台发文入口与选择器.md）。
- * 该编辑器为 hash 路由，草稿 id 可能不在 URL 中，故草稿 ID 可能为空；
- * 回读采用页内软校验，最终以草稿箱核对为准。失败一律按不确定结果处理，
- * 绝不自动重试或伪造草稿标识。
+ * 保存必须返回成功码 100000，并按 hash 路由中的草稿 ID 重开核验；
+ * 创建请求发出后发生异常时保持结果待核对，不自动重试。
  * </pre>
  */
 @Slf4j
@@ -47,7 +50,6 @@ import java.util.concurrent.locks.ReentrantLock;
 public class WeiboBrowserClient {
 
 	private static final String EDITOR_URL = "https://card.weibo.com/article/v5/editor#/draft";
-	private static final Pattern DRAFT_ID = Pattern.compile("draft/(\\d+)|[?&]id=(\\d+)");
 
 	private static final String TITLE_SELECTOR = "textarea[placeholder=\"请输入标题\"]";
 	private static final String BODY_SELECTOR = "div.tiptap.ProseMirror";
@@ -92,10 +94,7 @@ public class WeiboBrowserClient {
 	}
 
 	/**
-	 * 在微博头条文章编辑器写入内容并点击保存草稿，最后回读核验。
-	 *
-	 * <p>该编辑器为 hash 路由，草稿 id 是否进入 URL 待真实联调确认，无法可靠按 URL
-	 * 重新打开同一篇草稿，此处做页内回读作为软校验，最终以草稿箱核对为准。</p>
+	 * 创建新文章后写入内容，等待平台保存成功并重开同一草稿核验。
 	 *
 	 * @param storageState 数据库浏览器状态
 	 * @param title 草稿标题
@@ -108,24 +107,38 @@ public class WeiboBrowserClient {
 				new Browser.NewContextOptions().setStorageState(storageState))) {
 			Page page = session.newPage();
 			page.setDefaultTimeout(properties.getTimeoutMillis());
-			// 1. 打开已登录的微博头条文章编辑器；SPA 需等待标题与正文节点。
+			// 1. 草稿箱默认展示不可编辑的空壳；先点击左侧“写文章”创建独立草稿。
 			page.navigate(EDITOR_URL, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
-			// 待真实联调：以下选择器依据真实已登录会话探索获得，需实测确认。
+			draftMayExist = true;
+			Response created = page.waitForResponse(response -> response.url().contains("/article/v5/aj/editor/draft/create")
+					&& "POST".equals(response.request().method()), () -> page.getByRole(AriaRole.BUTTON,
+					new Page.GetByRoleOptions().setName("写文章").setExact(true)).click());
+			String draftId = requireCreatedDraftId(created.status(), created.text());
+			// 草稿箱会自动选中历史草稿；必须等待创建响应里的新 ID，不能取当前旧路由。
+			page.waitForURL(EDITOR_URL + "/" + draftId);
+			// 2. 正文使用编辑器原生粘贴事务，保留多段正文的文本行结构。
 			Locator titleLocator = page.locator(TITLE_SELECTOR);
 			Locator bodyLocator = page.locator(BODY_SELECTOR).first();
 			titleLocator.waitFor();
 			bodyLocator.waitFor();
-			// 2. 标题为 textarea 可直接 fill；正文为 TipTap，需聚焦后用键盘输入。
-			draftMayExist = true;
-			titleLocator.fill(title);
+			// 标题框先于正文加载完成；先等待正文可点击，避免后台回填空标题覆盖本次输入。
 			bodyLocator.click();
-			page.keyboard().insertText(content);
-			// 3. 点击保存草稿；等待保存落库（待真实联调：以“已保存”提示为准）。
-			page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON,
-					new Page.GetByRoleOptions().setName("保存草稿")).click();
-			page.waitForTimeout(2000);
-			String draftUrl = page.url();
-			String draftId = readDraftId(draftUrl);
+			titleLocator.fill(title);
+			bodyLocator.focus();
+			bodyLocator.evaluate("(element, text) => { const data = new DataTransfer(); "
+					+ "data.setData('text/plain', text); element.dispatchEvent(new ClipboardEvent('paste', "
+					+ "{clipboardData: data, bubbles: true, cancelable: true})); }", content);
+			// 3. HTTP 成功并不代表落库；等待本草稿的保存响应，再验证平台业务码。
+			Response saved = page.waitForResponse(response -> response.url().contains("/article/v5/aj/editor/draft/save")
+					&& "POST".equals(response.request().method()), () -> page.getByRole(AriaRole.BUTTON,
+					new Page.GetByRoleOptions().setName("保存草稿").setExact(true)).click());
+			requireSaveSuccess(saved.status(), saved.text());
+			// 4. 重开平台已落库的草稿，不能用当前编辑器里的本地输入充当成功证据。
+			String draftUrl = EDITOR_URL + "/" + draftId;
+			page.navigate(draftUrl, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+			page.reload(new Page.ReloadOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+			page.locator(TITLE_SELECTOR).waitFor();
+			page.waitForFunction("expected => document.querySelector('textarea[placeholder=\"请输入标题\"]')?.value === expected", title);
 			verifySavedDraft(page, title, content);
 			log.info("微博草稿已创建，remoteContentId={}", draftId);
 			return new DraftCreated(draftId, draftUrl);
@@ -139,21 +152,7 @@ public class WeiboBrowserClient {
 	}
 
 	/**
-	 * 从编辑页链接提取数字标识；无法确认时不伪造草稿 ID（可能为 null）。
-	 *
-	 * @param draftUrl 当前编辑页链接
-	 * @return 草稿标识（可能为 null）
-	 */
-	private String readDraftId(String draftUrl) {
-		Matcher match = DRAFT_ID.matcher(draftUrl);
-		return match.find() ? match.group(1) : null;
-	}
-
-	/**
-	 * 页内回读标题与正文，防止把编辑器的本地乐观状态误报为保存成功。
-	 *
-	 * <p>微博头条文章编辑器为 hash 路由，此处仅在当前页面校验输入是否被保留，
-	 * 最终是否真正落库以草稿箱核对为准。</p>
+	 * 回读重新加载的草稿标题与正文，仅忽略富文本的展示空行。
 	 *
 	 * @param page 当前浏览器页面
 	 * @param title 预期标题
@@ -163,9 +162,39 @@ public class WeiboBrowserClient {
 		String savedTitle = page.locator(TITLE_SELECTOR).inputValue();
 		String savedBody = page.locator(BODY_SELECTOR).first().innerText().strip();
 		// 标题或正文未回读到原文时结果不确定，不能把草稿记录为成功。
-		if (!title.equals(savedTitle) || !content.strip().equals(savedBody)) {
+		if (!title.equals(savedTitle) || !normalizeParagraphs(content).equals(normalizeParagraphs(savedBody))) {
 			throw new PublicationOutcomeUnknownException("微博草稿内容未完整回读，请核对草稿箱，勿直接重试");
 		}
+	}
+
+	/** 校验保存业务码；缺失、拒绝或无法解析的响应均不能标记预发布成功。 */
+	static void requireSaveSuccess(int httpStatus, String responseBody) {
+		try {
+			JSONObject result = JSON.parseObject(responseBody);
+			// 微博成功码为 100000；HTTP 200 或页面仍保留输入不代表保存成功。
+			if (httpStatus != 200 || result == null || !Integer.valueOf(100000).equals(result.getInteger("code"))) {
+				throw new PublicationOutcomeUnknownException("微博草稿保存未确认，请核对草稿箱，勿直接重试");
+			}
+		} catch (JSONException exception) {
+			throw new PublicationOutcomeUnknownException("微博草稿保存响应无法解析，请核对草稿箱，勿直接重试", exception);
+		}
+	}
+
+	/** 从创建响应读取新草稿 ID，防止把草稿箱自动选中的历史草稿当成新稿。 */
+	static String requireCreatedDraftId(int httpStatus, String responseBody) {
+		requireSaveSuccess(httpStatus, responseBody);
+		JSONObject data = JSON.parseObject(responseBody).getJSONObject("data");
+		String draftId = data == null ? null : data.getString("id");
+		// 只有本次创建返回的有效标识才能作为后续编辑与保存的目标。
+		if (draftId == null || !draftId.matches("[1-9]\\d*")) {
+			throw new PublicationOutcomeUnknownException("微博新草稿标识未确认，请核对草稿箱，勿直接重试");
+		}
+		return draftId;
+	}
+
+	/** 忽略富文本展示空行，仍保留非空行的文字、顺序和行内空格。 */
+	static String normalizeParagraphs(String content) {
+		return content.replace("\r\n", "\n").lines().filter(line -> !line.isBlank()).collect(Collectors.joining("\n"));
 	}
 
 	/** @param remoteContentId 平台草稿 ID @param draftUrl 平台编辑链接 */
