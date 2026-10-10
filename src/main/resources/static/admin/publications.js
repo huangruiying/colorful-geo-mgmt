@@ -1,7 +1,6 @@
 /** 发布记录列表：展示本地状态和平台结果，删除只作用于本地记录。 */
 const publishStatusLabels = {
     INITIALIZED: "待预发布", PRE_PUBLISHING: "预发布中", PRE_PUBLISHED: "预发布成功",
-    PRE_PUBLISH_UNSUPPORTED: "预发布不可用",
     PUBLISHING: "实际发布中", PUBLISHED: "实际发布成功",
     PRE_PUBLISH_FAILED: "预发布失败", PUBLISH_FAILED: "实际发布失败", CANCELLED: "已取消"
 };
