@@ -88,6 +88,19 @@
   - 新增 `src/test/java/.../strategy/browser/xiaohongshu/XiaohongshuPublicationStrategyTest.java`（断言返回 `DRAFT_CREATED` 并透传 `draftUrl`/`remoteContentId`）。
   - 验证：`mvn -o clean test` 全量 **216** 通过（原 215 + 新增 1）；`TestControllerPublicationTest` 覆盖 `platform=XIAOHONGSHU` 路由返回 `DRAFT_CREATED`。
   - 风险：写长文选择器（`button:has-text('发布笔记')`、`.creator-tab:has-text('写长文')`、`button.new-btn`、标题/正文、`暂存离开`）来自只读探索记录，未在本账号真实会话实测；长文草稿是否真正落库以小红书草稿箱核对为准，发布能力未实现。
+- **WorkBuddy 本轮（代码，2026-10-09，未提交）：东方财富按自管模式接入并真实验证（草稿能力）**。
+  - 新增 `EastmoneyPublicationStrategy`（`extends AbstractPublicationStrategy`，`platformType()=EASTMONEY`，`@Component`）与 `EastmoneyBrowserClient`；`execPublish` 暂抛"东方财富草稿公开发布暂未接入"。`@Component` 自动接入路由与 `listConfiguredPlatforms`，前端 `/publication/platforms` 与登录态列表自动露出东方财富。
+  - **已真实验证**：用户在「浏览器登录管理」登录东方财富后，`platform_browser_login` 出现 `EASTMONEY=LOGGED_IN`（账号名 股友15R258878p，storage_state 5887 字符）。用 `geo-explore-harness`（真实 macOS headless Chromium + 真实 storage_state）探索并跑通完整链路：创作平台入口 `mp.eastmoney.com/collect/pc_article/index.html#/`、标题 `input[placeholder="标题(1-64字)"]`、正文 `div.ProseMirror.cfh_editor_area`（ProseMirror，聚焦后 `insertText`）、保存「保存并预览」后出现「草稿已保存」、页内回读 56 字正文；重载编辑器出现「您有一篇未编辑的文章」旧草稿提示、点「点击载入」可恢复原稿——即服务端已落库。生产 `createDraftInBrowser` 据此实现（含旧草稿提示处理：载入→清空→重写→保存→回读），`remoteContentId` 取 null（单活跃草稿模型，hash 路由无 id）。**非凭印象推断，已在真实浏览器跑通**。
+  - 新增 `EastmoneyPublicationStrategyTest`（断言返回 `DRAFT_CREATED` 并透传 `draftUrl`/`remoteContentId`）。
+  - 验证：`mvn -o clean test` 全量 **214** 通过（含路由唯一性与 `TestControllerPublicationTest` 的 `platform=EASTMONEY` 路由命中）；真实浏览器联调在沙箱外 macOS 环境跑通。
+  - 待办：`execPublish` 在发布按钮真实确认前保持"暂未接入"；若需发布，先确认编辑器发布触发方式并从保存后状态捕获草稿 id 才能重开草稿。详见 `.doc/平台发文入口与选择器.md` §EASTMONEY。
+  - **更正（2026-10-09 稍后）**：上面第 93 条的"已真实验证"仅证明 **Node 探索脚本**跑通；生产 `EastmoneyBrowserClient` 里有**两个 bug 从未被执行到**，导致 UI 上长期显示「预发布中／待核对 · 东方财富草稿结果未确认，请核对草稿箱，勿直接重试」：
+    1. 保存按钮用 `button:has-text('保存并预览')`，真实元素是 `<div class="button_preview ...">` → 命中 0 个、`click()` 干等 30s 超时（与记录耗时 ~37s 吻合）；
+    2. `page.waitForFunction(expr, WaitForFunctionOptions)` 在 Playwright Java 不存在该重载 → 抛 `Unsupported type of argument: Page$WaitForFunctionOptions`。
+    两处都在 `draftMayExist=true` 之后抛 PlaywrightException，被包装为"结果未确认"→ `PRE_PUBLISHING(1)`。
+  - **修复与复测**：改为 `page.getByText("保存并预览", new Page.GetByTextOptions().setExact(true))` 与 `page.waitForFunction(expr, null, new Page.WaitForFunctionOptions()...)`（"点击载入"同步改为 `getByText` 精确匹配）。用独立 runner 直接调用真实 `EastmoneyBrowserClient.createDraft`（DAO 用动态代理桩注入 DB 真实登录态），返回 `DRAFT_CREATED`、耗时 14.1s；重载编辑器 → 「您有一篇未编辑的文章」→ 点「点击载入」→ 标题逐字匹配、正文 97 字，确认服务端真落库。`mvn -o test` **214** 全绿。
+  - **教训**：探索脚本验证通过 ≠ Java 客户端验证通过；两边选择器不同会让生产路径带病上线。后续平台接入必须用真实 Java 调用（或重启后的 HTTP 端点）复测。
+  - **注意**：已存在的 `content_publish_record#30`（EASTMONEY, status=1, "东方财富草稿结果未确认…"）是本次 bug 造成的**误报**，并非真的结果不确定；重启应用后重跑预发布即可覆盖，或按 `.doc` 说明手工订正。
 - 接手时重新查看 `git status` 与 diff，保留上述未提交改动；未提交前不要自动清理或批量格式化。
 - 本次 `rg -n 'TODO|FIXME' src/main/java src/test/java` 未发现命中；这不等于功能已完成。
 
@@ -104,6 +117,90 @@
 - 启动 `GeoBoot` 后查看 `/admin/browser-login.html`、`/admin/contents.html`、`/admin/publications.html`；用测试内容核对接口返回、`content_publish_record` 的状态与平台草稿箱实际内容。不要仅用单测证明第三方平台能力。
 - 交给另一工具前更新本文件的时间、当前目标、已完成、未完成、实际改动文件、测试命令及结果、风险与第一步；只写已核实事实，未知项标“待确认”。同一目录只允许一个工具正在编辑，平行工作另开 branch/worktree。
 
+## CSDN 预发布修复（Codex，2026-10-09）
+
+- 本次只修改 `CsdnBrowserClient.java`、`CsdnBrowserClientTest.java` 和本交接段落；百家号、今日头条由 WorkBuddy 负责，未改动其文件，也未重启原有 8010 服务。
+- 已用数据库 CSDN 登录态复现原 Java 客户端失败。原因：标题未明确确认时保存为“【无标题】”；正文 `fill()` 丢失 Markdown 换行结构；重开草稿后只等正文非空，会提前读到编辑器欢迎内容。逐行 Enter 还会自动续写列表前缀，不能使用。
+- 修复：标题按 Enter 确认并等待展示值更新；全选清空正文后，通过编辑器原生 `paste` 事件传入完整纯文本 Markdown；读取 `saveArticle` 的业务 code 和真实 `data.id`；重新打开该草稿，等待标题与完整正文一致。读取高亮编辑器 `textContent`，避免 `innerText` 为段落额外添加空行。
+- 平台明确拒绝保存（如 code=400、频率限制）返回具体原因；受理但缺少 ID、回读超时等仍按结果未知处理，不自动重试。
+- 验证：JDK 17 下 `mvn -o -q test -Dtest=CsdnBrowserClientTest,CsdnPublicationStrategyTest` **7 项通过**；真实 Java 客户端创建并回读草稿 `167396363` 成功。
+- 独立启动当前服务到 8012，调用 `POST /test/prePublish/CSDN` 返回 HTTP 200、`DRAFT_CREATED`、`remoteContentId=167396374`。输入包含空行、列表、Java 代码块，客户端重开后全文核验通过。验证期间只创建测试草稿，未公开发布；这些测试草稿保留在 CSDN 草稿箱。
+- 本次未通过内容列表接口创建数据库发布记录，也未测试 CSDN 实际公开发布；公开发布仍未接入。临时 8012 验证服务已停止，原服务需由使用者重新加载本次代码后再调用。
+
+## 今日头条 / 百家号 预发布接入（WorkBuddy，2026-10-09）
+
+- 两平台**代码早已存在**（`ToutiaoBrowserClient`/`BaijiahaoBrowserClient` + 对应策略 + 单测），之前只停留在"修复+单测通过"，未用真实登录态跑通 Java 客户端路径。本次按纪律**真实跑通**：用独立 runner 直接调真实客户端（DAO 以动态代理桩注入 DB 真实登录态；`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` + 干净 `PLAYWRIGHT_BROWSERS_PATH` 绕开坏锁），两平台均返回 `DRAFT_CREATED`：
+  - 头条：真实账号「天总会晴朗何必悲伤于此时」，14.1s，`remoteContentId=null`（自动保存模型，URL 无 id）。
+  - 百家号：真实账号「是瑞瀛呀」，12.6s，`draftUrl` 带 `article_id=...`，`remoteContentId` 正确提取。
+- **顺带修了两个会影响全部浏览器的生产环境 bug（与具体平台无关）**：
+  1. **代理污染**：`HTTP(S)_PROXY=127.0.0.1:57162`（本机 AI 工具本地代理）被 Chromium 继承，常规网页请求被路由到非通用代理，导致页面加载异常/`launch()` 挂死。修复：`PlaywrightBrowserComponent.openBrowser` 启动 Chromium 加 `--no-proxy-server`；`PlaywrightBrowserComponentTest` mock 同步改为匹配 `launch(LaunchOptions)` 重载。
+  2. **百家号草稿 ID 提取**：`DRAFT_ID` 正则原写 `[?&]id=(\d+)`，但真实 URL 是 `&article_id=...`，匹配不到 → `remoteContentId` 永远 null。改为 `[?&]article_id=(\d+)` 后正常提取。
+- **坏锁遗留（AI 工具无权限删除受保护目录）**：诊断时多次强杀 Java 进程把 `~/Library/Caches/ms-playwright/__dirlock` 弄成残留锁，导致任何 `Playwright.create()` 都失败（抛 `Failed to create driver`）。用户重启应用前需清理：删除该锁（`rm -rf ~/Library/Caches/ms-playwright/__dirlock`）或给应用加 `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`。当前 8010 应用已停（探测返回 000）。
+- 验证：`mvn -o test` **218 全绿 / BUILD SUCCESS**。改动均未 git 提交，分支 `20261007_pre_publish`。
+- `execPublish` 对 TOUTIAO/BAIJIAHAO 仍"暂未接入"（公开发布按钮待真实联调确认后实现），本次只验证草稿建联调。
+
+## Linux 安装脚本（Codex，2026-10-09）
+
+- `Deploy/install.sh` 安装 Ubuntu 22.04/24.04 x86_64 的 OpenJDK 17、Google Chrome stable、Xvfb、Xauth 和字体。固定平台及软件选择，不修改 `.env`、数据库或业务代码。
+- `Deploy/README.md` 提供首次安装及 `xvfb-run` 启动示例。脚本通过 `bash -n`，本机 macOS 执行会在安装前拒绝；尚未在 Linux 实际安装或验证头条。Chrome + CDP 生产模式仍待实现，不能将依赖安装误认为平台链路完成。
+
+## 微博预发布修复（Codex，2026-10-10）
+
+- 用户发布记录 44（优化记录 7、WEIBO）仍保持预发布中，未手工改状态或重投用户正文。真实复现：未点击左侧“写文章”时，正文被 `.wb-editor-spin` 遮罩阻挡，旧代码超时后只返回笼统“待核对”。
+- `WeiboBrowserClient` 先监听 `/article/v5/aj/editor/draft/create` 成功响应（业务码 100000），使用 `data.id` 等待本次新草稿路由，不能取草稿箱自动打开的旧 ID。正文可点击后再填标题，避免异步加载覆盖标题；正文走原生粘贴事务。
+- 保存监听 `/article/v5/aj/editor/draft/save`，要求 HTTP 200 且业务码 100000；重载同一 ID 后核验标题和正文，仅忽略展示空行，不忽略文字、顺序、非空行边界或行内空格。不使用固定等待或页内输入充当成功证据。
+- 真实项目 Java 客户端（数据库实际登录态、公共浏览器组件）创建草稿 **4082556** 成功；关闭后再用独立浏览器恢复同一数据库会话重开，完整正文核验通过。测试仅创建草稿，没有公开发布，也没有修改用户发布记录。
+- `WeiboBrowserClientTest` 新增创建响应标识、保存成功码、富文本比较及“先写文章、正文可操作后填标题、保存后重载”顺序回归测试。运行微博客户端与策略定向测试；运行中的服务需重启加载改动。
+- 排障期间留下专用测试草稿 4082549、4082551、4082552、4082553、4082555、4082556，均未公开。4082549 只用于诊断，曾被早期时序探针追加测试正文；其余部分为空稿。没有操作非测试草稿，后续清理仅能针对这些明确测试 ID。
+
+## 微信公众号回读误判修复（Codex，2026-10-10）
+
+- 发布记录 47（优化记录 7、WECHAT_OFFICIAL_ACCOUNT）显示预发布中。恢复数据库实际会话进入草稿箱，找到平台草稿 **100000006**：标题相同，正文输入 15 行、平台回读 22 行；仅忽略空行后全文一致。已证明此稿实际保存，失败原因是富文本增加展示空行导致严格字符串比较误判，不是登录态失效。
+- `WeixinBrowserClient.verifySavedDraft` 强制重载同一草稿，再比较标题与规范化正文。只忽略空行及 CRLF/LF 差异，仍保留文字、顺序、非空行边界和行内空格；后台 token 不返回、不记录日志。
+- `WeixinBrowserClientTest` 新增展示空行、丢字、顺序、非空行边界、行内空格及实际回读结果判定测试。公众号客户端与策略定向测试通过。
+- 修复后的真实 Java 客户端（实际数据库会话、原公共浏览器组件）成功创建并重开核验专用测试稿 **100000007**，未公开。原草稿 100000006 和用户发布记录 47 没有修改或重投；运行服务需重启加载修复。原稿已存在，不能因数据库仍待核对而再次创建重复稿；如需修复历史状态，应按该草稿标识及完整内容核验后另行处理。
+
+### 公众号草稿入口（2026-10-10）
+
+- 内容详情、发布列表及发布详情通过共用 `draftEntry` 展示“打开公众号草稿箱”（有平台草稿 ID 时）。实际目标为 `https://mp.weixin.qq.com/`，用户在自己的浏览器登录后台后进入草稿箱按标题查找，不宣称是具体草稿深链；不携带 token，不改数据库 `draft_url`。其他平台原链接逻辑保持不变。
+- 4 项行为断言及 3 个前端脚本语法检查通过。针对用户反馈的 `draftEntry is not defined`，内容页和发布页的共用脚本、调用脚本统一增加 `v=20261010-1`，避免旧缓存混用。同步 Maven 构建资源后，以真实 8010 发布列表验证脚本加载及公众号入口；未执行全部管理页面回归。
+
+### 公众号直接查看指定草稿（2026-10-10，替代上述后台首页入口）
+
+- 两页统一显示“打开草稿”；公众号改用只读弹窗。`POST /content-publish/detail/{id}/draft-preview` 按发布记录草稿 ID 恢复数据库会话，动态取得 token，打开指定平台编辑页，返回当前标题、正文和截图。不返回 Cookie/token/编辑地址，不更新发布状态，不创建或发表草稿；读取结束自动关闭浏览器。
+- 新增 `ContentDraftPreviewService`、`ContentDraftPreviewController`、`ContentDraftPreview` 和共用 `draft-preview.js`。窗口支持刷新与关闭，不支持编辑或发表。两页脚本版本统一为 `v=20261010-3`；其他平台原链接逻辑不变。
+- 15 项定向测试通过。独立 8012 服务禁用 SQL 初始化，以真实发布记录 48 / 草稿 100000008 验证接口 HTTP 200、禁止缓存、PNG 截图及平台正文 528 字符。真实发布列表点击后弹窗、图片、正文与关闭通过，无脚本错误。测试服务随后停止，用户原 8010 服务未停止；新增 Java 接口需重启原服务加载。
+
+### 效果回收导航归属（2026-10-10）
+
+- 六个管理页面统一将“效果回收”移入“内容投放”，位于“发布记录”之后；效果回收页面面包屑同步改为“内容投放 / 效果回收”。
+- 真实 Chrome 复现旧 HTML 缓存导致内容页仍显示原分组；服务返回页面与源码一致，加版本参数后显示正确。六页导航与首页链接统一增加 `v=20261010-nav1`，同步 `target/classes` 静态页面至运行服务。
+- 已在真实 8010 服务逐页点击六个导航入口，核验分组、顺序、当前页选中状态及效果回收面包屑通过，并检查页面截图。效果采集仍为待接入占位能力；已经打开的旧页面需刷新或通过带版本链接进入。
+
+## 项目基础档案（Codex，2026-10-10）
+
+- 当前范围已完成：一级“项目管理”及“项目创建／项目列表”，创建基础档案、按名称分页查询、查看当前页完整资料。尚未增加编辑、删除或监测／分析任务；后续任务可引用项目 ID。
+- 分层为 ProjectController → ProjectBusiness → ProjectService → ProjectDao / ProjectEntity；Project 为不含 ORM 注解的领域模型，创建输入单独建模，不能覆盖系统 ID 和时间。遵循现有 MyBatis-Plus 持久化模式，未引入新依赖。
+- geo_project 保存五项必填（名称、资料 URL、行业、核心功能、目标用户）与图中七项可选配置；别名、竞品、关键词为 JSON 列表，ID 自增，时间由数据库生成。URL 只保存且校验 HTTP(S)，不抓取页面。001 空库脚本和 006 增量脚本均包含建表定义，docker/README.md 已说明迁移。
+- 本地数据库已执行 006，仅添加项目表。15 项定向测试通过，离线编译、JS 语法和差异检查通过。独立 8012 服务禁用 SQL 初始化，真实创建返回 201、ID 和时间；名称查询、JSON 列回读、分页排序及输入 400 验证通过。Chrome 实际创建后跳列表、详情、名称查询、无匹配／无项目状态通过；八页导航实际点击和高亮通过，截图核验后补齐 contents.css 共用按钮与分页样式。
+- 两条明确 QA 项目（ID 1、2）已按 ID 与测试名称精确清理，项目表当前空；未操作已有内容、发布记录或平台草稿。原 8010 服务未停止，新增 Java 接口须重启原服务加载；独立测试服务完成后停止。导航版本统一为 v=20261010-project1，避免旧 HTML 导航缓存。
+- Java 注释检查：新增类均说明职责与边界；创建、资料校验和应用编排按业务阶段添加注释；查询、转换、字段规则、URL 校验及错误映射有方法说明。后续任务关联时再按任务设计新增 project_id，不把执行结果放入基础档案。
+
 ## WorkBuddy / GPT 接手指令
+
+### 今日头条保存判据修正（Codex，2026-10-09 晚间）
+
+- 用户记录 `content_publish_record.id=39`（优化记录 7、TOUTIAO）出现正文回读不一致。真实复现确认 ProseMirror 的 `innerText` 会额外插入展示空行；原键盘 `insertText` 也会产生不稳定的空行结构。
+- `ToutiaoBrowserClient` 改为原生纯文本粘贴事务；比较保留非空文本行边界，不忽略文字、顺序或行内空格。保存不再固定等待 2 秒：监听 `/mp/agw/article/publish` 响应，必须业务 `code=0` 且有效字符串 `data.pgc_id`，再重开 `graphic/publish?pgc_id=...` 核验。当前生产客户端已拒绝将 `7050` 或 `pgc_id=0` 报为成功。
+- 真实数据库会话 + 项目 Java 浏览器组件复测：平台 HTTP 200，但业务返回 **7050（保存失败）**，因此结果仍待核对，**本平台未修复到端到端成功**。保存失败原因待继续定位（账号/会话/请求字段/平台风控均未确认），不要猜测或绕过。
+- 草稿箱只读查询未发现与优化记录 7 本次标题一致的草稿；未修改记录 39 或任何用户草稿。临时草稿联调未公开发布，平台未返回有效草稿标识。
+- 定向命令 `mvn -o -q test -Dtest=ToutiaoBrowserClientTest,ToutiaoPublicationStrategyTest` 通过。新增测试覆盖展示空行、文本边界、保存失败码及长字符串标识。
+- 上文 WorkBuddy 记录的头条 `DRAFT_CREATED/remoteContentId=null` 仅能证明旧页内检查通过，不能证明平台落库；后续验收以保存成功响应和重开回读为准。原服务未重启，需要重新加载代码。
+- 后续决定性对照：使用普通 Chrome 的实际会话，通过浏览器桥接写入测试稿，平台返回 `code=0 / 保存成功`，草稿标识 `7694677939891421706`，正文回读一致；测试稿未公开，暂保留。证明平台支持草稿且该账号具备保存能力。
+- 隔离 Playwright 使用相同标题、正文 HTML 和相同输入方式仍返回 7050；有界面模式、从主页进入、延长初始化等待、清除本地缓存、临时复制普通 Chrome 的完整 Cookie/localStorage/sessionStorage 均未解决。复制只在内存诊断上下文进行，未更新数据库。不能据此宣称“Cookie 过期”或明确某一风控规则；已定位至浏览器运行/会话环境差异，平台内部拒绝原因未知。
+- 下一项关键验证需要本人在系统内重新扫码登录头条：验证新建 Playwright 登录会话立即创建草稿是否成功，从而区分历史数据库会话问题与新浏览器环境限制。扫码/身份验证不可代替用户完成。不要直接导入普通 Chrome 会话到生产表或迁移为浏览器扩展通道；若证实必须保持浏览器会话连续性，先确认持久化浏览器方案与服务器部署影响。
+- 23:06 用户重新登录后继续验证：数据库 `last_login_at=2026-10-09 23:06:22.323`、LOGGED_IN；真实 Java 默认浏览器仍返回 7050。不能继续把问题解释为 session 过期。
+- 使用**同一份新数据库会话**，独立有界面 Chrome 普通进程启动、显式非零 CDP 端口、默认持久上下文，再由 Playwright 连接控制，保存成功两次：`7694685214634672681`、`7694686089839411766`。后者重新启动独立浏览器再打开同 ID，标题及完整测试正文核验均通过；未公开发布。
+- 对照：普通 Chrome 上述启动加 `--headless=new` 后返回 7050；Playwright 直接启动（包括有界面、去除默认参数及持久上下文）仍返回 7050。已证明当前可工作的路径是“普通有界面 Chrome + CDP + 默认持久上下文”，尚不能声明某个单独启动参数或平台内部风控规则是根因。生产方案尚未替换：计划只为头条增加此浏览器模式，通过公共组件提供，仍使用数据库会话，其他平台不变。需要确认服务器有界面浏览器/虚拟显示依赖，不应偷偷全局关闭 headless 或引入硬编码本机 Chrome 路径。
 
 > 先阅读 `AGENTS.md` 与 `.doc/HANDOFF.md`，随后阅读 `.claude/CLAUDE.md` 和适用规则；检查当前 Git 状态、差异和相关代码。不要立即大规模重构，也不要把过时的登录态快照当成当前事实。先用简短中文确认当前目标、已完成/未完成范围、风险和首个验证动作，再从剩余的平台迁移任务继续开发。每完成一个平台，分别记录代码、单测和真实联调结果；不要自动提交或删除仍有引用的 Wechatsync。
