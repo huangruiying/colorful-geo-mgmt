@@ -1,6 +1,7 @@
 /** 内容工作台：优化稿入库后，在预发布弹窗确认最终稿并创建逐平台草稿。 */
 const publishStatusLabels = {
     INITIALIZED: "待预发布", PRE_PUBLISHING: "预发布中／待核对", PRE_PUBLISHED: "预发布成功",
+    PRE_PUBLISHED_UNCONFIRMED: "草稿已创建·待核对",
     PUBLISHING: "实际发布中", PUBLISHED: "实际发布成功",
     PRE_PUBLISH_FAILED: "预发布失败", PUBLISH_FAILED: "实际发布失败", CANCELLED: "已取消"
 };
@@ -271,17 +272,7 @@ function renderPublishRecords(records) {
             id.textContent = `平台 ID：${record.remoteContentId}`;
             item.append(id);
         }
-        const draftUrl = safeWebUrl(record.draftUrl);
-        if (draftUrl) {
-            const link = document.createElement("a");
-            // withDraftId：有草稿深链的平台原样保留；东方财富（hash 路由、无深链）以 hash
-            // 参数携带平台 ID，保证点击「打开草稿」时 ID 随 URL 传递，便于在「草稿箱」按 ID 核对。
-            link.href = withDraftId(draftUrl, record.remoteContentId);
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-            link.textContent = "打开草稿";
-            item.append(link);
-        }
+        appendDraftEntry(item, record);
         if (record.failureReason) {
             const reason = document.createElement("span");
             reason.textContent = record.failureReason;

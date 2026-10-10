@@ -16,6 +16,18 @@ function safeWebUrl(value) {
     }
 }
 
+/** 公众号按发布记录打开服务端只读窗口，其他平台保留现有草稿链接。 */
+function draftEntry(record) {
+    if (record.platformType === "WECHAT_OFFICIAL_ACCOUNT" && record.remoteContentId) {
+        return {previewRecordId: record.id, label: "打开草稿"};
+    }
+    // 小红书纯 SPA 无单篇深链，「打开草稿」只能带到创作者中心草稿箱入口，由用户按标题查找。
+    if (record.platformType === "XIAOHONGSHU") {
+        return {url: withDraftId(record.draftUrl, record.remoteContentId), label: "打开草稿", title: "进入创作者中心草稿箱，按标题查找文章"};
+    }
+    return {url: withDraftId(record.draftUrl, record.remoteContentId), label: "打开草稿", title: "打开平台草稿"};
+}
+
 /** 为「打开草稿」链接补上平台草稿 ID。
  *  - 链接本身已含该 ID（有草稿深链的平台，如百家号 `article_id=`、头条）→ 原样返回，不污染真实深链；
  *  - 链接不含 ID（东方财富）→ 以 hash 参数 `id` 携带，生成 `#/?id=<draft_id>` 真深链，可直接打开该草稿。

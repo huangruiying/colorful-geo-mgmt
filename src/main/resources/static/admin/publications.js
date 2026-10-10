@@ -1,6 +1,7 @@
 /** 发布记录列表：展示本地状态和平台结果，删除只作用于本地记录。 */
 const publishStatusLabels = {
     INITIALIZED: "待预发布", PRE_PUBLISHING: "预发布中／待核对", PRE_PUBLISHED: "预发布成功",
+    PRE_PUBLISHED_UNCONFIRMED: "草稿已创建·待核对",
     PUBLISHING: "实际发布中", PUBLISHED: "实际发布成功",
     PRE_PUBLISH_FAILED: "预发布失败", PUBLISH_FAILED: "实际发布失败", CANCELLED: "已取消"
 };
@@ -66,8 +67,8 @@ function createRecordRow(record) {
     const result = document.createElement("td");
     result.className = "publication-result";
     if (record.remoteContentId) appendText(result, `平台 ID：${record.remoteContentId}`);
-    // 有深链的平台（URL 已含 ID）原样保留；无深链的（东方财富）以 hash 参数携带草稿 ID。
-    appendWebLink(result, withDraftId(record.draftUrl, record.remoteContentId), "打开草稿");
+    // 公众号按发布记录打开只读窗口，其他平台仍使用草稿链接。
+    appendDraftEntry(result, record);
     appendWebLink(result, record.publishedUrl, "打开文章");
     if (record.failureReason) {
         const reason = document.createElement("div");
@@ -128,7 +129,7 @@ function openRecordDetail(record) {
         `创建时间：${formatDate(record.createdAt)}`,
         `更新时间：${formatDate(record.updatedAt)}`
     ].forEach(value => appendText(meta, value));
-    appendWebLink(meta, withDraftId(record.draftUrl, record.remoteContentId), "打开草稿");
+    appendDraftEntry(meta, record);
     appendWebLink(meta, record.publishedUrl, "打开文章");
     detailDialog.showModal();
 }

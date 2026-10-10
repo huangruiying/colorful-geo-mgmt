@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS content_publish_record (
     platform_type VARCHAR(64) NOT NULL COMMENT '平台枚举名称',
     publication_title VARCHAR(200) NOT NULL COMMENT '用户确认时的标题快照',
     publication_content LONGTEXT NOT NULL COMMENT '用户确认时的正文快照',
-    publish_status TINYINT UNSIGNED NOT NULL COMMENT '0初始化 1预发布中 2预发布成功 3实际发布中 4实际发布成功 5预发布失败 6实际发布失败 7已取消',
+    publish_status TINYINT UNSIGNED NOT NULL COMMENT '0初始化 1预发布中 2预发布成功 3实际发布中 4实际发布成功 5预发布失败 6实际发布失败 7已取消 8草稿已创建待核对(自动化无法确认落库)',
     remote_content_id VARCHAR(255) NULL COMMENT '平台明确返回的草稿或文章ID',
     draft_url VARCHAR(2048) NULL COMMENT '平台草稿编辑链接',
     published_url VARCHAR(2048) NULL COMMENT '公开发布链接',

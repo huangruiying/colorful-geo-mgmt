@@ -7,13 +7,15 @@
     <title>内容优化记录 · GEO 管理平台</title>
     <link rel="stylesheet" href="./styles.css">
     <link rel="stylesheet" href="./contents.css">
-    <script src="./url-utils.js" defer></script>
-    <script src="./contents.js" defer></script>
+    <!-- 共用函数与调用方使用同一资源版本，避免浏览器混用缓存中的旧脚本。 -->
+    <script src="./url-utils.js?v=20261010-3" defer></script>
+    <script src="./draft-preview.js?v=20261010-3" defer></script>
+    <script src="./contents.js?v=20261010-3" defer></script>
 </head>
 <body>
 <div class="app-shell">
     <aside class="sidebar" aria-label="主导航">
-        <a class="brand" href="./contents.html" aria-label="GEO 管理平台首页">
+        <a class="brand" href="./contents.html?v=20261010-nav1" aria-label="GEO 管理平台首页">
             <span class="brand-mark" aria-hidden="true">G</span>
             <span class="brand-copy"><strong>GEO 管理平台</strong><small>CONTENT OPERATIONS</small></span>
         </a>
@@ -25,14 +27,11 @@
                     <span class="navigation-caret" aria-hidden="true">›</span>
                 </summary>
                 <div class="navigation-subitems">
-                    <a class="navigation-item" href="./diagnose.html">
+                    <a class="navigation-item" href="./diagnose.html?v=20261010-nav1">
                         <span class="navigation-icon" aria-hidden="true">◉</span><span>即时诊断</span>
                     </a>
-                    <a class="navigation-item" href="./history-report.html">
+                    <a class="navigation-item" href="./history-report.html?v=20261010-nav1">
                         <span class="navigation-icon" aria-hidden="true">▦</span><span>历史报告</span>
-                    </a>
-                    <a class="navigation-item" href="./effect-recovery.html">
-                        <span class="navigation-icon" aria-hidden="true">↻</span><span>效果回收</span>
                     </a>
                 </div>
             </details>
@@ -43,13 +42,16 @@
                     <span class="navigation-caret" aria-hidden="true">›</span>
                 </summary>
                 <div class="navigation-subitems">
-                    <a class="navigation-item active" href="./contents.html" aria-current="page">
+                    <a class="navigation-item active" href="./contents.html?v=20261010-nav1" aria-current="page">
                         <span class="navigation-icon" aria-hidden="true">▤</span><span>内容优化记录</span>
                     </a>
-                    <a class="navigation-item" href="./publications.html">
+                    <a class="navigation-item" href="./publications.html?v=20261010-nav1">
                         <span class="navigation-icon" aria-hidden="true">▧</span><span>发布记录</span>
                     </a>
-                    <a class="navigation-item" href="./browser-login.html">
+                    <a class="navigation-item" href="./effect-recovery.html?v=20261010-nav1">
+                        <span class="navigation-icon" aria-hidden="true">↻</span><span>效果回收</span>
+                    </a>
+                    <a class="navigation-item" href="./browser-login.html?v=20261010-nav1">
                         <span class="navigation-icon" aria-hidden="true">◈</span><span>浏览器登录管理</span>
                     </a>
                 </div>
