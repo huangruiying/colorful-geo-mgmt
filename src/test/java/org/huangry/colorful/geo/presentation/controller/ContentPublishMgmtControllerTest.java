@@ -1,6 +1,8 @@
 package org.huangry.colorful.geo.presentation.controller;
 
 import org.huangry.colorful.geo.application.content.ContentPublishBusiness;
+import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.huangry.colorful.geo.application.content.model.ContentPublishRecordPage;
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformType;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,11 +19,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 /**
  * 发布接口路由测试；按当前发布路径区分预发布、记录列表和删除动作。
  */
-class ContentPublishControllerTest {
+class ContentPublishMgmtControllerTest {
 
     private ContentPublishBusiness publishBusiness;
     private MockMvc mockMvc;
@@ -30,7 +33,20 @@ class ContentPublishControllerTest {
     @BeforeEach
     void setUp() {
         publishBusiness = mock(ContentPublishBusiness.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new ContentPublishController(publishBusiness)).build();
+        var controller = new ContentPublishMgmtController();
+        ReflectionTestUtils.setField(controller, "publishBusiness", publishBusiness);
+        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+    }
+
+    /** 平台列表并入发布管理，响应字段保持不变。 */
+    @Test
+    void 应返回已接入平台选项() throws Exception {
+        when(publishBusiness.listConfiguredPlatforms()).thenReturn(List.of(
+            new PublicationPlatformOption(PublicationPlatformType.ZHIHU, "知乎")));
+        mockMvc.perform(get("/content-publish/platforms"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].platformType").value("ZHIHU"))
+            .andExpect(jsonPath("$[0].displayName").value("知乎"));
     }
 
     /** 预发布使用内容优化记录 ID，路径与发布 Controller 保持一致。 */
