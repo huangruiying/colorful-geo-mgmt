@@ -10,6 +10,7 @@
 
 ## 开发与交接约束
 
+- 接口输入对象命名为 `XxxRequest`，输出对象命名为 `XxxResponse`；只有独立于接口的业务命令才使用 `XxxCommand`，不为命名增加 Request 到 Command 的中间转换。
 - Spring 依赖注入始终使用 `jakarta.annotation.Resource` 字段注入，不使用构造器注入或 `@RequiredArgsConstructor` 注入依赖；依赖注入后的初始化使用 `@PostConstruct`。
 - 项目是独立的 Java 17 / Spring Boot 服务；POM、目录和运行配置以当前仓库为准。
 - 修改 Java 时遵守 `.claude/rules/comment.md`、`.claude/rules/comments/comment-java.md` 和 `.claude/rules/refactor.md`；同步修正失真的注释，适当使用 Lombok，避免无用抽象。

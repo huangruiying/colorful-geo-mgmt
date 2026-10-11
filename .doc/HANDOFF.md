@@ -191,6 +191,8 @@
 
 ## 基础配置与模型管理（2026-10-11）
 
+- 输入类型命名统一：CreateProjectCommand → CreateProjectRequest、SaveLlmChannelCommand → SaveLlmChannelRequest，文件、Controller、Business、测试及参数名同步，接口 JSON 字段不变。Request/Response 与独立业务 Command 的命名边界已写入 AGENTS.md。离线 clean test 全量 257 项通过，src 无旧类名引用，差异检查通过；运行服务未重启。
+- 字段映射清理：模型 Business 两处、项目 Business 一处、项目 Service 两处 BeanUtils.copyProperties 已全部改为显式赋值，删除相关 import；保持原字段与接口行为，模型响应不包含 apiKey，未新增转换框架。src/main/java 已无 BeanUtils/copyProperties 使用。全量 257 项测试及差异检查通过；运行服务未重启。
 - 最新可读性自检：模型保存删除无意义的密钥校验嵌套，保存结果用明确变量代替取反三元表达式；分页拆开偏移量、查询转换和总数；Service、路由转换参数改为 channel/config，引用测试 JSON 改用文本块。移除 LLMClient 选择前重复日志，实际渠道日志仍由路由器记录。保留响应密钥隔离、协议连接快照、保存回读数据库时间、只更新启停字段这些实际边界；本轮无新增业务抽象。全量 257 项测试及差异检查通过，运行服务未重启。
 - 最新请求约定：已删除 LLMQueryRequest.webSearchEnabled；请求仅含 messages、channelCode、modelName。路由仅按启用、渠道、模型及 score 选择；Responses 自动提供 web_search 工具，其他策略返回正文和空引用，不从正文链接猜测引用。协议支持不保证实际搜索或引用。页面说明及资源版本已同步为 20261011-config3。全量 257 项测试、JS 语法及差异检查通过；本轮未重启服务、未做真实外部模型联调。下述旧记录中的单次搜索开关已失效，以本条为准。
 - 删除 Service 的 getChannel 查询包装，直接调用 MyBatis-Plus getById；编辑、启停和详情在业务位置判断记录缺失，保存后直接 getById 回读。模型 Service、Business、Controller 定向测试通过，补充缺失记录回归，未重启运行服务。

@@ -4,22 +4,33 @@ import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.application.llm.model.*;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.domain.service.llm.GeoLlmChannelService;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import java.util.NoSuchElementException;
 
-/** 模型管理应用编排；保存命令与分页输入转换，远程调用由客户端负责。 */
+/** 模型管理应用编排；保存请求与分页输入转换，远程调用由客户端负责。 */
 @Service
 public class LlmChannelBusiness {
     @Resource
     private GeoLlmChannelService service;
 
-    /** 将页面命令转换为渠道资料，系统字段不能由输入覆盖。 */
-    public LlmChannelResponse saveChannel(Long id, SaveLlmChannelCommand command) {
-        if (command == null) throw new IllegalArgumentException("请填写模型配置");
+    /** 将页面请求转换为渠道资料，系统字段不能由输入覆盖。 */
+    public LlmChannelResponse saveChannel(Long id, SaveLlmChannelRequest request) {
+        if (request == null) throw new IllegalArgumentException("请填写模型配置");
         // 转换业务字段，再交给领域规则与持久化。
         GeoLlmChannelEntity channel = new GeoLlmChannelEntity();
-        BeanUtils.copyProperties(command, channel);
+        channel.setChannelCode(request.getChannelCode());
+        channel.setChannelName(request.getChannelName());
+        channel.setProviderCode(request.getProviderCode());
+        channel.setProtocolType(request.getProtocolType());
+        channel.setBaseUrl(request.getBaseUrl());
+        channel.setModelName(request.getModelName());
+        channel.setApiKey(request.getApiKey());
+        channel.setTemperature(request.getTemperature());
+        channel.setMaxTokens(request.getMaxTokens());
+        channel.setTimeoutSeconds(request.getTimeoutSeconds());
+        channel.setSslVerify(request.getSslVerify());
+        channel.setScore(request.getScore());
+        channel.setEnabled(request.getEnabled());
         return toResponse(service.saveChannel(id, channel));
     }
 
@@ -50,7 +61,21 @@ public class LlmChannelBusiness {
     /** 对外响应不携带密钥，只公开是否已经配置。 */
     private LlmChannelResponse toResponse(GeoLlmChannelEntity entity) {
         var response = new LlmChannelResponse();
-        BeanUtils.copyProperties(entity, response);
+        response.setId(entity.getId());
+        response.setChannelCode(entity.getChannelCode());
+        response.setChannelName(entity.getChannelName());
+        response.setProviderCode(entity.getProviderCode());
+        response.setProtocolType(entity.getProtocolType());
+        response.setBaseUrl(entity.getBaseUrl());
+        response.setModelName(entity.getModelName());
+        response.setTemperature(entity.getTemperature());
+        response.setMaxTokens(entity.getMaxTokens());
+        response.setTimeoutSeconds(entity.getTimeoutSeconds());
+        response.setSslVerify(entity.getSslVerify());
+        response.setScore(entity.getScore());
+        response.setEnabled(entity.getEnabled());
+        response.setCreatedAt(entity.getCreatedAt());
+        response.setUpdatedAt(entity.getUpdatedAt());
         response.setKeyConfigured(entity.getApiKey() != null && !entity.getApiKey().isBlank());
         return response;
     }

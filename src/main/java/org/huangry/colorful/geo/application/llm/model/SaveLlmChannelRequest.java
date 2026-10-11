@@ -3,9 +3,9 @@ package org.huangry.colorful.geo.application.llm.model;
 import lombok.Data;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
 
-/** 模型渠道保存命令；接收连接、密钥与优先级，密钥仅允许输入且不打印。 */
+/** 模型渠道保存请求；接收连接、密钥与优先级，密钥仅允许输入且不打印。 */
 @Data
-public class SaveLlmChannelCommand {
+public class SaveLlmChannelRequest {
     /** 唯一渠道编码，创建后不可修改。 */
     private String channelCode;
     /** 页面展示名称。 */

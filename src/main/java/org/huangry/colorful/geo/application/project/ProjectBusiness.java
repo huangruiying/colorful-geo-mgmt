@@ -1,11 +1,10 @@
 package org.huangry.colorful.geo.application.project;
 
 import lombok.RequiredArgsConstructor;
-import org.huangry.colorful.geo.application.project.model.CreateProjectCommand;
+import org.huangry.colorful.geo.application.project.model.CreateProjectRequest;
 import org.huangry.colorful.geo.application.project.model.ProjectPage;
 import org.huangry.colorful.geo.domain.model.Project;
 import org.huangry.colorful.geo.domain.service.project.ProjectService;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 /** 项目应用编排；创建输入转换与列表分页在此处理，资料规则由项目领域服务负责。 */
@@ -14,11 +13,22 @@ import org.springframework.stereotype.Service;
 public class ProjectBusiness {
     private final ProjectService projectService;
 
-    /** 将创建命令转换为基础档案并保存，不允许输入覆盖数据库 ID 或时间。 */
-    public Project createProject(CreateProjectCommand command) {
-        // 转换页面输入，系统字段没有对应的命令属性。
+    /** 将创建请求转换为基础档案并保存，不允许输入覆盖数据库 ID 或时间。 */
+    public Project createProject(CreateProjectRequest request) {
+        // 转换页面输入，系统字段没有对应的请求属性。
         Project project = new Project();
-        BeanUtils.copyProperties(command, project);
+        project.setName(request.getName());
+        project.setWebsiteUrl(request.getWebsiteUrl());
+        project.setIndustry(request.getIndustry());
+        project.setCoreFeatures(request.getCoreFeatures());
+        project.setTargetAudience(request.getTargetAudience());
+        project.setAliases(request.getAliases());
+        project.setCompetitors(request.getCompetitors());
+        project.setTargetMarket(request.getTargetMarket());
+        project.setTargetLanguage(request.getTargetLanguage());
+        project.setSellingPoints(request.getSellingPoints());
+        project.setPricing(request.getPricing());
+        project.setKeywords(request.getKeywords());
         // 交由领域校验与持久化，返回可关联的项目 ID。
         return projectService.createProject(project);
     }

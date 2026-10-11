@@ -5,7 +5,7 @@ import java.util.List;
 
 /** 创建项目输入；仅接收基础资料，ID 与时间由数据库生成。 */
 @Data
-public class CreateProjectCommand {
+public class CreateProjectRequest {
     /** 项目或产品名称。 */
     private String name;
     /** 官网或资料 URL。 */

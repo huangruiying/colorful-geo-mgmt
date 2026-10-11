@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import org.huangry.colorful.geo.domain.model.Project;
 import org.huangry.colorful.geo.infrastructure.repository.ProjectDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.ProjectEntity;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
@@ -22,7 +21,21 @@ public class ProjectService extends ServiceImpl<ProjectDao, ProjectEntity> {
         validateProject(project);
         // 2. 转换领域档案并保存，JSON 列由持久化类型处理器负责。
         ProjectEntity entity = new ProjectEntity();
-        BeanUtils.copyProperties(project, entity);
+        entity.setId(project.getId());
+        entity.setName(project.getName());
+        entity.setWebsiteUrl(project.getWebsiteUrl());
+        entity.setIndustry(project.getIndustry());
+        entity.setCoreFeatures(project.getCoreFeatures());
+        entity.setTargetAudience(project.getTargetAudience());
+        entity.setAliases(project.getAliases());
+        entity.setCompetitors(project.getCompetitors());
+        entity.setTargetMarket(project.getTargetMarket());
+        entity.setTargetLanguage(project.getTargetLanguage());
+        entity.setSellingPoints(project.getSellingPoints());
+        entity.setPricing(project.getPricing());
+        entity.setKeywords(project.getKeywords());
+        entity.setCreatedAt(project.getCreatedAt());
+        entity.setUpdatedAt(project.getUpdatedAt());
         if (!save(entity)) throw new IllegalStateException("项目创建失败");
         // 3. 回读数据库生成的标识及时间，仅返回已保存的项目。
         return getProject(entity.getId());
@@ -57,7 +70,21 @@ public class ProjectService extends ServiceImpl<ProjectDao, ProjectEntity> {
     /** 将数据库档案转换为独立领域模型。 */
     private Project convertToProject(ProjectEntity entity) {
         Project project = new Project();
-        BeanUtils.copyProperties(entity, project);
+        project.setId(entity.getId());
+        project.setName(entity.getName());
+        project.setWebsiteUrl(entity.getWebsiteUrl());
+        project.setIndustry(entity.getIndustry());
+        project.setCoreFeatures(entity.getCoreFeatures());
+        project.setTargetAudience(entity.getTargetAudience());
+        project.setAliases(entity.getAliases());
+        project.setCompetitors(entity.getCompetitors());
+        project.setTargetMarket(entity.getTargetMarket());
+        project.setTargetLanguage(entity.getTargetLanguage());
+        project.setSellingPoints(entity.getSellingPoints());
+        project.setPricing(entity.getPricing());
+        project.setKeywords(entity.getKeywords());
+        project.setCreatedAt(entity.getCreatedAt());
+        project.setUpdatedAt(entity.getUpdatedAt());
         return project;
     }
 

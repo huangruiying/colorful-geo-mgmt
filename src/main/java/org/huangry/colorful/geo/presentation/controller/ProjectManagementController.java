@@ -3,7 +3,7 @@ package org.huangry.colorful.geo.presentation.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.application.project.ProjectBusiness;
-import org.huangry.colorful.geo.application.project.model.CreateProjectCommand;
+import org.huangry.colorful.geo.application.project.model.CreateProjectRequest;
 import org.huangry.colorful.geo.application.project.model.ProjectPage;
 import org.huangry.colorful.geo.domain.model.Project;
 import org.springframework.http.HttpStatus;
@@ -21,8 +21,8 @@ public class ProjectManagementController {
     /** 创建项目并返回包含项目 ID 的档案；业务资料不写入日志。 */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Project createProject(@RequestBody CreateProjectCommand command) {
-        Project project = projectBusiness.createProject(command);
+    public Project createProject(@RequestBody CreateProjectRequest request) {
+        Project project = projectBusiness.createProject(request);
         log.info("创建项目完成 projectId={}", project.getId());
         return project;
     }

@@ -31,12 +31,12 @@ public class LlmChannelController {
     /** 创建共享渠道，返回数据库生成标识。 */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public LlmChannelResponse create(@RequestBody SaveLlmChannelCommand command) { return business.saveChannel(null, command); }
+    public LlmChannelResponse create(@RequestBody SaveLlmChannelRequest request) { return business.saveChannel(null, request); }
 
     /** 保存已有配置，编码不可修改。 */
     @PutMapping("/{id}")
-    public LlmChannelResponse update(@PathVariable("id") long id, @RequestBody SaveLlmChannelCommand command) {
-        return business.saveChannel(id, command);
+    public LlmChannelResponse update(@PathVariable("id") long id, @RequestBody SaveLlmChannelRequest request) {
+        return business.saveChannel(id, request);
     }
 
     /** 查询指定渠道，供配置页编辑。 */
@@ -52,9 +52,9 @@ public class LlmChannelController {
 
     /** 单独调整启用状态，避免完整配置覆盖。 */
     @PatchMapping("/{id}/enabled")
-    public LlmChannelResponse enabled(@PathVariable("id") long id, @RequestBody EnabledCommand command) {
-        if (command.enabled() == null) throw new IllegalArgumentException("请指定启用状态");
-        return business.changeEnabled(id, command.enabled());
+    public LlmChannelResponse enabled(@PathVariable("id") long id, @RequestBody EnabledCommand request) {
+        if (request.enabled() == null) throw new IllegalArgumentException("请指定启用状态");
+        return business.changeEnabled(id, request.enabled());
     }
 
     /** 状态更新命令，空值不能被当成停用。 */
