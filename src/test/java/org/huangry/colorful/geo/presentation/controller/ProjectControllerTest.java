@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.presentation.controller;
 
 import org.huangry.colorful.geo.application.project.ProjectBusiness;
-import org.huangry.colorful.geo.application.project.model.ProjectPage;
+import org.huangry.colorful.geo.application.project.model.ProjectInfoPage;
 import org.huangry.colorful.geo.application.project.model.ProjectInfoResponse;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.junit.jupiter.api.Test;
@@ -37,7 +37,7 @@ class ProjectControllerTest {
     /** 查询默认条件和业务参数错误都有稳定响应。 */
     @Test
     void shouldReturnPageAndReadableValidationError() throws Exception {
-        when(business.listProjects(null, 0, 20)).thenReturn(new ProjectPage(List.of(), 0, 0, 20));
+        when(business.listProjects(null, 0, 20)).thenReturn(new ProjectInfoPage(List.of(), 0, 0, 20));
         mvc.perform(get("/projects")).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
         when(business.createProject(any())).thenThrow(new IllegalArgumentException("请填写项目名称"));
         mvc.perform(post("/projects").contentType("application/json").content("{}"))
