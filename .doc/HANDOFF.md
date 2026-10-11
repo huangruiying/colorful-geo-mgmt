@@ -213,6 +213,7 @@
 
 ## WorkBuddy / GPT 接手指令
 
+- 架构与代码长期要求已整理到 `.claude/rules/project-conventions.md`；AGENTS.md、CLAUDE.md、项目记忆索引及通用架构规则均已添加入口和优先级说明。后续代码修改先读该文件，不能只根据本交接中的旧任务快照恢复已经简化的设计。本次仅更新项目文档，不修改代码或运行配置。
 ### 内容发布 Controller 合并（2026-10-11）
 
 - 平台列表业务进一步合并：删除 PublicationPlatformLoginService，listConfiguredPlatforms 并入 ContentPublishBusiness；Controller 统一依赖该 Business，接口地址与响应保持不变。Business 依赖统一 @Resource。新增去重、枚举顺序及仅返回已接入平台的回归，clean test 全量 259 项及差异检查通过，src 无旧 Service 引用；运行服务未重启。

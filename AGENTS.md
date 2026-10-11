@@ -5,7 +5,7 @@
 ## 接手顺序
 
 1. 阅读本文件与 [当前交接](.doc/HANDOFF.md)，再检查 `git status`、最近提交和相关 `git diff`。交接是快照；代码、数据库实际状态和可重复测试优先。
-2. 阅读 [.claude/CLAUDE.md](.claude/CLAUDE.md) 与 [.claude/memory/MEMORY.md](.claude/memory/MEMORY.md)，按任务加载适用的工程规则。不要把旧仓库路径当成当前路径。
+2. 必读 [项目架构与代码约定](.claude/rules/project-conventions.md)，再阅读 [.claude/CLAUDE.md](.claude/CLAUDE.md) 与 [.claude/memory/MEMORY.md](.claude/memory/MEMORY.md)。项目约定优先于通用模板；按任务加载其他适用规则，不要把旧仓库路径当成当前路径。
 3. 先明确本次目标、已完成与未完成部分，再做最小范围修改；复杂开发先给出方案并与用户确认。
 
 ## 开发与交接约束
