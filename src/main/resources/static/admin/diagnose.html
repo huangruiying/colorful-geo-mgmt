@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#10233f">
-    <title>即时诊断 · GEO 管理平台</title>
+    <title>诊断方案 · GEO 管理平台</title>
     <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
 <div class="app-shell">
     <aside class="sidebar" aria-label="主导航">
-        <a class="brand" href="./contents.html?v=20261010-project1" aria-label="GEO 管理平台首页">
+        <a class="brand" href="./contents.html?v=20261011-diagnosis1" aria-label="GEO 管理平台首页">
             <span class="brand-mark" aria-hidden="true">G</span>
             <span class="brand-copy"><strong>GEO 管理平台</strong><small>CONTENT OPERATIONS</small></span>
         </a>
@@ -18,8 +18,8 @@
             <details class="navigation-group" open>
                 <summary class="navigation-group-label"><span class="navigation-icon" aria-hidden="true">◇</span><span>项目管理</span><span class="navigation-caret" aria-hidden="true">›</span></summary>
                 <div class="navigation-subitems">
-                    <a class="navigation-item" href="./project-create.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">＋</span><span>项目创建</span></a>
-                    <a class="navigation-item" href="./projects.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">▦</span><span>项目列表</span></a>
+                    <a class="navigation-item" href="./project-create.html?v=20261011-diagnosis1"><span class="navigation-icon" aria-hidden="true">＋</span><span>项目创建</span></a>
+                    <a class="navigation-item" href="./projects.html?v=20261011-diagnosis1"><span class="navigation-icon" aria-hidden="true">▦</span><span>项目列表</span></a>
                 </div>
             </details>
             <details class="navigation-group" open>
@@ -29,11 +29,12 @@
                     <span class="navigation-caret" aria-hidden="true">›</span>
                 </summary>
                 <div class="navigation-subitems">
-                    <a class="navigation-item active" href="./diagnose.html?v=20261010-project1" aria-current="page">
-                        <span class="navigation-icon" aria-hidden="true">◉</span><span>即时诊断</span>
+                    <a class="navigation-item active" href="./diagnose.html?v=20261011-diagnosis1" aria-current="page">
+                        <span class="navigation-icon" aria-hidden="true">◉</span><span>诊断方案</span>
                     </a>
-                    <a class="navigation-item" href="./history-report.html?v=20261010-project1">
-                        <span class="navigation-icon" aria-hidden="true">▦</span><span>历史报告</span>
+                    <a class="navigation-item" href="./diagnosis-tasks.html?v=20261011-diagnosis1"><span class="navigation-icon" aria-hidden="true">▷</span><span>诊断任务</span></a>
+                    <a class="navigation-item" href="./history-report.html?v=20261011-diagnosis1">
+                        <span class="navigation-icon" aria-hidden="true">▦</span><span>诊断报告</span>
                     </a>
                 </div>
             </details>
@@ -44,36 +45,37 @@
                     <span class="navigation-caret" aria-hidden="true">›</span>
                 </summary>
                 <div class="navigation-subitems">
-                    <a class="navigation-item" href="./contents.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">▤</span><span>内容优化记录</span></a>
-                    <a class="navigation-item" href="./publications.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">▧</span><span>发布记录</span></a>
-                    <a class="navigation-item" href="./effect-recovery.html?v=20261010-project1">
+                    <a class="navigation-item" href="./contents.html?v=20261011-diagnosis1"><span class="navigation-icon" aria-hidden="true">▤</span><span>内容优化记录</span></a>
+                    <a class="navigation-item" href="./publications.html?v=20261011-diagnosis1"><span class="navigation-icon" aria-hidden="true">▧</span><span>发布记录</span></a>
+                    <a class="navigation-item" href="./effect-recovery.html?v=20261011-diagnosis1">
                         <span class="navigation-icon" aria-hidden="true">↻</span><span>效果回收</span>
                     </a>
-                    <a class="navigation-item" href="./browser-login.html?v=20261010-project1"><span class="navigation-icon" aria-hidden="true">◈</span><span>浏览器登录管理</span></a>
+                    <a class="navigation-item" href="./browser-login.html?v=20261011-diagnosis1"><span class="navigation-icon" aria-hidden="true">◈</span><span>浏览器登录管理</span></a>
                 </div>
             </details>
         </nav>
         <div class="sidebar-footer">GEO 内容运营工作台</div>
     </aside>
     <div class="main-area">
-        <header class="topbar"><div class="breadcrumb">资产诊断 <span>/</span> <strong>即时诊断</strong></div><div class="topbar-label">管理平台</div></header>
+        <header class="topbar"><div class="breadcrumb">资产诊断 <span>/</span> <strong>诊断方案</strong></div><div class="topbar-label">管理平台</div></header>
         <main class="content">
             <div class="page-heading">
                 <div>
-                    <p class="eyebrow">INSTANT DIAGNOSIS</p>
-                    <h1>即时诊断</h1>
-                    <p class="page-description">对内容、发布链路与平台登录态做实时健康检查与问题定位；功能建设中，敬请期待。</p>
+                    <p class="eyebrow">DIAGNOSIS PLANS</p>
+                    <h1>诊断方案</h1>
+                    <p class="page-description">选择项目，确认测试问题、竞品与采集配置，保存可重复执行的诊断方案。</p>
                 </div>
             </div>
-            <section class="list-panel" aria-label="即时诊断占位">
-                <div class="panel-heading"><div><h2>诊断能力规划</h2><p>以下能力将在此页面逐步接入。</p></div></div>
+            <section class="list-panel" aria-label="诊断方案功能规划">
+                <div class="panel-heading"><div><h2>方案配置规划</h2><p>页面入口已建立，以下能力待接入。</p></div></div>
                 <div class="table-scroll">
                     <table>
-                        <thead><tr><th scope="col">诊断项</th><th scope="col">说明</th><th scope="col">状态</th></tr></thead>
+                        <thead><tr><th scope="col">功能</th><th scope="col">说明</th><th scope="col">状态</th></tr></thead>
                         <tbody>
-                            <tr><td>内容健康度</td><td>检查优化稿完整性、平台适配与风险标记</td><td class="table-message">待接入</td></tr>
-                            <tr><td>发布链路</td><td>预发布、草稿创建与实际发布的链路一致性</td><td class="table-message">待接入</td></tr>
-                            <tr><td>平台登录态</td><td>各平台浏览器登录有效性即时校验</td><td class="table-message">待接入</td></tr>
+                            <tr><td>关联项目</td><td>引用项目基础档案，确认产品名称、别名和官方来源。</td><td class="table-message">待接入</td></tr>
+                            <tr><td>测试题库</td><td>生成并确认问题，区分自然发现、竞品比较与品牌认知。</td><td class="table-message">待接入</td></tr>
+                            <tr><td>采集配置</td><td>选择被测平台、API 或网页采集方式、联网设置和重复次数。</td><td class="table-message">待接入</td></tr>
+                            <tr><td>方案复用</td><td>保存确认后的配置，供后续发起多轮诊断。</td><td class="table-message">待接入</td></tr>
                         </tbody>
                     </table>
                 </div>
