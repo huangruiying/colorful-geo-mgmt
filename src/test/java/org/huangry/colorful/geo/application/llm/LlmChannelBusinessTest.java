@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.application.llm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.huangry.colorful.geo.application.llm.model.SaveLlmChannelCommand;
+import org.huangry.colorful.geo.application.llm.model.SaveLlmChannelRequest;
 import org.huangry.colorful.geo.domain.service.llm.GeoLlmChannelService;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
@@ -28,7 +28,7 @@ class LlmChannelBusinessTest {
         when(service.saveChannel(isNull(), any())).thenReturn(entity);
         when(service.listChannels(null, 20, 0)).thenReturn(List.of(entity));
         when(service.changeEnabled(1, true)).thenReturn(entity);
-        var results = List.of(business.saveChannel(null, new SaveLlmChannelCommand()),
+        var results = List.of(business.saveChannel(null, new SaveLlmChannelRequest()),
             business.getChannel(1), business.listChannels(null, 0, 20).items().get(0),
             business.changeEnabled(1, true));
         for (var response : results) {
