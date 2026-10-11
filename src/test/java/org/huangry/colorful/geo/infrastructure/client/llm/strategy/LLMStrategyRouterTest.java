@@ -1,116 +1,108 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
-import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMMessageRole;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderName;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.apache.ibatis.session.Configuration;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.*;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
-import org.huangry.colorful.geo.infrastructure.client.llm.config.LLMProviderProperties;
-import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
-import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
+import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
+import org.huangry.colorful.geo.infrastructure.repository.LlmChannelDao;
+import org.huangry.colorful.geo.infrastructure.repository.entity.LlmChannelEntity;
 import org.junit.jupiter.api.Test;
-
 import java.util.List;
-import java.util.Map;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-/**
- * 大模型策略路由器单元测试。
- *
- * @author huangry
- */
+/** 渠道路由规则回归；验证筛选、确定性排序、协议匹配与无自动切换。 */
 class LLMStrategyRouterTest {
+    private final LlmChannelDao dao = mock(LlmChannelDao.class);
 
+    /** 默认调用必须只选已启用配置，并采用固定优先级顺序。 */
     @Test
-    void 应使用启用供应商对应的最高优先级策略() {
-        LLMProviderProperties properties = createProperties(LLMProviderName.CUSTOM.configurationName(), createCompatibleProvider(false));
-        RecordingStrategy commonStrategy = new RecordingStrategy(false, 30, "通用回答");
-        RecordingStrategy preferredStrategy = new RecordingStrategy(false, 20, "优先回答");
-        LLMStrategyRouter router = new LLMStrategyRouter(properties, List.of(commonStrategy, preferredStrategy));
-
-        LLMResponse response = router.query(LLMQueryRequest.userMessage("测试问题"));
-
-        assertEquals("优先回答", response.content());
-        assertEquals(0, commonStrategy.queryCount);
-        assertEquals(1, preferredStrategy.queryCount);
-        assertEquals("test-api-key", preferredStrategy.receivedApiKey);
+    void shouldSelectEnabledChannelsByScoreThenId() {
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new Configuration(), "channel"), LlmChannelEntity.class);
+        LLMStrategy strategy = mockStrategy();
+        when(dao.selectList(any())).thenAnswer(invocation -> {
+            var wrapper = (com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) invocation.getArgument(0);
+            String sql = wrapper.getSqlSegment();
+            assertTrue(sql.contains("enabled"));
+            assertTrue(sql.contains("ORDER BY score DESC,id ASC"), sql);
+            assertTrue(sql.contains("LIMIT 1"));
+            return List.of(mockChannel());
+        });
+        assertEquals("模拟结果", new LLMStrategyRouter( List.of(strategy), dao).query(LLMQueryRequest.userMessage("问题")).content());
     }
 
+    /** 同时指定渠道、模型和搜索时，全部约束必须进入数据库筛选。 */
     @Test
-    void 联网搜索请求应优先选择联网策略() {
-        LLMProviderProperties properties = createProperties(LLMProviderName.OPENAI.configurationName(), createCompatibleProvider(true));
-        RecordingStrategy commonStrategy = new RecordingStrategy(false, 30, "普通回答");
-        RecordingStrategy webSearchStrategy = new RecordingStrategy(true, 20, "联网回答");
-        LLMStrategyRouter router = new LLMStrategyRouter(properties, List.of(commonStrategy, webSearchStrategy));
-
-        LLMResponse response = router.query(new LLMQueryRequest(
-                List.of(new org.huangry.colorful.geo.infrastructure.client.llm.model.LLMMessage(LLMMessageRole.USER, "今日新闻")), true));
-
-        assertEquals("联网回答", response.content());
-        assertEquals(0, commonStrategy.queryCount);
-        assertEquals(1, webSearchStrategy.queryCount);
+    void shouldFilterExplicitChannelModelAndSearch() {
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new Configuration(), "channel"), LlmChannelEntity.class);
+        when(dao.selectList(any())).thenAnswer(invocation -> {
+            var wrapper = (com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) invocation.getArgument(0);
+            String sql = wrapper.getSqlSegment();
+            assertTrue(sql.contains("channelCode"));
+            assertTrue(sql.contains("modelName"));
+            assertTrue(sql.contains("webSearchSupported"));
+            assertTrue(wrapper.getParamNameValuePairs().containsValue("chosen"));
+            assertTrue(wrapper.getParamNameValuePairs().containsValue("test-model"));
+            return List.of();
+        });
+        var router = new LLMStrategyRouter( List.of(mockStrategy()), dao);
+        assertThrows(LLMClientException.class, () -> router.query(new LLMQueryRequest(
+            LLMQueryRequest.userMessage("问题").messages(), true, "chosen", "test-model")));
     }
 
+    /** 模型约束可以独立使用，不强制指定渠道。 */
     @Test
-    void 未配置启用供应商时应拒绝调用() {
-        LLMProviderProperties properties = createProperties("missing", createCompatibleProvider(false));
-        LLMStrategyRouter router = new LLMStrategyRouter(properties, List.of(new RecordingStrategy(false, 30, "不会调用")));
-
-        LLMClientException exception = assertThrows(LLMClientException.class,
-                () -> router.query(LLMQueryRequest.userMessage("测试问题")));
-
-        assertEquals("enabled_llm_provider 未匹配到已配置的大模型供应商: missing", exception.getMessage());
+    void shouldFilterModelWithoutChannel() {
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new Configuration(), "channel"), LlmChannelEntity.class);
+        when(dao.selectList(any())).thenAnswer(invocation -> {
+            var wrapper = (com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) invocation.getArgument(0);
+            String sql = wrapper.getSqlSegment();
+            assertTrue(sql.contains("modelName")); assertFalse(sql.contains("channelCode"));
+            return List.of(mockChannel());
+        });
+        new LLMStrategyRouter( List.of(mockStrategy()), dao).query(
+            new LLMQueryRequest(LLMQueryRequest.userMessage("问题").messages(), false, null, "test-model"));
     }
 
-    private LLMProviderProperties createProperties(String enabledProvider, LLMProviderProperties.Provider provider) {
-        LLMProviderProperties properties = new LLMProviderProperties();
-        properties.setEnabledLlmProvider(enabledProvider);
-        properties.setProviders(Map.of(enabledProvider.equals("missing") ? "custom" : enabledProvider, provider));
-        return properties;
+    /** 没有匹配渠道时不使用 YAML 默认渠道或模拟回答兜底。 */
+    @Test
+    void shouldRejectUnavailableChannel() {
+        when(dao.selectList(any())).thenReturn(List.of());
+        LLMStrategy strategy = mockStrategy();
+        assertThrows(LLMClientException.class, () -> new LLMStrategyRouter( List.of(strategy), dao)
+            .query(LLMQueryRequest.userMessage("问题")));
+        verify(strategy, never()).query(any(), any(), any());
     }
 
-    private LLMProviderProperties.Provider createCompatibleProvider(boolean webSearchSupported) {
-        LLMProviderProperties.Provider provider = new LLMProviderProperties.Provider();
-        provider.setType(LLMProviderType.OPENAI_COMPATIBLE);
-        provider.setApiKey("test-api-key");
-        provider.setWebSearchSupported(webSearchSupported);
-        return provider;
+    /** 远程策略异常直接向上返回，不能改用第二个模型。 */
+    @Test
+    void shouldNotRetryWithAnotherChannel() {
+        LLMStrategy strategy = mockStrategy();
+        when(dao.selectList(any())).thenReturn(List.of(mockChannel()));
+        when(strategy.query(any(), any(), any())).thenThrow(new IllegalStateException("远程失败"));
+        assertThrows(IllegalStateException.class, () -> new LLMStrategyRouter( List.of(strategy), dao)
+            .query(LLMQueryRequest.userMessage("问题")));
+        verify(dao, times(1)).selectList(any());
+        verify(strategy, times(1)).query(any(), any(), any());
     }
 
-    private static class RecordingStrategy implements LLMStrategy {
+    /** 构造无凭据的模拟渠道，测试不触发远程请求。 */
+    private LlmChannelEntity mockChannel() {
+        LlmChannelEntity c = new LlmChannelEntity();
+        c.setChannelCode("mock"); c.setProtocolType(LLMProviderType.MOCK); c.setTemperature(0.3);
+        c.setMaxTokens(1400); c.setTimeoutSeconds(60); c.setSslVerify(true); c.setWebSearchSupported(false);
+        return c;
+    }
 
-        private final boolean webSearchStrategy;
-
-        private final int priority;
-
-        private final String responseContent;
-
-        private int queryCount;
-
-        private String receivedApiKey;
-
-        private RecordingStrategy(boolean webSearchStrategy, int priority, String responseContent) {
-            this.webSearchStrategy = webSearchStrategy;
-            this.priority = priority;
-            this.responseContent = responseContent;
-        }
-
-        @Override
-        public boolean supports(LLMProviderProperties.Provider provider, boolean webSearchEnabled) {
-            return webSearchEnabled == webSearchStrategy;
-        }
-
-        @Override
-        public int priority() {
-            return priority;
-        }
-
-        @Override
-        public LLMResponse query(LLMQueryRequest request, LLMProviderProperties.Provider provider, String apiKey) {
-            queryCount++;
-            receivedApiKey = apiKey;
-            return LLMResponse.withoutCitations(responseContent);
-        }
+    /** 模拟协议策略，仅验证路由边界。 */
+    private LLMStrategy mockStrategy() {
+        LLMStrategy s = mock(LLMStrategy.class);
+        when(s.supports(any(), anyBoolean())).thenReturn(true);
+        when(s.query(any(), any(), any())).thenReturn(LLMResponse.withoutCitations("模拟结果"));
+        return s;
     }
 }
