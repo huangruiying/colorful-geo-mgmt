@@ -1,6 +1,5 @@
 package org.huangry.colorful.geo.domain.service.project;
 
-import org.huangry.colorful.geo.domain.model.Project;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoProjectInfoEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -16,14 +15,14 @@ class GeoProjectInfoServiceTest {
     @Test
     void shouldCreateProjectWithNormalizedLists() {
         GeoProjectInfoService service = spy(new GeoProjectInfoService());
-        Project project = validProject();
+        GeoProjectInfoEntity project = validProject();
         project.setAliases(List.of(" 品牌 ", "品牌", "Brand"));
-        Project saved = new Project(); saved.setId(12L);
+        GeoProjectInfoEntity saved = new GeoProjectInfoEntity(); saved.setId(12L);
         doAnswer(invocation -> {
             invocation.getArgument(0, GeoProjectInfoEntity.class).setId(12L);
             return true;
         }).when(service).save(any(GeoProjectInfoEntity.class));
-        doReturn(saved).when(service).getProject(anyLong());
+        doReturn(saved).when(service).getById(anyLong());
         assertEquals(12L, service.createProject(project).getId());
         ArgumentCaptor<GeoProjectInfoEntity> entity = ArgumentCaptor.forClass(GeoProjectInfoEntity.class);
         verify(service).save(entity.capture());
@@ -37,8 +36,8 @@ class GeoProjectInfoServiceTest {
     @ValueSource(strings = {"name", "websiteUrl", "industry", "coreFeatures", "targetAudience"})
     void shouldRejectMissingRequiredInformation(String field) throws Exception {
         GeoProjectInfoService service = spy(new GeoProjectInfoService());
-        Project project = validProject();
-        Project.class.getMethod("set" + Character.toUpperCase(field.charAt(0)) + field.substring(1), String.class)
+        GeoProjectInfoEntity project = validProject();
+        GeoProjectInfoEntity.class.getMethod("set" + Character.toUpperCase(field.charAt(0)) + field.substring(1), String.class)
                 .invoke(project, " ");
         assertThrows(IllegalArgumentException.class, () -> service.createProject(project));
         verify(service, never()).save(any(GeoProjectInfoEntity.class));
@@ -49,7 +48,7 @@ class GeoProjectInfoServiceTest {
     @ValueSource(strings = {"javascript:alert(1)", "file:///tmp/source", "https://", "https://example.com/a b"})
     void shouldRejectUnsafeOrInvalidWebsiteUrl(String url) {
         GeoProjectInfoService service = spy(new GeoProjectInfoService());
-        Project project = validProject(); project.setWebsiteUrl(url);
+        GeoProjectInfoEntity project = validProject(); project.setWebsiteUrl(url);
         assertThrows(IllegalArgumentException.class, () -> service.createProject(project));
         verify(service, never()).save(any(GeoProjectInfoEntity.class));
     }
@@ -58,15 +57,15 @@ class GeoProjectInfoServiceTest {
     @Test
     void shouldRejectOversizedFieldsAndBlankListEntry() {
         GeoProjectInfoService service = new GeoProjectInfoService();
-        Project project = validProject(); project.setName("长".repeat(201));
+        GeoProjectInfoEntity project = validProject(); project.setName("长".repeat(201));
         assertThrows(IllegalArgumentException.class, () -> service.createProject(project));
         project.setName("产品"); project.setKeywords(List.of(" "));
         assertThrows(IllegalArgumentException.class, () -> service.createProject(project));
     }
 
     /** 提供不依赖真实数据库的合法基础输入。 */
-    private Project validProject() {
-        Project project = new Project();
+    private GeoProjectInfoEntity validProject() {
+        GeoProjectInfoEntity project = new GeoProjectInfoEntity();
         project.setName(" 测试产品 "); project.setWebsiteUrl("https://example.com");
         project.setIndustry("软件"); project.setCoreFeatures("资料管理"); project.setTargetAudience("运营人员");
         return project;
