@@ -241,7 +241,7 @@ function createPlatformOption(platform, publishRecord) {
 /** 平台展示名只读取一次；请求失败后允许再次加载。 */
 async function loadPlatformOptions() {
     if (!platformOptionsPromise) {
-        platformOptionsPromise = requestJson("/publication/platforms").then(platforms => {
+        platformOptionsPromise = requestJson("/content-publish/platforms").then(platforms => {
             platforms.forEach(platform => platformDisplayNames.set(platform.platformType, platform.displayName));
             return platforms;
         }).catch(error => {
