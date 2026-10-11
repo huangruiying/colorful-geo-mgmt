@@ -1,11 +1,11 @@
 package org.huangry.colorful.geo.presentation.controller;
 
-import lombok.RequiredArgsConstructor;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.application.project.ProjectBusiness;
 import org.huangry.colorful.geo.application.project.model.CreateProjectRequest;
-import org.huangry.colorful.geo.application.project.model.ProjectPage;
-import org.huangry.colorful.geo.domain.model.Project;
+import org.huangry.colorful.geo.application.project.model.ProjectInfoPage;
+import org.huangry.colorful.geo.application.project.model.ProjectInfoResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.*;
@@ -13,25 +13,25 @@ import org.springframework.web.bind.annotation.*;
 /** 项目管理接口；POST 创建基础档案，GET 分页查询，不管理监测或分析任务。 */
 @RestController
 @RequestMapping("projects")
-@RequiredArgsConstructor
 @Slf4j
 public class MgmtProjectInfoController {
-    private final ProjectBusiness projectBusiness;
+    @Resource
+    private ProjectBusiness projectBusiness;
 
     /** 创建项目并返回包含项目 ID 的档案；业务资料不写入日志。 */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Project createProject(@RequestBody CreateProjectRequest request) {
-        Project project = projectBusiness.createProject(request);
+    public ProjectInfoResponse createProject(@RequestBody CreateProjectRequest request) {
+        ProjectInfoResponse project = projectBusiness.createProject(request);
         log.info("创建项目完成 projectId={}", project.getId());
         return project;
     }
 
     /** 按名称关键词查询项目，默认第一页、每页 20 条。 */
     @GetMapping
-    public ProjectPage listProjects(@RequestParam(value = "keyword", required = false) String keyword,
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size) {
+    public ProjectInfoPage listProjects(@RequestParam(value = "keyword", required = false) String keyword,
+                                        @RequestParam(value = "page", defaultValue = "0") int page,
+                                        @RequestParam(value = "size", defaultValue = "20") int size) {
         return projectBusiness.listProjects(keyword, page, size);
     }
 

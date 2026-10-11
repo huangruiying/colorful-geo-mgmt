@@ -2,58 +2,34 @@ package org.huangry.colorful.geo.domain.service.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
-import org.huangry.colorful.geo.domain.model.Project;
 import org.huangry.colorful.geo.infrastructure.repository.GeoProjectInfoDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoProjectInfoEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
 import java.util.List;
-import java.util.NoSuchElementException;
 
-/** 项目领域服务；createProject 保存基础档案，查询入口返回领域模型，不执行分析任务。 */
+/** 项目基础档案服务；校验、保存及查询实体，不执行分析任务。 */
 @Service
 public class GeoProjectInfoService extends ServiceImpl<GeoProjectInfoDao, GeoProjectInfoEntity> {
     /** 校验并持久化项目；返回数据库生成的 ID 与时间，失败则回滚。 */
     @Transactional
-    public Project createProject(Project project) {
+    public GeoProjectInfoEntity createProject(GeoProjectInfoEntity project) {
         // 1. 校验必填资料及长度，确保档案可作为后续任务的基础输入。
         validateProject(project);
-        // 2. 转换领域档案并保存，JSON 列由持久化类型处理器负责。
-        GeoProjectInfoEntity entity = new GeoProjectInfoEntity();
-        entity.setId(project.getId());
-        entity.setName(project.getName());
-        entity.setWebsiteUrl(project.getWebsiteUrl());
-        entity.setIndustry(project.getIndustry());
-        entity.setCoreFeatures(project.getCoreFeatures());
-        entity.setTargetAudience(project.getTargetAudience());
-        entity.setAliases(project.getAliases());
-        entity.setCompetitors(project.getCompetitors());
-        entity.setTargetMarket(project.getTargetMarket());
-        entity.setTargetLanguage(project.getTargetLanguage());
-        entity.setSellingPoints(project.getSellingPoints());
-        entity.setPricing(project.getPricing());
-        entity.setKeywords(project.getKeywords());
-        entity.setCreatedAt(project.getCreatedAt());
-        entity.setUpdatedAt(project.getUpdatedAt());
-        if (!save(entity)) throw new IllegalStateException("项目创建失败");
-        // 3. 回读数据库生成的标识及时间，仅返回已保存的项目。
-        return getProject(entity.getId());
-    }
-
-    /** 按标识返回完整档案；不存在时明确抛出记录缺失异常。 */
-    public Project getProject(long id) {
-        // 查询档案，不将不存在的项目伪装为空资料。
-        GeoProjectInfoEntity entity = getById(id);
-        if (entity == null) throw new NoSuchElementException("项目不存在");
-        // 将 ORM 对象转换为供后续领域引用的项目。
-        return convertToProject(entity);
+        // 2. 新建记录的标识与时间由数据库生成，JSON 列由类型处理器负责。
+        project.setId(null);
+        project.setCreatedAt(null);
+        project.setUpdatedAt(null);
+        if (!save(project)) throw new IllegalStateException("项目创建失败");
+        // 3. 回读数据库生成的标识及时间。
+        return getById(project.getId());
     }
 
     /** 根据名称关键词分页查询，最新创建项目排在前面。 */
-    public List<Project> listProjects(String keyword, int size, long offset) {
+    public List<GeoProjectInfoEntity> listProjects(String keyword, int size, long offset) {
         return list(buildProjectQuery(keyword).orderByDesc(GeoProjectInfoEntity::getId)
-                .last("LIMIT " + size + " OFFSET " + offset)).stream().map(this::convertToProject).toList();
+                .last("LIMIT " + size + " OFFSET " + offset));
     }
 
     /** 使用与列表相同的筛选条件统计项目数量。 */
@@ -67,29 +43,8 @@ public class GeoProjectInfoService extends ServiceImpl<GeoProjectInfoDao, GeoPro
                 GeoProjectInfoEntity::getName, keyword);
     }
 
-    /** 将数据库档案转换为独立领域模型。 */
-    private Project convertToProject(GeoProjectInfoEntity entity) {
-        Project project = new Project();
-        project.setId(entity.getId());
-        project.setName(entity.getName());
-        project.setWebsiteUrl(entity.getWebsiteUrl());
-        project.setIndustry(entity.getIndustry());
-        project.setCoreFeatures(entity.getCoreFeatures());
-        project.setTargetAudience(entity.getTargetAudience());
-        project.setAliases(entity.getAliases());
-        project.setCompetitors(entity.getCompetitors());
-        project.setTargetMarket(entity.getTargetMarket());
-        project.setTargetLanguage(entity.getTargetLanguage());
-        project.setSellingPoints(entity.getSellingPoints());
-        project.setPricing(entity.getPricing());
-        project.setKeywords(entity.getKeywords());
-        project.setCreatedAt(entity.getCreatedAt());
-        project.setUpdatedAt(entity.getUpdatedAt());
-        return project;
-    }
-
     /** 校验基础必填资料、URL 与可选配置，防止无效资料或超长字段落库。 */
-    private void validateProject(Project project) {
+    private void validateProject(GeoProjectInfoEntity project) {
         // 1. 必填项为空或超过字段容量时，拒绝创建不完整档案。
         project.setName(validateText(project.getName(), "项目名称", 200, true));
         project.setWebsiteUrl(validateText(project.getWebsiteUrl(), "官网或资料 URL", 2048, true));

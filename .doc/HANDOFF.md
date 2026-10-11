@@ -177,7 +177,8 @@
 ## 项目基础档案（Codex，2026-10-10）
 
 - 当前范围已完成：一级“项目管理”及“项目创建／项目列表”，创建基础档案、按名称分页查询、查看当前页完整资料。尚未增加编辑、删除或监测／分析任务；后续任务可引用项目 ID。
-- 分层为 ProjectManagementController → ProjectBusiness → GeoProjectInfoService → GeoProjectInfoDao / GeoProjectInfoEntity；Project 为不含 ORM 注解的领域模型，创建输入单独建模，不能覆盖系统 ID 和时间。遵循现有 MyBatis-Plus 持久化模式，未引入新依赖。
+- 分层为 MgmtProjectInfoController → ProjectBusiness → GeoProjectInfoService → GeoProjectInfoDao / GeoProjectInfoEntity；已删除无独立行为的 Project 中间模型，Service 直接校验、保存和查询实体，Business 显式转换 ProjectInfoResponse，接口字段不变。创建输入使用 CreateProjectRequest，ID 和时间由数据库生成。业务及 Controller 同步使用 @Resource。
+- 简化验证：删除实体二次拷贝、getProject 查询包装与 Service 的反向转换，保存后直接 getById 回读；全量 260 项测试及差异检查通过，覆盖创建与非空列表响应的 ID、列表资料、时间一致性。数据库结构和记录未修改，运行服务未重启，本轮未做真实接口联调。
 - geo_project_info 保存五项必填（名称、资料 URL、行业、核心功能、目标用户）与图中七项可选配置；别名、竞品、关键词为 JSON 列表，ID 自增，时间由数据库生成。URL 只保存且校验 HTTP(S)，不抓取页面。001 空库脚本和 006_geo_project_info.sql 均包含建表定义，docker/README.md 已说明迁移。
 - 最新表名调整：本地执行 009_rename_geo_project_info.sql，将 geo_project 重命名为 geo_project_info，原 1 条项目记录保留。实体、DAO、Service 及测试同步 GeoProjectInfo 命名；接口地址、请求和响应字段不变。全量 clean test 257 项及差异检查通过。运行中旧服务需重启，否则仍查询旧表；本轮未重启用户服务。
 - 本地数据库已执行 006，仅添加项目表。15 项定向测试通过，离线编译、JS 语法和差异检查通过。独立 8012 服务禁用 SQL 初始化，真实创建返回 201、ID 和时间；名称查询、JSON 列回读、分页排序及输入 400 验证通过。Chrome 实际创建后跳列表、详情、名称查询、无匹配／无项目状态通过；八页导航实际点击和高亮通过，截图核验后补齐 contents.css 共用按钮与分页样式。
