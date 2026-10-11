@@ -212,6 +212,12 @@
 
 ## WorkBuddy / GPT 接手指令
 
+### 内容发布 Controller 合并（2026-10-11）
+
+- 平台列表业务进一步合并：删除 PublicationPlatformLoginService，listConfiguredPlatforms 并入 ContentPublishBusiness；Controller 统一依赖该 Business，接口地址与响应保持不变。Business 依赖统一 @Resource。新增去重、枚举顺序及仅返回已接入平台的回归，clean test 全量 259 项及差异检查通过，src 无旧 Service 引用；运行服务未重启。
+- ContentPublishController 改为 ContentPublishMgmtController，删除 PublicationPlatformController，将平台选项接口并入 GET /content-publish/platforms；预发布、发布记录列表和删除接口地址保持不变。依赖使用 @Resource。
+- contents.js 与架构文档同步新路径，contents.html 脚本版本更新为 20261011-publish-mgmt1；src 无旧 Controller 或旧平台路径引用。平台列表契约测试并入 ContentPublishMgmtControllerTest，clean test 全量 258 项、JS 语法、差异检查通过。运行服务需重启以加载新接口，本轮未进行真实平台发布。
+
 ### 今日头条保存判据修正（Codex，2026-10-09 晚间）
 
 - 用户记录 `content_publish_record.id=39`（优化记录 7、TOUTIAO）出现正文回读不一致。真实复现确认 ProseMirror 的 `innerText` 会额外插入展示空行；原键盘 `insertText` 也会产生不稳定的空行结构。

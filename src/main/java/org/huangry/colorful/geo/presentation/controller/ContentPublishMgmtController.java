@@ -1,8 +1,9 @@
 package org.huangry.colorful.geo.presentation.controller;
 
-import lombok.RequiredArgsConstructor;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.application.content.ContentPublishBusiness;
+import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
 import org.huangry.colorful.geo.application.content.model.ContentPublishRecordPage;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
 import org.huangry.colorful.geo.presentation.controller.model.PrePublishContentRequest;
@@ -23,15 +24,21 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * 内容发布接口；提供预发布动作及本地发布记录管理，不删除平台上的草稿或文章。
+ * 内容发布接口；提供平台选项、预发布动作及本地发布记录管理，不删除平台上的草稿或文章。
  */
 @RestController
-@RequiredArgsConstructor
 @Slf4j
 @RequestMapping("content-publish")
-public class ContentPublishController {
+public class ContentPublishMgmtController {
 
-    private final ContentPublishBusiness publishBusiness;
+    @Resource
+    private ContentPublishBusiness publishBusiness;
+
+    /** 查询已接入发布策略的平台选项，不检测登录状态。 */
+    @GetMapping("/platforms")
+    public List<PublicationPlatformOption> listConfiguredPlatforms() {
+        return publishBusiness.listConfiguredPlatforms();
+    }
 
     /**
      * 用户确认最终稿与平台后创建草稿；重复选择已有发布记录不会重复提交。

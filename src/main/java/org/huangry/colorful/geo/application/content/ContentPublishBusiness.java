@@ -1,6 +1,9 @@
 package org.huangry.colorful.geo.application.content;
 
-import lombok.RequiredArgsConstructor;
+import jakarta.annotation.Resource;
+import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.PublicationPlatformStrategy;
+import java.util.Comparator;
 import org.huangry.colorful.geo.application.content.model.ContentPublishRecordPage;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
@@ -16,15 +19,30 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * 内容发布业务入口：负责预发布与本地发布记录管理；不生成优化稿，也不删除平台内容。
+ * 内容发布业务入口：负责发布平台选项、预发布与本地发布记录管理；不生成优化稿，也不删除平台内容。
  */
 @Service
-@RequiredArgsConstructor
 public class ContentPublishBusiness {
 
-    private final ContentPublicationService publicationService;
-    private final ContentOptimizationRecordService optimizationRecordService;
-    private final ContentPublishRecordService publishRecordService;
+    @Resource
+    private ContentPublicationService publicationService;
+    @Resource
+    private ContentOptimizationRecordService optimizationRecordService;
+    @Resource
+    private ContentPublishRecordService publishRecordService;
+
+    @Resource
+    private List<PublicationPlatformStrategy> strategies;
+
+    /** 列出已接入发布策略的平台，不检测登录状态，按枚举顺序去重排列。 */
+    public List<PublicationPlatformOption> listConfiguredPlatforms() {
+        return strategies.stream()
+            .map(PublicationPlatformStrategy::platformType)
+            .distinct()
+            .sorted(Comparator.comparingInt(Enum::ordinal))
+            .map(platform -> new PublicationPlatformOption(platform, platform.getDisplayName()))
+            .toList();
+    }
 
     /**
      * 分页读取逐平台发布记录，供独立发布列表查看状态和平台结果。
