@@ -7,8 +7,8 @@ import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionCon
 import org.huangry.colorful.geo.infrastructure.client.llm.model.*;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
-import org.huangry.colorful.geo.infrastructure.repository.LlmChannelDao;
-import org.huangry.colorful.geo.infrastructure.repository.entity.LlmChannelEntity;
+import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
@@ -17,12 +17,12 @@ import static org.mockito.ArgumentMatchers.any;
 
 /** 渠道路由规则回归；验证筛选、确定性排序、协议匹配与无自动切换。 */
 class LLMStrategyRouterTest {
-    private final LlmChannelDao dao = mock(LlmChannelDao.class);
+    private final GeoLlmChannelDao dao = mock(GeoLlmChannelDao.class);
 
     /** 默认调用必须只选已启用配置，并采用固定优先级顺序。 */
     @Test
     void shouldSelectEnabledChannelsByScoreThenId() {
-        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new Configuration(), "channel"), LlmChannelEntity.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new Configuration(), "channel"), GeoLlmChannelEntity.class);
         LLMStrategy strategy = mockStrategy();
         when(dao.selectList(any())).thenAnswer(invocation -> {
             var wrapper = (com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) invocation.getArgument(0);
@@ -38,7 +38,7 @@ class LLMStrategyRouterTest {
     /** 同时指定渠道、模型和搜索时，全部约束必须进入数据库筛选。 */
     @Test
     void shouldFilterExplicitChannelModelAndSearch() {
-        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new Configuration(), "channel"), LlmChannelEntity.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new Configuration(), "channel"), GeoLlmChannelEntity.class);
         when(dao.selectList(any())).thenAnswer(invocation -> {
             var wrapper = (com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) invocation.getArgument(0);
             String sql = wrapper.getSqlSegment();
@@ -57,7 +57,7 @@ class LLMStrategyRouterTest {
     /** 模型约束可以独立使用，不强制指定渠道。 */
     @Test
     void shouldFilterModelWithoutChannel() {
-        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new Configuration(), "channel"), LlmChannelEntity.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new Configuration(), "channel"), GeoLlmChannelEntity.class);
         when(dao.selectList(any())).thenAnswer(invocation -> {
             var wrapper = (com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) invocation.getArgument(0);
             String sql = wrapper.getSqlSegment();
@@ -91,8 +91,8 @@ class LLMStrategyRouterTest {
     }
 
     /** 构造无凭据的模拟渠道，测试不触发远程请求。 */
-    private LlmChannelEntity mockChannel() {
-        LlmChannelEntity c = new LlmChannelEntity();
+    private GeoLlmChannelEntity mockChannel() {
+        GeoLlmChannelEntity c = new GeoLlmChannelEntity();
         c.setChannelCode("mock"); c.setProtocolType(LLMProviderType.MOCK); c.setTemperature(0.3);
         c.setMaxTokens(1400); c.setTimeoutSeconds(60); c.setSslVerify(true); c.setWebSearchSupported(false);
         return c;
