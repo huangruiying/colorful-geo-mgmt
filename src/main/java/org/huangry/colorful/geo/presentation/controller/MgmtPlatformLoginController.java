@@ -28,7 +28,7 @@ import java.util.Map;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/admin/browser-login/platforms")
-public class PlatformBrowserLoginController {
+public class MgmtPlatformLoginController {
 
     private final PlatformBrowserLoginService loginService;
 
