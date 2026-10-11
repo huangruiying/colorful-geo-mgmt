@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261011-config2", error = document.getElementById("model-error");
+    const version = "20261011-config3", error = document.getElementById("model-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
     async function request(path, options = {}) {
         const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
@@ -19,7 +19,7 @@
             for (const key of ["baseUrl", "modelName"]) form.elements[key].required = remote;
             const option = form.elements.protocolType.selectedOptions[0];
             document.getElementById("protocol-help").textContent = option?.dataset.searchSupported === "true"
-                ? "此协议支持联网搜索，具体模型能力需验证；每次请求决定是否开启。"
+                ? "此协议自动提供联网搜索工具，实际搜索和引用由模型返回。"
                 : "此协议提供普通问答，不支持联网搜索。";
         };
         form.elements.protocolType.addEventListener("change", syncProtocol);
