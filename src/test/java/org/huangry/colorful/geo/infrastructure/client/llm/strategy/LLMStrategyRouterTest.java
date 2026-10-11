@@ -40,7 +40,7 @@ class LLMStrategyRouterTest {
             assertTrue(sql.contains("LIMIT 1"));
             return List.of(mockChannel());
         });
-        assertEquals("模拟结果", createRouter(List.of(strategy)).query(LLMQueryRequest.userMessage("问题")).content());
+        assertEquals("模拟结果", createRouter(List.of(strategy)).query(new LLMQueryRequest("问题")).content());
     }
 
     /** 指定渠道和模型时，两项约束进入筛选，协议不影响默认渠道选择。 */
@@ -59,7 +59,7 @@ class LLMStrategyRouterTest {
         });
         var router = createRouter(List.of(mockStrategy()));
         assertThrows(LLMClientException.class, () -> router.query(new LLMQueryRequest(
-            LLMQueryRequest.userMessage("问题").messages(), "chosen", "test-model")));
+            "问题", "chosen", "test-model")));
     }
 
     /** 模型约束可以独立使用，不强制指定渠道。 */
@@ -73,7 +73,7 @@ class LLMStrategyRouterTest {
             return List.of(mockChannel());
         });
         createRouter(List.of(mockStrategy())).query(
-            new LLMQueryRequest(LLMQueryRequest.userMessage("问题").messages(), null, "test-model"));
+            new LLMQueryRequest("问题", null, "test-model"));
     }
 
     /** 没有匹配渠道时不使用 YAML 默认渠道或模拟回答兜底。 */
@@ -82,7 +82,7 @@ class LLMStrategyRouterTest {
         when(dao.selectList(any())).thenReturn(List.of());
         LLMStrategy strategy = mockStrategy();
         assertThrows(LLMClientException.class, () -> createRouter(List.of(strategy))
-            .query(LLMQueryRequest.userMessage("问题")));
+            .query(new LLMQueryRequest("问题")));
         verify(strategy, never()).query(any(), any(), any());
     }
 
@@ -93,7 +93,7 @@ class LLMStrategyRouterTest {
         when(dao.selectList(any())).thenReturn(List.of(mockChannel()));
         when(strategy.query(any(), any(), any())).thenThrow(new IllegalStateException("远程失败"));
         assertThrows(IllegalStateException.class, () -> createRouter(List.of(strategy))
-            .query(LLMQueryRequest.userMessage("问题")));
+            .query(new LLMQueryRequest("问题")));
         verify(dao, times(1)).selectList(any());
         verify(strategy, times(1)).query(any(), any(), any());
     }

@@ -28,10 +28,14 @@ class OpenAiWebSearchStrategyTest {
         var strategy = new OpenAiWebSearchStrategy();
         var config = new LLMConnectionConfig();
         config.setModel("test-model");
-        var ordinary = LLMQueryRequest.userMessage("问题");
+        var ordinary = new LLMQueryRequest("问题");
         var plain = strategy.buildRequestBody(ordinary, config);
         assertEquals(List.of(Map.of("type", "web_search")), plain.get("tools"));
         assertEquals("test-model", plain.get("model"));
         assertEquals(false, plain.get("store"));
+        var input = new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(plain.get("input"));
+        assertEquals(1, input.size());
+        assertEquals("user", input.get(0).path("role").asText());
+        assertEquals("问题", input.get(0).path("content").get(0).path("text").asText());
     }
 }
