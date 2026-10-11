@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS geo_llm_channel (
   max_tokens INT NOT NULL DEFAULT 1400 COMMENT '输出 token 上限',
   timeout_seconds INT NOT NULL DEFAULT 60 COMMENT '请求超时秒数',
   ssl_verify BOOLEAN NOT NULL DEFAULT TRUE COMMENT '校验证书',
-  web_search_supported BOOLEAN NOT NULL DEFAULT FALSE COMMENT '支持 Responses 搜索协议',
   score INT NOT NULL DEFAULT 0 COMMENT '默认优先级，越大越优先',
   enabled BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否启用',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

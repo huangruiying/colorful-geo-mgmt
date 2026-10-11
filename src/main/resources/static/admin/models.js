@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261011-config1", error = document.getElementById("model-error");
+    const version = "20261011-config2", error = document.getElementById("model-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
     async function request(path, options = {}) {
         const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
@@ -17,15 +17,25 @@
         const syncProtocol = () => {
             const remote = form.elements.protocolType.value !== "MOCK";
             for (const key of ["baseUrl", "modelName"]) form.elements[key].required = remote;
-            form.elements.webSearchSupported.disabled = !remote;
-            if (!remote) form.elements.webSearchSupported.checked = false;
+            const option = form.elements.protocolType.selectedOptions[0];
+            document.getElementById("protocol-help").textContent = option?.dataset.searchSupported === "true"
+                ? "此协议支持联网搜索，具体模型能力需验证；每次请求决定是否开启。"
+                : "此协议提供普通问答，不支持联网搜索。";
         };
         form.elements.protocolType.addEventListener("change", syncProtocol);
-        syncProtocol();
-        if (id) {
-            document.getElementById("model-heading").textContent = "编辑模型配置";
-            button.disabled = true;
-            request("/llm-channels/" + id).then(channel => {
+        button.disabled = true;
+        Promise.all([request("/llm-channels/protocols"), id ? request("/llm-channels/" + id) : Promise.resolve(null)])
+            .then(([protocols, channel]) => {
+                const select = form.elements.protocolType;
+                select.replaceChildren();
+                for (const protocol of protocols) {
+                    const option = document.createElement("option");
+                    option.value = protocol.type; option.textContent = protocol.description;
+                    option.dataset.searchSupported = String(protocol.webSearchSupported); select.append(option);
+                }
+                select.value = "OPENAI_COMPATIBLE";
+                if (!channel) { syncProtocol(); button.disabled = false; return; }
+                document.getElementById("model-heading").textContent = "编辑模型配置";
                 for (const element of form.elements) {
                     if (!element.name || !(element.name in channel)) continue;
                     if (element.type === "checkbox") element.checked = Boolean(channel[element.name]);
@@ -36,13 +46,12 @@
                 form.elements.channelCode.readOnly = true;
                 syncProtocol(); button.disabled = false;
             }).catch(failure => showError(failure.message));
-        }
         form.addEventListener("submit", async event => {
             event.preventDefault(); if (button.disabled) return;
             button.disabled = true; button.textContent = "正在保存…"; showError("");
             const channel = Object.fromEntries(new FormData(form));
             for (const key of ["score", "temperature", "maxTokens", "timeoutSeconds"]) channel[key] = Number(channel[key]);
-            for (const key of ["enabled", "webSearchSupported"]) channel[key] = form.elements[key].checked;
+            channel.enabled = form.elements.enabled.checked;
             // 默认校验证书；编辑旧配置时保留既有值，不额外提供弱化安全的页面开关。
             channel.sslVerify = form.dataset.sslVerify !== "false";
             try {
