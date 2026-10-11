@@ -1,0 +1,9 @@
+.model-fields > .project-field:nth-child(4), .model-fields > .project-field:nth-child(5) { grid-column: auto; }
+.project-field select { padding: 12px; border: 1px solid #d7e1ed; border-radius: 7px; font: inherit; color: #263d5a; background: white; }
+.model-check { display: flex; align-items: center; gap: 10px; color: #304865; font-size: 13px; }
+.model-help { grid-column: 1 / -1; margin: 0; color: #7a8da5; font-size: 12px; line-height: 1.7; }
+.model-code { display: block; color: #7a8da5; font-size: 12px; margin-top: 6px; }
+.model-table { min-width: 940px; }
+.model-table th, .model-table td { padding-left: 16px; padding-right: 16px; white-space: nowrap; }
+.model-table td:nth-child(2) { min-width: 200px; max-width: 280px; white-space: normal; overflow-wrap: anywhere; }
+.model-table td:last-child { min-width: 110px; }
