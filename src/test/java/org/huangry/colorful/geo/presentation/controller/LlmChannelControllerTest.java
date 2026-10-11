@@ -11,7 +11,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.List;
 import java.util.NoSuchElementException;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -22,7 +21,7 @@ class LlmChannelControllerTest {
 
     /** 独立 MVC 测试注入模拟依赖，不启动数据库。 */
     private MockMvc createMvc() {
-        var controller = new LlmChannelController();
+        var controller = new MgmtLlmChannelController();
         ReflectionTestUtils.setField(controller, "business", business);
         return MockMvcBuilders.standaloneSetup(controller).build();
     }

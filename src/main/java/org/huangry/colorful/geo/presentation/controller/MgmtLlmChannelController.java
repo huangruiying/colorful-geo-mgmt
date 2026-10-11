@@ -14,7 +14,7 @@ import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
 /** 基础配置模型接口；创建、编辑、列表与启停，不触发远程调用。 */
 @RestController
 @RequestMapping("/llm-channels")
-public class LlmChannelController {
+public class MgmtLlmChannelController {
     @Resource
     private LlmChannelBusiness business;
 

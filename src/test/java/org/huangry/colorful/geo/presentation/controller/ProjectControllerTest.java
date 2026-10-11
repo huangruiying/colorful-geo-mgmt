@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /** 项目 HTTP 契约回归；创建返回 201 与标识，查询采用零起始分页，输入错误返回 400。 */
 class ProjectControllerTest {
     private final ProjectBusiness business = mock(ProjectBusiness.class);
-    private final MockMvc mvc = MockMvcBuilders.standaloneSetup(new ProjectManagementController(business)).build();
+    private final MockMvc mvc = MockMvcBuilders.standaloneSetup(new MgmtProjectInfoController(business)).build();
 
     /** 成功创建返回可用于任务关联的项目 ID。 */
     @Test

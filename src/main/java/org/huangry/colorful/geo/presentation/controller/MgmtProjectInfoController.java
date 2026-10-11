@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("projects")
 @RequiredArgsConstructor
 @Slf4j
-public class ProjectManagementController {
+public class MgmtProjectInfoController {
     private final ProjectBusiness projectBusiness;
 
     /** 创建项目并返回包含项目 ID 的档案；业务资料不写入日志。 */
