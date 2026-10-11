@@ -4,14 +4,14 @@ import lombok.RequiredArgsConstructor;
 import org.huangry.colorful.geo.application.project.model.CreateProjectRequest;
 import org.huangry.colorful.geo.application.project.model.ProjectPage;
 import org.huangry.colorful.geo.domain.model.Project;
-import org.huangry.colorful.geo.domain.service.project.ProjectService;
+import org.huangry.colorful.geo.domain.service.project.GeoProjectInfoService;
 import org.springframework.stereotype.Service;
 
 /** 项目应用编排；创建输入转换与列表分页在此处理，资料规则由项目领域服务负责。 */
 @Service
 @RequiredArgsConstructor
 public class ProjectBusiness {
-    private final ProjectService projectService;
+    private final GeoProjectInfoService projectService;
 
     /** 将创建请求转换为基础档案并保存，不允许输入覆盖数据库 ID 或时间。 */
     public Project createProject(CreateProjectRequest request) {

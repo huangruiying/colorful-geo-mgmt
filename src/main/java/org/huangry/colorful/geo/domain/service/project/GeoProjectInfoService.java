@@ -3,8 +3,8 @@ package org.huangry.colorful.geo.domain.service.project;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import org.huangry.colorful.geo.domain.model.Project;
-import org.huangry.colorful.geo.infrastructure.repository.ProjectDao;
-import org.huangry.colorful.geo.infrastructure.repository.entity.ProjectEntity;
+import org.huangry.colorful.geo.infrastructure.repository.GeoProjectInfoDao;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoProjectInfoEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
@@ -13,14 +13,14 @@ import java.util.NoSuchElementException;
 
 /** 项目领域服务；createProject 保存基础档案，查询入口返回领域模型，不执行分析任务。 */
 @Service
-public class ProjectService extends ServiceImpl<ProjectDao, ProjectEntity> {
+public class GeoProjectInfoService extends ServiceImpl<GeoProjectInfoDao, GeoProjectInfoEntity> {
     /** 校验并持久化项目；返回数据库生成的 ID 与时间，失败则回滚。 */
     @Transactional
     public Project createProject(Project project) {
         // 1. 校验必填资料及长度，确保档案可作为后续任务的基础输入。
         validateProject(project);
         // 2. 转换领域档案并保存，JSON 列由持久化类型处理器负责。
-        ProjectEntity entity = new ProjectEntity();
+        GeoProjectInfoEntity entity = new GeoProjectInfoEntity();
         entity.setId(project.getId());
         entity.setName(project.getName());
         entity.setWebsiteUrl(project.getWebsiteUrl());
@@ -44,7 +44,7 @@ public class ProjectService extends ServiceImpl<ProjectDao, ProjectEntity> {
     /** 按标识返回完整档案；不存在时明确抛出记录缺失异常。 */
     public Project getProject(long id) {
         // 查询档案，不将不存在的项目伪装为空资料。
-        ProjectEntity entity = getById(id);
+        GeoProjectInfoEntity entity = getById(id);
         if (entity == null) throw new NoSuchElementException("项目不存在");
         // 将 ORM 对象转换为供后续领域引用的项目。
         return convertToProject(entity);
@@ -52,7 +52,7 @@ public class ProjectService extends ServiceImpl<ProjectDao, ProjectEntity> {
 
     /** 根据名称关键词分页查询，最新创建项目排在前面。 */
     public List<Project> listProjects(String keyword, int size, long offset) {
-        return list(buildProjectQuery(keyword).orderByDesc(ProjectEntity::getId)
+        return list(buildProjectQuery(keyword).orderByDesc(GeoProjectInfoEntity::getId)
                 .last("LIMIT " + size + " OFFSET " + offset)).stream().map(this::convertToProject).toList();
     }
 
@@ -62,13 +62,13 @@ public class ProjectService extends ServiceImpl<ProjectDao, ProjectEntity> {
     }
 
     /** 绑定名称查询参数；用户输入不拼入 SQL。 */
-    private LambdaQueryWrapper<ProjectEntity> buildProjectQuery(String keyword) {
-        return new LambdaQueryWrapper<ProjectEntity>().like(keyword != null && !keyword.isBlank(),
-                ProjectEntity::getName, keyword);
+    private LambdaQueryWrapper<GeoProjectInfoEntity> buildProjectQuery(String keyword) {
+        return new LambdaQueryWrapper<GeoProjectInfoEntity>().like(keyword != null && !keyword.isBlank(),
+                GeoProjectInfoEntity::getName, keyword);
     }
 
     /** 将数据库档案转换为独立领域模型。 */
-    private Project convertToProject(ProjectEntity entity) {
+    private Project convertToProject(GeoProjectInfoEntity entity) {
         Project project = new Project();
         project.setId(entity.getId());
         project.setName(entity.getName());

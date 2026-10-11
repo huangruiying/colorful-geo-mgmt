@@ -6,10 +6,10 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** geo_project 表映射；由 DAO 保存基础档案，列表列通过 JSON 类型处理器读写。 */
+/** geo_project_info 表映射；由 DAO 保存基础档案，列表列通过 JSON 类型处理器读写。 */
 @Data
-@TableName(value = "geo_project", autoResultMap = true)
-public class ProjectEntity {
+@TableName(value = "geo_project_info", autoResultMap = true)
+public class GeoProjectInfoEntity {
     /** 数据库自增主键。 */
     @TableId(type = IdType.AUTO)
     private Long id;

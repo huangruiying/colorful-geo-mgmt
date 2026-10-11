@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS content_publish_record (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='内容逐平台发布记录';
 
 -- 增量添加项目基础档案；不会重建或修改已有业务表。
-CREATE TABLE IF NOT EXISTS geo_project (
+CREATE TABLE IF NOT EXISTS geo_project_info (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '项目ID，供任务关联',
     name VARCHAR(200) NOT NULL COMMENT '项目或产品名称',
     website_url VARCHAR(2048) NOT NULL COMMENT '官网或资料URL',

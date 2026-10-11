@@ -19,6 +19,8 @@ docker compose -f docker/compose.yml exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASS
 
 新增项目基础档案时，已有数据库执行增量脚本（仅新建项目表）：
 
+若已有旧表 `geo_project`，改为执行 `src/main/resources/db/mysql/009_rename_geo_project_info.sql`，保留数据并重命名；不要先执行 006 创建同名新表。新库使用 001 或 006，无需执行 009。
+
 ```bash
-docker compose -f docker/compose.yml exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql --default-character-set=utf8mb4 -ugeo_app -Dcolorful_geo' < src/main/resources/db/mysql/006_geo_project.sql
+docker compose -f docker/compose.yml exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql --default-character-set=utf8mb4 -ugeo_app -Dcolorful_geo' < src/main/resources/db/mysql/006_geo_project_info.sql
 ```

@@ -1,6 +1,6 @@
 package org.huangry.colorful.geo.application.project;
 
-import org.huangry.colorful.geo.domain.service.project.ProjectService;
+import org.huangry.colorful.geo.domain.service.project.GeoProjectInfoService;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
@@ -11,7 +11,7 @@ class ProjectBusinessTest {
     /** 无效分页不能继续查询数据库。 */
     @Test
     void shouldRejectInvalidPagination() {
-        ProjectService service = mock(ProjectService.class);
+        GeoProjectInfoService service = mock(GeoProjectInfoService.class);
         ProjectBusiness business = new ProjectBusiness(service);
         assertThrows(IllegalArgumentException.class, () -> business.listProjects(null, -1, 20));
         assertThrows(IllegalArgumentException.class, () -> business.listProjects(null, 0, 0));
@@ -22,7 +22,7 @@ class ProjectBusinessTest {
     /** 列表按零起始分页，关键词去除首尾空白，计数与列表筛选一致。 */
     @Test
     void shouldQueryConsistentFilterAndOffset() {
-        ProjectService service = mock(ProjectService.class);
+        GeoProjectInfoService service = mock(GeoProjectInfoService.class);
         when(service.listProjects("产品", 20, 40L)).thenReturn(List.of());
         when(service.countProjects("产品")).thenReturn(45L);
         var result = new ProjectBusiness(service).listProjects(" 产品 ", 2, 20);
