@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.huangry.colorful.geo.infrastructure.client.llm.config.LLMProviderProperties;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMCitation;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMMessage;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * OpenAI 官方联网搜索策略。
+ * OpenAI Responses 协议策略，自动提供联网搜索工具。
  *
  * <p>通过 Responses API 提供 web_search 工具，让模型按需检索外部资料辅助回答。
  * 从返回的 url_citation 注解提取来源信息；没有引用时返回空列表，不从正文猜测来源，也不负责核验来源正确性。</p>
@@ -29,20 +29,12 @@ import java.util.Map;
 @Component
 public class OpenAiWebSearchStrategy implements LLMStrategy {
 
+    /** Responses 协议自动提供搜索工具。 */
     @Override
-    public boolean supports(LLMProviderProperties.Provider provider, boolean webSearchEnabled) {
-        return webSearchEnabled
-                && provider.getType() == LLMProviderType.OPENAI_COMPATIBLE
-                && provider.isWebSearchSupported();
-    }
-
-    @Override
-    public int priority() {
-        return 20;
-    }
+    public LLMProviderType llmProviderType() { return LLMProviderType.OPENAI_RESPONSES; }
 
     /**
-     * 调用 OpenAI Responses API，提供网页搜索工具并解析回答及来源引用。
+     * 调用 OpenAI Responses API，提供搜索工具并解析回答及来源引用。
      *
      * @param request 通用查询请求
      * @param provider OpenAI 官方通道配置
@@ -50,15 +42,11 @@ public class OpenAiWebSearchStrategy implements LLMStrategy {
      * @return 模型正文及接口返回的结构化引用；未返回引用时列表为空
      */
     @Override
-    public LLMResponse query(LLMQueryRequest request, LLMProviderProperties.Provider provider, String apiKey) {
+    public LLMResponse query(LLMQueryRequest request, LLMConnectionConfig provider, String apiKey) {
         validateProvider(provider);
 
-        // 1. 仅在调用方请求联网搜索时，向 Responses API 声明内建 web_search 工具。
-        Map<String, Object> requestBody = new LinkedHashMap<>();
-        requestBody.put("model", provider.getModel());
-        requestBody.put("input", toResponseInput(request.messages()));
-        requestBody.put("tools", List.of(Map.of("type", "web_search")));
-        requestBody.put("store", false);
+        // 1. 向 Responses API 声明内建 web_search 工具，是否实际检索由模型决定。
+        Map<String, Object> requestBody = buildRequestBody(request, provider);
 
         // 2. 保持 API Key 仅存在于请求头，日志和响应对象均不保留密钥。
         RestClient restClient = RestClient.builder()
@@ -77,6 +65,17 @@ public class OpenAiWebSearchStrategy implements LLMStrategy {
 
         // 3. 只提取接口返回的结构化来源；来源是否准确仍需核验，缺少引用时保留空列表。
         return parseResponse(responseBody);
+    }
+
+    /** 组装 Responses 请求，自动声明搜索工具。 */
+    Map<String, Object> buildRequestBody(LLMQueryRequest request, LLMConnectionConfig provider) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", provider.getModel());
+        body.put("input", toResponseInput(request.messages()));
+        // 协议决定搜索工具，无需调用方重复选择。
+        body.put("tools", List.of(Map.of("type", "web_search")));
+        body.put("store", false);
+        return body;
     }
 
     /**
@@ -146,14 +145,14 @@ public class OpenAiWebSearchStrategy implements LLMStrategy {
     }
 
     /**
-     * 校验联网搜索策略必需的 OpenAI 连接配置。
+     * 校验 Responses 协议必需的连接配置。
      *
      * @param provider 当前启用供应商
      */
-    private void validateProvider(LLMProviderProperties.Provider provider) {
+    private void validateProvider(LLMConnectionConfig provider) {
         if (provider.getBaseUrl() == null || provider.getBaseUrl().isBlank()
                 || provider.getModel() == null || provider.getModel().isBlank()) {
-            throw new LLMClientException("OpenAI 联网搜索供应商缺少 baseUrl 或 model 配置");
+            throw new LLMClientException("OpenAI Responses 渠道缺少 baseUrl 或 model 配置");
         }
     }
 

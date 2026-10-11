@@ -5,7 +5,7 @@ import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
 import java.time.LocalDateTime;
 import com.baomidou.mybatisplus.annotation.*;
 
-/** 模型渠道表映射；承载连接与优先级，不包含明文密钥或远程调用。 */
+/** 模型渠道表映射；承载服务端连接、凭据与优先级，不执行远程调用。 */
 @Data
 @TableName("geo_llm_channel")
 public class GeoLlmChannelEntity {
@@ -35,8 +35,6 @@ public class GeoLlmChannelEntity {
     private Integer timeoutSeconds;
     /** 是否校验证书。 */
     private Boolean sslVerify;
-    /** 是否支持已适配的 Responses 搜索协议。 */
-    private Boolean webSearchSupported;
     /** 默认选择优先级，越大越优先。 */
     private Integer score;
     /** 是否启用。 */

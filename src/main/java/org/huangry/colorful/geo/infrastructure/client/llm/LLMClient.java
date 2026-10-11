@@ -25,7 +25,7 @@ public class LLMClient {
     private LLMStrategyRouter strategyRouter;
 
     /**
-     * 发起单轮大模型查询，默认不启用网页搜索。
+     * 发起单轮大模型查询，请求方式由渠道协议决定。
      *
      * <p>仍通过配置的通道调用大模型；远程通道会发送网络请求，本地模拟通道除外。</p>
      *
@@ -40,26 +40,22 @@ public class LLMClient {
      * 发起通用大模型查询。
      *
      * <p>网页搜索用于检索外部资料辅助模型回答，引用链接用于说明信息来源；
-     * 启用搜索不保证每次执行检索或返回引用，也不代表来源已经核验。
-     * 当前通道不支持搜索时，会退化为普通模型查询并返回空引用列表。</p>
+     * 搜索协议自动提供搜索工具，不保证每次执行检索或返回引用，也不代表来源已经核验。
+     * 指定渠道不可用时明确失败，不自动切换被测模型。</p>
      *
      * @param request 查询参数
      * @return 标准模型响应
      */
-    private LLMResponse query(LLMQueryRequest request) {
+    public LLMResponse query(LLMQueryRequest request) {
         try {
-            // 1. 仅记录可定位的通道和能力标识，避免泄漏问题正文与 API Key。
-            LOGGER.info("调用大模型，provider={}, webSearchEnabled={}",
-                    strategyRouter.getEnabledProviderName(), request.webSearchEnabled());
-
-            // 2. 由基础设施路由器完成 provider 选择、密钥解析和协议适配。
+            // 路由器记录实际选中的渠道，此处只负责统一异常边界。
             return strategyRouter.query(request);
         } catch (LLMClientException exception) {
             LOGGER.warn("大模型调用被拒绝，provider={}, reason={}",
-                    strategyRouter.getEnabledProviderName(), exception.getMessage());
+                    request.channelCode(), exception.getMessage());
             throw exception;
         } catch (RuntimeException exception) {
-            LOGGER.error("大模型远程调用失败，provider={}", strategyRouter.getEnabledProviderName(), exception);
+            LOGGER.error("大模型远程调用失败，channel={}", request.channelCode());
             throw new LLMClientException("大模型远程调用失败", exception);
         }
     }

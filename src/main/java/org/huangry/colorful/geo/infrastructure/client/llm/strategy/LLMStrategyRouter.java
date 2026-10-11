@@ -1,121 +1,95 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
-import org.huangry.colorful.geo.infrastructure.client.llm.config.LLMProviderProperties;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.Resource;
+import jakarta.annotation.PostConstruct;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
+import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.springframework.stereotype.Component;
-
-import java.util.Comparator;
-import java.util.List;
+import java.util.EnumMap;
 import java.util.Map;
+import java.util.List;
 
-/**
- * 大模型策略路由器。
- *
- * <p>第一版只路由 enabledLlmProvider 指定的一个供应商；不承担多模型并发与结果聚合。</p>
- *
- * @author huangry
- */
+/** 数据库模型路由；按指定条件与 score 选择渠道，不在失败后自动切换模型。 */
 @Component
+@Slf4j
 public class LLMStrategyRouter {
+    private final Map<LLMProviderType, LLMStrategy> strategies = new EnumMap<>(LLMProviderType.class);
+    @Resource
+    private GeoLlmChannelDao channelDao;
 
-    private final LLMProviderProperties properties;
+    @Resource
+    private List<LLMStrategy> candidates;
 
-    private final List<LLMStrategy> strategies;
-
-    public LLMStrategyRouter(LLMProviderProperties properties, List<LLMStrategy> strategies) {
-        this.properties = properties;
-        this.strategies = strategies;
+    /** 注册协议策略；同一类型重复注册时立即拒绝启动。 */
+    @PostConstruct
+    void registerStrategies() {
+        for (LLMStrategy strategy : candidates) {
+            if (strategies.putIfAbsent(strategy.llmProviderType(), strategy) != null)
+                throw new IllegalArgumentException("模型协议策略重复: " + strategy.llmProviderType());
+        }
     }
 
-    /**
-     * 选择当前启用供应商的匹配策略并完成调用。
-     *
-     * @param request 通用查询请求
-     * @return 标准查询结果
-     */
+    /** 定位渠道、适配协议并调用，保留本次数据库配置快照。 */
     public LLMResponse query(LLMQueryRequest request) {
-        String providerName = properties.getEnabledLlmProvider();
-        LLMProviderProperties.Provider provider = findEnabledProvider(providerName);
-        LLMStrategy strategy = selectStrategy(provider, request.webSearchEnabled());
-
-        // provider=mock 不需要密钥；其他通道必须在远程调用前完成凭据校验。
-        String apiKey = provider.getType() == LLMProviderType.MOCK ? "" : resolveApiKey(provider, providerName);
+        // 1. 按指定渠道或模型筛选，再按优先级选择唯一配置。
+        GeoLlmChannelEntity channel = selectChannel(request);
+        LLMConnectionConfig provider = toProvider(channel);
+        // 2. 按选中渠道的协议匹配策略，由策略决定请求方式。
+        LLMStrategy strategy = selectStrategy(provider);
+        String apiKey = provider.getType() == LLMProviderType.MOCK ? "" : resolveApiKey(channel);
+        // 3. 只记录实际渠道与模型，不记录问题、回答或凭据。
+        log.info("模型调用 channel={}, model={}, protocol={}", channel.getChannelCode(), channel.getModelName(), channel.getProtocolType());
         return strategy.query(request, provider, apiKey);
     }
 
-    /**
-     * 返回当前启用供应商的名称，供调用日志和后续业务记录使用。
-     *
-     * @return 已启用供应商名称
-     */
-    public String getEnabledProviderName() {
-        return properties.getEnabledLlmProvider();
+    /** 按指定渠道和模型筛选，再按 score 降序、ID 升序选择。 */
+    private GeoLlmChannelEntity selectChannel(LLMQueryRequest request) {
+        String code = normalize(request.channelCode());
+        String model = normalize(request.modelName());
+        LambdaQueryWrapper<GeoLlmChannelEntity> query = new LambdaQueryWrapper<GeoLlmChannelEntity>()
+            .eq(GeoLlmChannelEntity::getEnabled, true)
+            .eq(!code.isEmpty(), GeoLlmChannelEntity::getChannelCode, code)
+            .eq(!model.isEmpty(), GeoLlmChannelEntity::getModelName, model)
+            .orderByDesc(GeoLlmChannelEntity::getScore).orderByAsc(GeoLlmChannelEntity::getId).last("LIMIT 1");
+        List<GeoLlmChannelEntity> channels = channelDao.selectList(query);
+        if (channels.isEmpty()) throw new LLMClientException("没有符合渠道及模型条件的已启用模型配置");
+        return channels.get(0);
     }
 
-    /**
-     * 定位 enabled_llm_provider 指定的供应商。
-     *
-     * <p>配置错误时直接失败，避免悄悄切换到其他模型导致业务结果不可追踪。</p>
-     *
-     * @param providerName 启用的供应商名称
-     * @return 对应供应商配置
-     */
-    private LLMProviderProperties.Provider findEnabledProvider(String providerName) {
-        Map<String, LLMProviderProperties.Provider> providerMap = properties.getProviders();
-        if (providerName == null || providerName.isBlank() || providerMap == null || !providerMap.containsKey(providerName)) {
-            throw new LLMClientException("enabled_llm_provider 未匹配到已配置的大模型供应商: " + providerName);
-        }
-        return providerMap.get(providerName);
+    /** 将渠道配置转换为现有策略参数，继续复用协议客户端。 */
+    private LLMConnectionConfig toProvider(GeoLlmChannelEntity channel) {
+        LLMConnectionConfig config = new LLMConnectionConfig();
+        config.setType(channel.getProtocolType());
+        config.setBaseUrl(channel.getBaseUrl());
+        config.setModel(channel.getModelName());
+        config.setTemperature(channel.getTemperature());
+        config.setMaxTokens(channel.getMaxTokens());
+        config.setTimeoutSeconds(channel.getTimeoutSeconds());
+        config.setSslVerify(channel.getSslVerify());
+        return config;
     }
 
-    /**
-     * 按能力匹配与优先级选择协议策略。
-     *
-     * @param provider 当前供应商配置
-     * @param webSearchEnabled 是否请求联网搜索
-     * @return 优先级最高的可用策略
-     */
-    private LLMStrategy selectStrategy(LLMProviderProperties.Provider provider, boolean webSearchEnabled) {
-        return strategies.stream()
-                .filter(strategy -> strategy.supports(provider, webSearchEnabled))
-                .min(Comparator.comparingInt(LLMStrategy::priority))
-                .orElseThrow(() -> new LLMClientException("没有可处理当前大模型供应商的调用策略: " + provider.getType()));
+    /** 按渠道协议唯一匹配策略。 */
+    private LLMStrategy selectStrategy(LLMConnectionConfig provider) {
+        LLMStrategy strategy = strategies.get(provider.getType());
+        if (strategy == null) throw new LLMClientException("没有可处理当前模型协议的策略");
+        return strategy;
     }
 
-    /**
-     * 解析远程供应商的访问密钥。
-     *
-     * <p>环境变量优先于配置文件，避免生产密钥被持久化到仓库或部署包中。</p>
-     *
-     * @param provider 当前供应商配置
-     * @param providerName 当前供应商名称
-     * @return 非空访问密钥
-     */
-    private String resolveApiKey(LLMProviderProperties.Provider provider, String providerName) {
-        String envApiKey = readEnvironmentApiKey(provider.getApiKeyEnv());
-        if (!envApiKey.isBlank()) {
-            return envApiKey;
-        }
-        if (provider.getApiKey() != null && !provider.getApiKey().isBlank()) {
-            return provider.getApiKey().trim();
-        }
-        throw new LLMClientException("大模型供应商未配置 API Key: " + providerName);
+    /** 仅从选中数据库渠道读取凭据，空密钥直接拒绝远程调用。 */
+    private String resolveApiKey(GeoLlmChannelEntity channel) {
+        String key = normalize(channel.getApiKey());
+        if (key.isEmpty()) throw new LLMClientException("模型渠道未保存 API 密钥");
+        return key;
     }
 
-    /**
-     * 从环境变量读取访问密钥。
-     *
-     * @param environmentName 环境变量名称
-     * @return 已清理的密钥；变量未配置时为空字符串
-     */
-    private String readEnvironmentApiKey(String environmentName) {
-        if (environmentName == null || environmentName.isBlank()) {
-            return "";
-        }
-        String apiKey = System.getenv(environmentName.trim());
-        return apiKey == null ? "" : apiKey.trim();
-    }
+    /** 清理可选选择条件与密钥引用。 */
+    private String normalize(String value) { return value == null ? "" : value.strip(); }
 }

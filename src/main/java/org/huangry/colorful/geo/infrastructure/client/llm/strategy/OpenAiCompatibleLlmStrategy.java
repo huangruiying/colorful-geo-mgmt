@@ -7,7 +7,7 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import lombok.extern.slf4j.Slf4j;
-import org.huangry.colorful.geo.infrastructure.client.llm.config.LLMProviderProperties;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMMessage;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
@@ -29,16 +29,9 @@ import java.util.List;
 @Component
 public class OpenAiCompatibleLlmStrategy implements LLMStrategy {
 
+    /** 标准 Chat Completions 问答协议。 */
     @Override
-    public boolean supports(LLMProviderProperties.Provider provider, boolean webSearchEnabled) {
-        return provider.getType() == LLMProviderType.OPENAI_COMPATIBLE
-                && (!webSearchEnabled || !provider.isWebSearchSupported());
-    }
-
-    @Override
-    public int priority() {
-        return 30;
-    }
+    public LLMProviderType llmProviderType() { return LLMProviderType.OPENAI_COMPATIBLE; }
 
     /**
      * 通过 LangChain4j 调用标准 Chat Completions 协议。
@@ -49,7 +42,7 @@ public class OpenAiCompatibleLlmStrategy implements LLMStrategy {
      * @return 不带网页引用的标准响应
      */
     @Override
-    public LLMResponse query(LLMQueryRequest request, LLMProviderProperties.Provider provider, String apiKey) {
+    public LLMResponse query(LLMQueryRequest request, LLMConnectionConfig provider, String apiKey) {
         validateProvider(provider);
 
         // 1. 依据供应商连接参数构造独立模型实例，防止不同 provider 间配置串用。
@@ -65,9 +58,7 @@ public class OpenAiCompatibleLlmStrategy implements LLMStrategy {
         }
 
         // 2. 映射通用消息角色，并调用 OpenAI-compatible 协议。
-        log.info("请求大模型 request param {}", request.messages());
         ChatResponse response = modelBuilder.build().chat(toChatMessages(request.messages()));
-        log.info("请求大模型 response result {}", response.toString());
         return LLMResponse.withoutCitations(response.aiMessage().text());
     }
 
@@ -102,7 +93,7 @@ public class OpenAiCompatibleLlmStrategy implements LLMStrategy {
      *
      * @param provider 当前启用供应商
      */
-    private void validateProvider(LLMProviderProperties.Provider provider) {
+    private void validateProvider(LLMConnectionConfig provider) {
         if (isBlank(provider.getBaseUrl()) || isBlank(provider.getModel())) {
             throw new LLMClientException("OpenAI-compatible 供应商缺少 baseUrl 或 model 配置");
         }

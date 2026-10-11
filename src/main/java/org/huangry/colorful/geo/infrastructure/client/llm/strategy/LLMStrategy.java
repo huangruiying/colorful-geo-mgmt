@@ -1,8 +1,9 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
-import org.huangry.colorful.geo.infrastructure.client.llm.config.LLMProviderProperties;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
 
 /**
  * 大模型调用通道差异策略。
@@ -13,21 +14,8 @@ import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
  */
 public interface LLMStrategy {
 
-    /**
-     * 判断策略是否可处理当前供应商与能力请求。
-     *
-     * @param provider 供应商配置
-     * @param webSearchEnabled 是否请求联网搜索
-     * @return 是否可处理
-     */
-    boolean supports(LLMProviderProperties.Provider provider, boolean webSearchEnabled);
-
-    /**
-     * 数值越小优先级越高，用于优先选择联网搜索等特定通道。
-     *
-     * @return 策略优先级
-     */
-    int priority();
+    /** 声明策略唯一处理的协议类型；搜索能力由枚举统一维护。 */
+    LLMProviderType llmProviderType();
 
     /**
      * 调用已匹配的模型通道。
@@ -37,5 +25,5 @@ public interface LLMStrategy {
      * @param apiKey 已解析的密钥；mock 策略可忽略
      * @return 标准查询结果
      */
-    LLMResponse query(LLMQueryRequest request, LLMProviderProperties.Provider provider, String apiKey);
+    LLMResponse query(LLMQueryRequest request, LLMConnectionConfig provider, String apiKey);
 }

@@ -12,8 +12,11 @@ class OpenAiWebSearchStrategyTest {
     /** 没有结构化引用时，正文链接不能被当成引用。 */
     @Test
     void shouldKeepCitationsEmptyWithoutAnnotations() throws Exception {
-        var body = new com.fasterxml.jackson.databind.ObjectMapper().readTree(
-            "{\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"参考 https://example.com\",\"annotations\":[]}]}]}");
+        var body = new com.fasterxml.jackson.databind.ObjectMapper().readTree("""
+            {"output": [{"type": "message", "content": [
+                {"type": "output_text", "text": "参考 https://example.com", "annotations": []}
+            ]}]}
+            """);
         var response = new OpenAiWebSearchStrategy().parseResponse(body);
         assertEquals("参考 https://example.com", response.content());
         assertTrue(response.citations().isEmpty());

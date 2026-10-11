@@ -189,6 +189,23 @@
 - 三页文案已按 GEO 诊断职责调整，移除内容健康、发布链路、登录态检查等旧规划。页面明确标记能力待接入，未新增诊断接口、任务表或真实报告数据。
 - 验证：9 个管理页静态导航、链接顺序与唯一选中状态检查通过，git diff --check 通过。在 localhost:8010 真实浏览器点击验证方案、任务、报告入口，标题与内容正确，并查看报告页截图确认沿用现有样式；尚未接入的业务能力未进行联调。
 
+## 基础配置与模型管理（2026-10-11）
+
+- 最新可读性自检：模型保存删除无意义的密钥校验嵌套，保存结果用明确变量代替取反三元表达式；分页拆开偏移量、查询转换和总数；Service、路由转换参数改为 channel/config，引用测试 JSON 改用文本块。移除 LLMClient 选择前重复日志，实际渠道日志仍由路由器记录。保留响应密钥隔离、协议连接快照、保存回读数据库时间、只更新启停字段这些实际边界；本轮无新增业务抽象。全量 257 项测试及差异检查通过，运行服务未重启。
+- 最新请求约定：已删除 LLMQueryRequest.webSearchEnabled；请求仅含 messages、channelCode、modelName。路由仅按启用、渠道、模型及 score 选择；Responses 自动提供 web_search 工具，其他策略返回正文和空引用，不从正文链接猜测引用。协议支持不保证实际搜索或引用。页面说明及资源版本已同步为 20261011-config3。全量 257 项测试、JS 语法及差异检查通过；本轮未重启服务、未做真实外部模型联调。下述旧记录中的单次搜索开关已失效，以本条为准。
+- 删除 Service 的 getChannel 查询包装，直接调用 MyBatis-Plus getById；编辑、启停和详情在业务位置判断记录缺失，保存后直接 getById 回读。模型 Service、Business、Controller 定向测试通过，补充缺失记录回归，未重启运行服务。
+- 模型管理调用链精简：保存命令转实体后不再拆出 apiKey 参数，Service 直接校验并保存该实体，删除二次实体创建及属性拷贝；仍清理系统字段、空密钥转换为 null 保留旧值。修正保存命令“无密钥”的失真注释。响应转换、保存回读数据库时间、启停只更新状态、协议连接快照均有实际职责，保留。新增回归验证空密钥、新密钥、系统字段及查询次数；全量 255 项测试通过，差异检查通过；本轮未做真实平台调用。
+- 响应模型简化验证：最新全量 254 项测试通过，新增应用层回归覆盖保存、详情、列表、启停响应均无 apiKey，且 keyConfigured、搜索能力正常；git diff --check 通过。本次未重新验证运行中服务，新类型需重启服务加载。
+- 注入风格统一：用户要求 Spring 依赖始终使用 @Resource，已写入 AGENTS.md；本轮模型 Controller、Business、策略路由均改为字段注入。协议策略注册改为 @PostConstruct，保持启动时拒绝重复协议，测试同步按字段注入与初始化生命周期执行。
+- 协议重构完成：LLMProviderType 使用“描述、搜索能力”构造参数，包含 MOCK、OPENAI_COMPATIBLE、OPENAI_RESPONSES；策略通过 llmProviderType() 注册，重复协议在启动时拒绝。搜索能力由枚举派生，单次请求仍保留 webSearchEnabled；Responses 普通请求不声明搜索工具。页面协议选项从 /llm-channels/protocols 获取，导航版本 20261011-config2。
+- 本地数据库已执行 008_llm_protocol_capabilities.sql：原支持搜索的兼容渠道转换为 OPENAI_RESPONSES，移除 web_search_supported。008 仅适用于原来有该字段的库；新库用更新后的 001 或 007 建表，不执行 008。最新全量 253 项通过，覆盖重复协议注册、搜索开关请求体；JS 语法与差异检查通过。8012 真实页面核验三个协议选项、无搜索能力复选框、切换协议后能力说明更新通过；外部模型联网调用待验证。
+- 当前完成：全部管理页增加“基础配置”，包含模型配置、模型列表和迁入的浏览器登录管理。模型支持新增、编辑、查询、启停及 score 优先级，使用现有页面风格；诊断方案业务本轮未实现。
+- 分层：LlmChannelController → LlmChannelBusiness → GeoLlmChannelService → GeoLlmChannelDao / GeoLlmChannelEntity，Service、DAO、实体名与 geo_llm_channel 表对应。已移除仅作中转的领域模型 LlmChannel，Service 直接使用实体，Business 转换为 LlmChannelResponse；密钥只在内部使用，响应仅公开 keyConfigured 及协议派生搜索能力。保存命令仍限制输入字段，编辑空密钥保留原值。增量 SQL 为 007_geo_llm_channel.sql，空库初始化同步到 001_init.sql。
+- 数据库为模型配置唯一来源：本地 MySQL 已迁入 application.yml 中 6 个渠道及已有密钥，原默认 custom 启用、score=100，其余停用、score=0。YAML 模型段、配置绑定类与兼容读取已删除，无启动自动导入逻辑。新库需通过页面维护渠道。数据库密钥不返回列表或详情；编辑留空保留，填写新值替换。
+- 路由：未指定时筛选已启用渠道，score 降序、ID 升序；指定渠道或模型增加筛选约束，搜索请求要求对应能力。条件不匹配或调用失败不自动更换模型。现有 query(String) 继续工作，完整请求支持 channelCode、modelName 和搜索开关；策略使用 LLMConnectionConfig 快照。
+- 验证：JDK 17 下离线 clean test 全量 252 项通过；真实 MySQL 验证默认选择、模型筛选、指定模拟调用、缺失渠道拒绝。真实接口及浏览器完成新建、编辑、查询、启停、密钥留空保留和查询不回传密钥验证，临时验收渠道已清理。11 个管理页的菜单、链接与唯一选中状态检查通过。
+- 运行：新版独立服务在 8012 验证，原 IDE 管理的 8010 进程未停止；需在 IDE 重启 8010 才能加载新接口。真实外部模型调用本轮未验证。用户原有头条、小红书 staged 改动保留，未提交。
+
 ## WorkBuddy / GPT 接手指令
 
 ### 今日头条保存判据修正（Codex，2026-10-09 晚间）

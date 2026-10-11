@@ -1,6 +1,6 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
-import org.huangry.colorful.geo.infrastructure.client.llm.config.LLMProviderProperties;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
@@ -16,18 +16,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class MockLlmStrategy implements LLMStrategy {
 
+    /** 本地模拟协议不发起远程请求。 */
     @Override
-    public boolean supports(LLMProviderProperties.Provider provider, boolean webSearchEnabled) {
-        return provider.getType() == LLMProviderType.MOCK;
-    }
+    public LLMProviderType llmProviderType() { return LLMProviderType.MOCK; }
 
     @Override
-    public int priority() {
-        return 10;
-    }
-
-    @Override
-    public LLMResponse query(LLMQueryRequest request, LLMProviderProperties.Provider provider, String apiKey) {
+    public LLMResponse query(LLMQueryRequest request, LLMConnectionConfig provider, String apiKey) {
         return LLMResponse.withoutCitations("当前配置启用 mock 大模型，未调用真实大模型服务。");
     }
 }

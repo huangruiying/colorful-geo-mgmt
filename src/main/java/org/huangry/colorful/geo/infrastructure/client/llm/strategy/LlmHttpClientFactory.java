@@ -2,7 +2,7 @@ package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
 import dev.langchain4j.http.client.jdk.JdkHttpClient;
 import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
-import org.huangry.colorful.geo.infrastructure.client.llm.config.LLMProviderProperties;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 
@@ -34,7 +34,7 @@ final class LlmHttpClientFactory {
      * @param provider 供应商配置
      * @return 配置完成的客户端构造器
      */
-    static JdkHttpClientBuilder createLangChain4jClientBuilder(LLMProviderProperties.Provider provider) {
+    static JdkHttpClientBuilder createLangChain4jClientBuilder(LLMConnectionConfig provider) {
         Duration timeout = Duration.ofSeconds(provider.getTimeoutSeconds());
         return JdkHttpClient.builder()
                 .httpClientBuilder(createJavaHttpClientBuilder(provider, timeout))
@@ -48,7 +48,7 @@ final class LlmHttpClientFactory {
      * @param provider 供应商配置
      * @return 请求工厂
      */
-    static JdkClientHttpRequestFactory createSpringRequestFactory(LLMProviderProperties.Provider provider) {
+    static JdkClientHttpRequestFactory createSpringRequestFactory(LLMConnectionConfig provider) {
         Duration timeout = Duration.ofSeconds(provider.getTimeoutSeconds());
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
                 createJavaHttpClientBuilder(provider, timeout).build());
@@ -65,7 +65,7 @@ final class LlmHttpClientFactory {
      * @param timeout 连接与读取超时
      * @return JDK HTTP 客户端构造器
      */
-    private static HttpClient.Builder createJavaHttpClientBuilder(LLMProviderProperties.Provider provider, Duration timeout) {
+    private static HttpClient.Builder createJavaHttpClientBuilder(LLMConnectionConfig provider, Duration timeout) {
         HttpClient.Builder builder = HttpClient.newBuilder().connectTimeout(timeout);
         if (provider.isSslVerify()) {
             return builder;
