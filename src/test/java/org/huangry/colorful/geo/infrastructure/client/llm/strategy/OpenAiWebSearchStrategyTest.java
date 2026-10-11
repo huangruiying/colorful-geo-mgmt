@@ -7,22 +7,28 @@ import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** 验证 Responses 协议的搜索能力与单次请求的搜索开关独立。 */
+/** 验证 Responses 协议自动提供搜索工具，无需调用方选择。 */
 class OpenAiWebSearchStrategyTest {
-    /** 普通问答不声明工具；搜索请求才声明 web_search。 */
+    /** 没有结构化引用时，正文链接不能被当成引用。 */
     @Test
-    void shouldSendSearchToolOnlyWhenRequested() {
+    void shouldKeepCitationsEmptyWithoutAnnotations() throws Exception {
+        var body = new com.fasterxml.jackson.databind.ObjectMapper().readTree(
+            "{\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"参考 https://example.com\",\"annotations\":[]}]}]}");
+        var response = new OpenAiWebSearchStrategy().parseResponse(body);
+        assertEquals("参考 https://example.com", response.content());
+        assertTrue(response.citations().isEmpty());
+    }
+
+    /** 默认单轮请求也声明 web_search，同时保留模型与消息。 */
+    @Test
+    void shouldAutomaticallySendSearchTool() {
         var strategy = new OpenAiWebSearchStrategy();
         var config = new LLMConnectionConfig();
         config.setModel("test-model");
         var ordinary = LLMQueryRequest.userMessage("问题");
         var plain = strategy.buildRequestBody(ordinary, config);
-        assertFalse(plain.containsKey("tools"));
+        assertEquals(List.of(Map.of("type", "web_search")), plain.get("tools"));
         assertEquals("test-model", plain.get("model"));
         assertEquals(false, plain.get("store"));
-        var search = strategy.buildRequestBody(
-            new LLMQueryRequest(ordinary.messages(), true, null, null), config);
-        assertEquals(List.of(Map.of("type", "web_search")), search.get("tools"));
-        assertEquals(plain.get("input"), search.get("input"));
     }
 }

@@ -43,24 +43,23 @@ class LLMStrategyRouterTest {
         assertEquals("模拟结果", createRouter(List.of(strategy)).query(LLMQueryRequest.userMessage("问题")).content());
     }
 
-    /** 同时指定渠道、模型和搜索时，全部约束必须进入数据库筛选。 */
+    /** 指定渠道和模型时，两项约束进入筛选，协议不影响默认渠道选择。 */
     @Test
-    void shouldFilterExplicitChannelModelAndSearch() {
+    void shouldFilterExplicitChannelAndModel() {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new Configuration(), "channel"), GeoLlmChannelEntity.class);
         when(dao.selectList(any())).thenAnswer(invocation -> {
             var wrapper = (com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<?>) invocation.getArgument(0);
             String sql = wrapper.getSqlSegment();
             assertTrue(sql.contains("channelCode"));
             assertTrue(sql.contains("modelName"));
-            assertTrue(sql.contains("protocolType"));
-            assertTrue(wrapper.getParamNameValuePairs().containsValue(LLMProviderType.OPENAI_RESPONSES));
+            assertFalse(sql.contains("protocolType"));
             assertTrue(wrapper.getParamNameValuePairs().containsValue("chosen"));
             assertTrue(wrapper.getParamNameValuePairs().containsValue("test-model"));
             return List.of();
         });
         var router = createRouter(List.of(mockStrategy()));
         assertThrows(LLMClientException.class, () -> router.query(new LLMQueryRequest(
-            LLMQueryRequest.userMessage("问题").messages(), true, "chosen", "test-model")));
+            LLMQueryRequest.userMessage("问题").messages(), "chosen", "test-model")));
     }
 
     /** 模型约束可以独立使用，不强制指定渠道。 */
@@ -74,7 +73,7 @@ class LLMStrategyRouterTest {
             return List.of(mockChannel());
         });
         createRouter(List.of(mockStrategy())).query(
-            new LLMQueryRequest(LLMQueryRequest.userMessage("问题").messages(), false, null, "test-model"));
+            new LLMQueryRequest(LLMQueryRequest.userMessage("问题").messages(), null, "test-model"));
     }
 
     /** 没有匹配渠道时不使用 YAML 默认渠道或模拟回答兜底。 */

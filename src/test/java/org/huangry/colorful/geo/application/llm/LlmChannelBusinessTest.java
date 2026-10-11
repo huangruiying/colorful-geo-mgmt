@@ -24,7 +24,7 @@ class LlmChannelBusinessTest {
         entity.setId(1L);
         entity.setApiKey("unit-test-placeholder");
         entity.setProtocolType(LLMProviderType.OPENAI_RESPONSES);
-        when(service.getChannel(1)).thenReturn(entity);
+        when(service.getById(1L)).thenReturn(entity);
         when(service.saveChannel(isNull(), any())).thenReturn(entity);
         when(service.listChannels(null, 20, 0)).thenReturn(List.of(entity));
         when(service.changeEnabled(1, true)).thenReturn(entity);
@@ -40,5 +40,6 @@ class LlmChannelBusinessTest {
         }
         entity.setApiKey(" ");
         assertFalse(business.getChannel(1).getKeyConfigured());
+        assertThrows(java.util.NoSuchElementException.class, () -> business.getChannel(99));
     }
 }
