@@ -3,7 +3,6 @@ package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMCitation;
-import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMMessage;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
@@ -13,7 +12,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,27 +69,13 @@ public class OpenAiWebSearchStrategy implements LLMStrategy {
     Map<String, Object> buildRequestBody(LLMQueryRequest request, LLMConnectionConfig provider) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", provider.getModel());
-        body.put("input", toResponseInput(request.messages()));
+        body.put("input", List.of(Map.of(
+            "role", "user",
+            "content", List.of(Map.of("type", "input_text", "text", request.prompt())))));
         // 协议决定搜索工具，无需调用方重复选择。
         body.put("tools", List.of(Map.of("type", "web_search")));
         body.put("store", false);
         return body;
-    }
-
-    /**
-     * 将通用会话消息转换为 Responses API 的 input 结构。
-     *
-     * @param messages 调用方消息
-     * @return OpenAI Responses API 输入项
-     */
-    private List<Map<String, Object>> toResponseInput(List<LLMMessage> messages) {
-        List<Map<String, Object>> responseInput = new ArrayList<>();
-        for (LLMMessage message : messages) {
-            responseInput.add(Map.of(
-                    "role", message.role().protocolValue(),
-                    "content", List.of(Map.of("type", "input_text", "text", message.content()))));
-        }
-        return responseInput;
     }
 
     /**

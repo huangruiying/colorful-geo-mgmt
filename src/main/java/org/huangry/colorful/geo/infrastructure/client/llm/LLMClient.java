@@ -33,7 +33,7 @@ public class LLMClient {
      * @return 标准模型响应
      */
     public LLMResponse query(String userMessage) {
-        return query(LLMQueryRequest.userMessage(userMessage));
+        return query(new LLMQueryRequest(userMessage));
     }
 
     /**

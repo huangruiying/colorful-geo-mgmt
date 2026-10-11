@@ -1,14 +1,10 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
-import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.data.message.ChatMessage;
-import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
-import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMMessage;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
@@ -16,7 +12,6 @@ import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientExcept
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.List;
 
 /**
  * OpenAI Chat Completions 兼容策略。
@@ -57,35 +52,9 @@ public class OpenAiCompatibleLlmStrategy implements LLMStrategy {
             modelBuilder.httpClientBuilder(LlmHttpClientFactory.createLangChain4jClientBuilder(provider));
         }
 
-        // 2. 映射通用消息角色，并调用 OpenAI-compatible 协议。
-        ChatResponse response = modelBuilder.build().chat(toChatMessages(request.messages()));
+        // 2. 每次只提交当前问题，不传入历史回答。
+        ChatResponse response = modelBuilder.build().chat(UserMessage.from(request.prompt()));
         return LLMResponse.withoutCitations(response.aiMessage().text());
-    }
-
-    /**
-     * 将基础设施层的通用消息转换为 LangChain4j 消息。
-     *
-     * @param messages 调用方提供的标准会话消息
-     * @return LangChain4j 可识别的消息列表
-     */
-    private List<ChatMessage> toChatMessages(List<LLMMessage> messages) {
-        return messages.stream().map(this::toChatMessage).toList();
-    }
-
-    /**
-     * 按标准角色创建协议消息。
-     *
-     * <p>角色映射集中在此处，避免业务层依赖 LangChain4j 的具体消息类型。</p>
-     *
-     * @param message 通用消息
-     * @return 目标协议消息
-     */
-    private ChatMessage toChatMessage(LLMMessage message) {
-        return switch (message.role()) {
-            case SYSTEM -> SystemMessage.from(message.content());
-            case USER -> UserMessage.from(message.content());
-            case ASSISTANT -> AiMessage.from(message.content());
-        };
     }
 
     /**
