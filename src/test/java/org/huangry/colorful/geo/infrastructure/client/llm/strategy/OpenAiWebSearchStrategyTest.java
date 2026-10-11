@@ -1,44 +1,28 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.junit.jupiter.api.Test;
+import java.util.List;
+import java.util.Map;
+import static org.junit.jupiter.api.Assertions.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-/**
- * OpenAI 网页引用解析单元测试。
- *
- * @author huangry
- */
+/** 验证 Responses 协议的搜索能力与单次请求的搜索开关独立。 */
 class OpenAiWebSearchStrategyTest {
-
+    /** 普通问答不声明工具；搜索请求才声明 web_search。 */
     @Test
-    void 应只返回结构化网页引用并按链接去重() throws Exception {
-        String responseJson = """
-                {
-                  "output": [{
-                    "type": "message",
-                    "content": [{
-                      "type": "output_text",
-                      "text": "第一段回答。",
-                      "annotations": [
-                        {"type":"url_citation","title":"OpenAI","url":"https://openai.com","start_index":0,"end_index":4},
-                        {"type":"url_citation","title":"OpenAI","url":"https://openai.com","start_index":5,"end_index":9},
-                        {"type":"file_citation","title":"不应返回"}
-                      ]
-                    }]
-                  }]
-                }
-                """;
-        OpenAiWebSearchStrategy strategy = new OpenAiWebSearchStrategy();
-        LLMResponse response = strategy.parseResponse(new ObjectMapper().readTree(responseJson));
-
-        assertEquals("第一段回答。", response.content());
-        assertEquals(1, response.citations().size());
-        assertEquals("OpenAI", response.citations().get(0).title());
-        assertEquals("https://openai.com", response.citations().get(0).url());
-        assertEquals(0, response.citations().get(0).startIndex());
-        assertEquals(4, response.citations().get(0).endIndex());
+    void shouldSendSearchToolOnlyWhenRequested() {
+        var strategy = new OpenAiWebSearchStrategy();
+        var config = new LLMConnectionConfig();
+        config.setModel("test-model");
+        var ordinary = LLMQueryRequest.userMessage("问题");
+        var plain = strategy.buildRequestBody(ordinary, config);
+        assertFalse(plain.containsKey("tools"));
+        assertEquals("test-model", plain.get("model"));
+        assertEquals(false, plain.get("store"));
+        var search = strategy.buildRequestBody(
+            new LLMQueryRequest(ordinary.messages(), true, null, null), config);
+        assertEquals(List.of(Map.of("type", "web_search")), search.get("tools"));
+        assertEquals(plain.get("input"), search.get("input"));
     }
 }
