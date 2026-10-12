@@ -14,7 +14,7 @@ class OpenAiWebSearchLlmStrategyTest {
     void shouldNotDeclareSearchForPlainResponses() {
         var strategy = new OpenAiResponsesLlmStrategy();
         var provider = new LLMConnectionConfig();
-        var body = strategy.buildRequestBody(LLMQueryRequest.userMessage("问题"), provider);
+        var body = strategy.buildRequestBody(new LLMQueryRequest("问题"), provider);
         assertFalse(body.containsKey("tools"));
     }
     /** 没有结构化引用时，正文链接不能被当成引用。 */
