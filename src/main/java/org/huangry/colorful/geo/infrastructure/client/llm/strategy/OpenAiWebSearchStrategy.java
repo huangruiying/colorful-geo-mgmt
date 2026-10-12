@@ -29,7 +29,7 @@ public class OpenAiWebSearchStrategy implements LLMStrategy {
 
     /** Responses 协议自动提供搜索工具。 */
     @Override
-    public LLMProviderType llmProviderType() { return LLMProviderType.OPENAI_RESPONSES; }
+    public LLMProviderType llmProviderType() { return LLMProviderType.OPENAI_WEB_SEARCH; }
 
     /**
      * 调用 OpenAI Responses API，提供搜索工具并解析回答及来源引用。

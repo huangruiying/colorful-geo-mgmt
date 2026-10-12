@@ -10,7 +10,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 
 /** 验证实体仅在内部流转，全部对外结果隔离密钥并保持展示字段。 */
 class LlmChannelBusinessTest {
@@ -23,7 +22,7 @@ class LlmChannelBusinessTest {
         var entity = new GeoLlmChannelEntity();
         entity.setId(1L);
         entity.setApiKey("unit-test-placeholder");
-        entity.setProtocolType(LLMProviderType.OPENAI_RESPONSES);
+        entity.setProtocolType(LLMProviderType.OPENAI_WEB_SEARCH);
         when(service.getById(1L)).thenReturn(entity);
         when(service.saveChannel(isNull(), any())).thenReturn(entity);
         when(service.listChannels(null, 20, 0)).thenReturn(List.of(entity));

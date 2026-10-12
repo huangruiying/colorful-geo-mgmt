@@ -17,11 +17,11 @@ public enum LLMProviderType {
     /** 不发起远程请求的本地模拟通道。 */
     MOCK("本地模拟", false),
 
-    /** 兼容 OpenAI Chat Completions 协议的远程通道。 */
-    OPENAI_COMPATIBLE("OpenAI 兼容问答（Chat Completions）", false),
+    /** OpenAI标准版, 兼容 OpenAI Chat Completions 协议的远程通道。 */
+    OPENAI_STANDARD("OpenAI 兼容问答（Chat Completions）", false),
 
     /** Responses 协议可按请求启用搜索工具。 */
-    OPENAI_RESPONSES("OpenAI Responses（支持联网搜索）", true);
+    OPENAI_WEB_SEARCH("OpenAI Responses（支持联网搜索）", true);
 
     /** 页面展示及协议说明。 */
     private final String description;

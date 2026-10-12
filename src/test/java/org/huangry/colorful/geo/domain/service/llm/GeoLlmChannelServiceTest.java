@@ -79,14 +79,14 @@ class GeoLlmChannelServiceTest {
     void shouldRejectSearchForMockChannel() {
         GeoLlmChannelEntity c = channel(); c.setProtocolType(LLMProviderType.MOCK);
         assertFalse(c.getProtocolType().isWebSearchSupported());
-        c.setProtocolType(LLMProviderType.OPENAI_RESPONSES);
+        c.setProtocolType(LLMProviderType.OPENAI_WEB_SEARCH);
         assertTrue(c.getProtocolType().isWebSearchSupported());
     }
 
     /** 构造有效远程连接，但不进行真实请求。 */
     private GeoLlmChannelEntity channel() {
         GeoLlmChannelEntity c = new GeoLlmChannelEntity(); c.setChannelCode("test"); c.setChannelName("测试");
-        c.setProviderCode("test"); c.setProtocolType(LLMProviderType.OPENAI_COMPATIBLE);
+        c.setProviderCode("test"); c.setProtocolType(LLMProviderType.OPENAI_STANDARD);
         c.setBaseUrl("https://example.com/v1"); c.setModelName("test-model");
         return c;
     }

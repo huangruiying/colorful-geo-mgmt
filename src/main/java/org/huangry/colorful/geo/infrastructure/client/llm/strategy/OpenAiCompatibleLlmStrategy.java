@@ -26,7 +26,7 @@ public class OpenAiCompatibleLlmStrategy implements LLMStrategy {
 
     /** 标准 Chat Completions 问答协议。 */
     @Override
-    public LLMProviderType llmProviderType() { return LLMProviderType.OPENAI_COMPATIBLE; }
+    public LLMProviderType llmProviderType() { return LLMProviderType.OPENAI_STANDARD; }
 
     /**
      * 通过 LangChain4j 调用标准 Chat Completions 协议。
