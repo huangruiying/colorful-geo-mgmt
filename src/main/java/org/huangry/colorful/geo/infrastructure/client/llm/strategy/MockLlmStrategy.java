@@ -3,7 +3,7 @@ package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.springframework.stereotype.Component;
 
 /**
@@ -18,7 +18,7 @@ public class MockLlmStrategy implements LLMStrategy {
 
     /** 本地模拟协议不发起远程请求。 */
     @Override
-    public LLMProviderType llmProviderType() { return LLMProviderType.MOCK; }
+    public LLMProtocolType llmProviderType() { return LLMProtocolType.MOCK; }
 
     @Override
     public LLMResponse query(LLMQueryRequest request, LLMConnectionConfig provider, String apiKey) {

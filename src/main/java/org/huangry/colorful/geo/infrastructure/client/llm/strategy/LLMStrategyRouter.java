@@ -7,7 +7,7 @@ import jakarta.annotation.PostConstruct;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
@@ -20,7 +20,7 @@ import java.util.List;
 @Component
 @Slf4j
 public class LLMStrategyRouter {
-    private final Map<LLMProviderType, LLMStrategy> strategies = new EnumMap<>(LLMProviderType.class);
+    private final Map<LLMProtocolType, LLMStrategy> strategies = new EnumMap<>(LLMProtocolType.class);
     @Resource
     private GeoLlmChannelDao channelDao;
 
@@ -43,7 +43,7 @@ public class LLMStrategyRouter {
         LLMConnectionConfig provider = toProvider(channel);
         // 2. 按选中渠道的协议匹配策略，由策略决定请求方式。
         LLMStrategy strategy = selectStrategy(provider);
-        String apiKey = provider.getType() == LLMProviderType.MOCK ? "" : resolveApiKey(channel);
+        String apiKey = provider.getType() == LLMProtocolType.MOCK ? "" : resolveApiKey(channel);
         // 3. 只记录实际渠道与模型，不记录问题、回答或凭据。
         log.info("模型调用 channel={}, model={}, protocol={}", channel.getChannelCode(), channel.getModelName(), channel.getProtocolType());
         return strategy.query(request, provider, apiKey);
@@ -67,6 +67,7 @@ public class LLMStrategyRouter {
     private LLMConnectionConfig toProvider(GeoLlmChannelEntity channel) {
         LLMConnectionConfig config = new LLMConnectionConfig();
         config.setType(channel.getProtocolType());
+        config.setProviderCode(channel.getProviderCode());
         config.setBaseUrl(channel.getBaseUrl());
         config.setModel(channel.getModelName());
         config.setTemperature(channel.getTemperature());

@@ -5,7 +5,7 @@ import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionCon
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMCitation;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -17,22 +17,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * OpenAI Responses 协议策略，自动提供联网搜索工具。
+ * Responses 请求与结构化引用解析，不根据搜索标记限制引用提取。
  *
- * <p>通过 Responses API 提供 web_search 工具，让模型按需检索外部资料辅助回答。
+ * <p>OpenAI 供应商自动声明 web_search，其他供应商不假设支持该工具。
  * 从返回的 url_citation 注解提取来源信息；没有引用时返回空列表，不从正文猜测来源，也不负责核验来源正确性。</p>
  *
  * @author huangry
  */
 @Component
-public class OpenAiWebSearchStrategy implements LLMStrategy {
+public class OpenAiResponsesApiStrategy implements LLMStrategy {
 
-    /** Responses 协议自动提供搜索工具。 */
+    /** 注册 input/output 交互协议，不表示联网能力。 */
     @Override
-    public LLMProviderType llmProviderType() { return LLMProviderType.OPENAI_WEB_SEARCH; }
+    public LLMProtocolType llmProviderType() { return LLMProtocolType.OPENAI_RESPONSES; }
 
     /**
-     * 调用 OpenAI Responses API，提供搜索工具并解析回答及来源引用。
+     * 调用 Responses API，按适配能力声明工具并解析回答及来源引用。
      *
      * @param request 通用查询请求
      * @param provider OpenAI 官方通道配置
@@ -43,7 +43,7 @@ public class OpenAiWebSearchStrategy implements LLMStrategy {
     public LLMResponse query(LLMQueryRequest request, LLMConnectionConfig provider, String apiKey) {
         validateProvider(provider);
 
-        // 1. 向 Responses API 声明内建 web_search 工具，是否实际检索由模型决定。
+        // 1. 搜索请求参数按供应商处理，不从接口协议推导联网能力。
         Map<String, Object> requestBody = buildRequestBody(request, provider);
 
         // 2. 保持 API Key 仅存在于请求头，日志和响应对象均不保留密钥。
@@ -65,15 +65,17 @@ public class OpenAiWebSearchStrategy implements LLMStrategy {
         return parseResponse(responseBody);
     }
 
-    /** 组装 Responses 请求，自动声明搜索工具。 */
+    /** 组装 Responses 请求，OpenAI 供应商沿用自动搜索工具。 */
     Map<String, Object> buildRequestBody(LLMQueryRequest request, LLMConnectionConfig provider) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", provider.getModel());
         body.put("input", List.of(Map.of(
             "role", "user",
             "content", List.of(Map.of("type", "input_text", "text", request.prompt())))));
-        // 协议决定搜索工具，无需调用方重复选择。
-        body.put("tools", List.of(Map.of("type", "web_search")));
+        // OpenAI 的工具参数不能无条件发送给所有兼容供应商。
+        if ("openai".equalsIgnoreCase(provider.getProviderCode())) {
+            body.put("tools", List.of(Map.of("type", "web_search")));
+        }
         body.put("store", false);
         return body;
     }

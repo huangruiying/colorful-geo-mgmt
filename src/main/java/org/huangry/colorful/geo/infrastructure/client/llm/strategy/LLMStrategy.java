@@ -3,7 +3,7 @@ package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 
 /**
  * 大模型调用通道差异策略。
@@ -15,7 +15,7 @@ import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
 public interface LLMStrategy {
 
     /** 声明策略唯一处理的协议类型；搜索能力由枚举统一维护。 */
-    LLMProviderType llmProviderType();
+    LLMProtocolType llmProviderType();
 
     /**
      * 调用已匹配的模型通道。
