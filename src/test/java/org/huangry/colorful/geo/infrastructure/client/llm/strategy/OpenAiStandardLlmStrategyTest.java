@@ -9,7 +9,7 @@ class OpenAiStandardLlmStrategyTest {
     /** 普通链接不能伪装为引用；结构化注解按 URL 去重并跳过空链接。 */
     @Test
     void shouldExtractStructuredCitationsOnly() throws Exception {
-        var strategy = new OpenAiStandardLlmStrategy();
+        var strategy = new OpenAiChatCompletionsApiStrategy();
         var response = strategy.parseResponse(new ObjectMapper().readTree("""
             {"choices":[{"message":{"content":"回答 https://unverified.example","annotations":[
               {"type":"url_citation","url_citation":{"url":"https://source.example","title":"来源","start_index":0,"end_index":2}},

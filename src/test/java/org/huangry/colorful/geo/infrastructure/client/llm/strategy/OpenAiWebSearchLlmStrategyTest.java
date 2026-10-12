@@ -12,7 +12,7 @@ class OpenAiWebSearchLlmStrategyTest {
     /** 普通 Responses 不发送搜索工具，不能因接口格式误标联网能力。 */
     @Test
     void shouldNotDeclareSearchForPlainResponses() {
-        var strategy = new OpenAiResponsesLlmStrategy();
+        var strategy = new OpenAiResponsesApiStrategy();
         var provider = new LLMConnectionConfig();
         var body = strategy.buildRequestBody(new LLMQueryRequest("问题"), provider);
         assertFalse(body.containsKey("tools"));
@@ -25,7 +25,7 @@ class OpenAiWebSearchLlmStrategyTest {
                 {"type": "output_text", "text": "参考 https://example.com", "annotations": []}
             ]}]}
             """);
-        var response = new OpenAiResponsesLlmStrategy().parseResponse(body);
+        var response = new OpenAiResponsesApiStrategy().parseResponse(body);
         assertEquals("参考 https://example.com", response.content());
         assertTrue(response.citations().isEmpty());
     }
@@ -33,7 +33,7 @@ class OpenAiWebSearchLlmStrategyTest {
     /** 默认单轮请求也声明 web_search，同时保留模型与消息。 */
     @Test
     void shouldAutomaticallySendSearchTool() {
-        var strategy = new OpenAiResponsesLlmStrategy();
+        var strategy = new OpenAiResponsesApiStrategy();
         var config = new LLMConnectionConfig();
         config.setModel("test-model");
         config.setProviderCode("openai");
