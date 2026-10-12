@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.infrastructure.repository.entity;
 
 import lombok.Data;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import java.time.LocalDateTime;
 import com.baomidou.mybatisplus.annotation.*;
 
@@ -19,7 +19,7 @@ public class GeoLlmChannelEntity {
     /** 供应商标识。 */
     private String providerCode;
     /** 调用协议。 */
-    private LLMProviderType protocolType;
+    private LLMProtocolType protocolType;
     /** 接口根地址。 */
     private String baseUrl;
     /** 模型标识。 */

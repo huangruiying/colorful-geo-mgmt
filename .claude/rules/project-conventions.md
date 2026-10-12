@@ -58,7 +58,7 @@ infrastructure/client：外部协议、平台及浏览器适配
 - 默认筛选已启用渠道，按 `score` 降序、ID 升序选择；指定渠道或模型时增加对应约束。无匹配或调用失败明确返回，不自动切换模型。
 - 策略通过 `llmProviderType()` 声明协议，协议枚举维护描述和搜索能力；同一协议重复策略注册在初始化时拒绝。
 - 搜索能力由 `protocol_type` 推导，不重复添加 `web_search_supported`；请求不提供 `webSearchEnabled`。
-- `OPENAI_RESPONSES` 自动声明搜索工具，普通兼容协议返回正文和空引用；支持搜索不保证实际执行搜索或返回引用。
+- LLMProtocolType 只表示 MOCK、OPENAI_CHAT_COMPLETIONS、OPENAI_RESPONSES 交互格式，不维护搜索能力枚举。引用始终按响应的结构化字段解析，不根据搜索标志过滤，也不从正文 URL 猜测。搜索请求参数由供应商适配处理；当前只有 openai 的 Responses 自动声明 web_search，其他供应商的搜索能力不能据此宣称已接入。
 - 引用只来自接口结构化数据，不把正文链接当成实际引用，不虚构引用。
 - `LLMQueryRequest` 仅含 `prompt`、`channelCode`、`modelName`，每次独立调用，无角色枚举、消息列表或历史上下文。重复采样通过多次独立调用完成。
 - 密钥仅供服务端使用，响应只返回 `keyConfigured`；编辑空密钥保留原值，输入新值才替换。

@@ -4,6 +4,15 @@
 
 ## 当前任务：资产诊断方案
 
+- 最新纠正：LLMProviderType 改为 LLMProtocolType，仅 MOCK、OPENAI_CHAT_COMPLETIONS、OPENAI_RESPONSES；删除 SearchMode 及协议派生 searchSupported。页面搜索能力列改为接口协议，不再宣称协议代表联网。014 迁移已执行，把 OPENAI_WEB_SEARCH 转成 OPENAI_RESPONSES。请求快照新增 providerCode，OpenAI Responses 自动声明 web_search，其他供应商不发送该工具；非 OpenAI 搜索适配尚未实现。
+- Chat Completions 改为 RestClient 读取原始 JSON，保留生成参数、超时与证书配置，解析首个 choices.message.annotations 的嵌套 url_citation；Responses 保留原注解解析。都不解析正文 URL，不用搜索标志限制引用提取。打包通过，独立编译执行 4 项引用/请求断言通过；非全量测试，WhatsAppDemo 无关依赖仍阻断常规测试。真实供应商联调、其他供应商专有引用字段待验证。服务未重启，需重启加载新协议和 API。
+
+- LLMProviderType 改为调用适配类型：MOCK、OPENAI_CHAT_COMPLETIONS、OPENAI_RESPONSES（普通）、OPENAI_WEB_SEARCH（原生搜索）。searchMode 为 NONE/PROVIDER_NATIVE/EXTERNAL_SEARCH，searchSupported 由它推导，不重复维护布尔值；豆包/Kimi 尚未实现，不开放枚举选项。普通 Responses 与原生搜索策略共享响应解析，普通策略不发送 tools。页面及 API 能力字段同步为 searchSupported；013 迁移已本地执行。
+- 主代码打包、JS 语法及 diff 检查通过，补充普通 Responses 不声明工具的测试；测试执行仍受此前 WhatsAppDemo 缺少依赖阻断，未宣称通过。运行服务未重启，需重启后加载新枚举/API，真实模型联调待验证。
+
+- 协议改名自检：OPENAI_STANDARD 对应 Chat Completions，OPENAI_WEB_SEARCH 对应 Responses；策略类与联网策略测试类名同步，修正页面创建默认协议及枚举旧搜索开关注释。012_rename_llm_protocol_type.sql 已在本地执行，库中为 MOCK 1 条、OPENAI_STANDARD 4 条、OPENAI_WEB_SEARCH 1 条。历史 008 脚本保留旧值，升级顺序先 008 再 012；新库无旧配置无需迁移。模型页 JS 资源版本 20261012-protocol1。
+- 全量 clean test 被已有测试演示类 WhatsAppDemo 缺少 it.auties.whatsapp.api 依赖阻断，非本次改名问题；未修改演示类。JS 语法与 diff 检查通过。数据库已换新枚举，旧运行实例需要重启后才能读取，不宣称真实模型联调成功。
+
 - 新增 geo_diagnosis_plan_exec_record、geo_diagnosis_plan_exec_record_result：一次执行与逐次回答，配套完整表名对应实体/DAO，011 增量与 001 初始化同步，本地 MySQL 已建表。快照 JSON 不包含凭据；结果唯一键为执行记录＋问题序号＋渠道＋重复序号。问题/渠道 ID 不加外键，避免方案编辑重建问题影响历史结果；执行记录与方案、结果与执行记录使用限制删除的外键。
 - 本轮范围仅存储结构，未新增执行服务、接口、定时调度或页面。Java 17 离线编译成功，真实 MySQL 事务内插入并回读两层记录及 JSON 成功，测试数据已回滚，diff 检查通过。运行实例未重启，尚未验证 DAO 运行时读写。下一步实现创建执行记录、冻结非敏感快照及逐次调用落库。
 

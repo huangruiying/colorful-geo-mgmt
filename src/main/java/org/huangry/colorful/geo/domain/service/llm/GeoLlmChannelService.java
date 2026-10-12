@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
@@ -35,7 +35,7 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
         channel.setApiKey(key == null || key.isEmpty() ? null : key);
         boolean keyConfigured = channel.getApiKey() != null
             || (existing != null && existing.getApiKey() != null && !existing.getApiKey().isBlank());
-        if (channel.getEnabled() && channel.getProtocolType() != LLMProviderType.MOCK && !keyConfigured)
+        if (channel.getEnabled() && channel.getProtocolType() != LLMProtocolType.MOCK && !keyConfigured)
             throw new IllegalArgumentException("启用远程模型前请保存 API 密钥");
         // 3. 保存并回读，时间由数据库维护。
         boolean saved = id == null ? save(channel) : updateById(channel);
@@ -60,7 +60,7 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
         // 确认记录存在后只更新状态。
         GeoLlmChannelEntity channel = getById(id);
         if (channel == null) throw new NoSuchElementException("模型渠道不存在");
-        if (enabled && channel.getProtocolType() != LLMProviderType.MOCK && (channel.getApiKey() == null || channel.getApiKey().isBlank()))
+        if (enabled && channel.getProtocolType() != LLMProtocolType.MOCK && (channel.getApiKey() == null || channel.getApiKey().isBlank()))
             throw new IllegalArgumentException("启用远程模型前请保存 API 密钥");
         GeoLlmChannelEntity entity = new GeoLlmChannelEntity();
         entity.setId(id);
@@ -84,7 +84,7 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
         channel.setProviderCode(text(channel.getProviderCode(), "供应商标识", 100, true));
         if (channel.getProtocolType() == null) throw new IllegalArgumentException("请选择调用协议");
         // 2. 远程地址不允许用户凭据、查询串和片段，密钥单独保存且不回传。
-        boolean remote = channel.getProtocolType() != LLMProviderType.MOCK;
+        boolean remote = channel.getProtocolType() != LLMProtocolType.MOCK;
         channel.setBaseUrl(text(channel.getBaseUrl(), "接口地址", 2048, remote));
         channel.setModelName(text(channel.getModelName(), "模型标识", 200, remote));
         if (remote) validateUrl(channel.getBaseUrl());

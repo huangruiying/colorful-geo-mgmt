@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.NoSuchElementException;
 import java.util.Arrays;
 import java.util.List;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 
 /** 基础配置模型接口；创建、编辑、列表与启停，不触发远程调用。 */
 @RestController
@@ -18,15 +18,15 @@ public class MgmtLlmChannelController {
     @Resource
     private LlmChannelBusiness business;
 
-    /** 页面协议选项来自枚举，避免展示名称及能力重复维护。 */
+    /** 页面协议选项来自枚举，只描述接口格式。 */
     @GetMapping("/protocols")
     public List<ProtocolOption> protocols() {
-        return Arrays.stream(LLMProviderType.values())
-            .map(type -> new ProtocolOption(type, type.getDescription(), type.isWebSearchSupported())).toList();
+        return Arrays.stream(LLMProtocolType.values())
+            .map(type -> new ProtocolOption(type, type.getDescription())).toList();
     }
 
-    /** 可选协议的名称与当前适配能力，不代表真实模型已经联调。 */
-    public record ProtocolOption(LLMProviderType type, String description, boolean webSearchSupported) {}
+    /** 可选接口协议及展示名称，不声明联网能力。 */
+    public record ProtocolOption(LLMProtocolType type, String description) {}
 
     /** 创建共享渠道，返回数据库生成标识。 */
     @PostMapping

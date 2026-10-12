@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.application.llm.model;
 
 import lombok.Data;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import java.time.LocalDateTime;
 
 /** 模型渠道接口响应；只展示配置和密钥保存状态，不包含明文密钥。 */
@@ -16,7 +16,7 @@ public class LlmChannelResponse {
     /** 供应商标识。 */
     private String providerCode;
     /** 调用协议。 */
-    private LLMProviderType protocolType;
+    private LLMProtocolType protocolType;
     /** 接口根地址。 */
     private String baseUrl;
     /** 模型标识。 */
@@ -31,10 +31,6 @@ public class LlmChannelResponse {
     private Integer timeoutSeconds;
     /** 是否校验证书。 */
     private Boolean sslVerify;
-    /** 展示协议支持的搜索能力，配置唯一来源为协议枚举。 */
-    public boolean isWebSearchSupported() {
-        return protocolType != null && protocolType.isWebSearchSupported();
-    }
     /** 默认选择优先级，越大越优先。 */
     private Integer score;
     /** 是否启用。 */
