@@ -3,7 +3,7 @@ package org.huangry.colorful.geo.application.llm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.huangry.colorful.geo.application.llm.model.SaveLlmChannelRequest;
 import org.huangry.colorful.geo.domain.service.llm.GeoLlmChannelService;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -22,7 +22,7 @@ class LlmChannelBusinessTest {
         var entity = new GeoLlmChannelEntity();
         entity.setId(1L);
         entity.setApiKey("unit-test-placeholder");
-        entity.setProtocolType(LLMProviderType.OPENAI_WEB_SEARCH);
+        entity.setProtocolType(LLMProtocolType.OPENAI_RESPONSES);
         when(service.getById(1L)).thenReturn(entity);
         when(service.saveChannel(isNull(), any())).thenReturn(entity);
         when(service.listChannels(null, 20, 0)).thenReturn(List.of(entity));
@@ -34,7 +34,7 @@ class LlmChannelBusinessTest {
             var json = new ObjectMapper().valueToTree(response);
             assertFalse(json.has("apiKey"));
             assertTrue(json.path("keyConfigured").asBoolean());
-            assertTrue(json.path("webSearchSupported").asBoolean());
+            assertFalse(json.has("searchSupported"));
             assertEquals(1, json.path("id").asLong());
         }
         entity.setApiKey(" ");

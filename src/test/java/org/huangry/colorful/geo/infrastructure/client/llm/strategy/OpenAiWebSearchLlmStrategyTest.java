@@ -8,7 +8,15 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** 验证 Responses 协议自动提供搜索工具，无需调用方选择。 */
-class OpenAiWebSearchStrategyTest {
+class OpenAiWebSearchLlmStrategyTest {
+    /** 普通 Responses 不发送搜索工具，不能因接口格式误标联网能力。 */
+    @Test
+    void shouldNotDeclareSearchForPlainResponses() {
+        var strategy = new OpenAiResponsesLlmStrategy();
+        var provider = new LLMConnectionConfig();
+        var body = strategy.buildRequestBody(LLMQueryRequest.userMessage("问题"), provider);
+        assertFalse(body.containsKey("tools"));
+    }
     /** 没有结构化引用时，正文链接不能被当成引用。 */
     @Test
     void shouldKeepCitationsEmptyWithoutAnnotations() throws Exception {
@@ -17,7 +25,7 @@ class OpenAiWebSearchStrategyTest {
                 {"type": "output_text", "text": "参考 https://example.com", "annotations": []}
             ]}]}
             """);
-        var response = new OpenAiWebSearchStrategy().parseResponse(body);
+        var response = new OpenAiResponsesLlmStrategy().parseResponse(body);
         assertEquals("参考 https://example.com", response.content());
         assertTrue(response.citations().isEmpty());
     }
@@ -25,9 +33,10 @@ class OpenAiWebSearchStrategyTest {
     /** 默认单轮请求也声明 web_search，同时保留模型与消息。 */
     @Test
     void shouldAutomaticallySendSearchTool() {
-        var strategy = new OpenAiWebSearchStrategy();
+        var strategy = new OpenAiResponsesLlmStrategy();
         var config = new LLMConnectionConfig();
         config.setModel("test-model");
+        config.setProviderCode("openai");
         var ordinary = new LLMQueryRequest("问题");
         var plain = strategy.buildRequestBody(ordinary, config);
         assertEquals(List.of(Map.of("type", "web_search")), plain.get("tools"));

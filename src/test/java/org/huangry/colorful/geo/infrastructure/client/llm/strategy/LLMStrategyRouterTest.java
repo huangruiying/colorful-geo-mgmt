@@ -5,7 +5,7 @@ import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.apache.ibatis.session.Configuration;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.*;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
@@ -110,7 +110,7 @@ class LLMStrategyRouterTest {
     /** 构造无凭据的模拟渠道，测试不触发远程请求。 */
     private GeoLlmChannelEntity mockChannel() {
         GeoLlmChannelEntity c = new GeoLlmChannelEntity();
-        c.setChannelCode("mock"); c.setProtocolType(LLMProviderType.MOCK); c.setTemperature(0.3);
+        c.setChannelCode("mock"); c.setProtocolType(LLMProtocolType.MOCK); c.setTemperature(0.3);
         c.setMaxTokens(1400); c.setTimeoutSeconds(60); c.setSslVerify(true);
         return c;
     }
@@ -118,7 +118,7 @@ class LLMStrategyRouterTest {
     /** 模拟协议策略，仅验证路由边界。 */
     private LLMStrategy mockStrategy() {
         LLMStrategy s = mock(LLMStrategy.class);
-        when(s.llmProviderType()).thenReturn(LLMProviderType.MOCK);
+        when(s.llmProviderType()).thenReturn(LLMProtocolType.MOCK);
         when(s.query(any(), any(), any())).thenReturn(LLMResponse.withoutCitations("模拟结果"));
         return s;
     }

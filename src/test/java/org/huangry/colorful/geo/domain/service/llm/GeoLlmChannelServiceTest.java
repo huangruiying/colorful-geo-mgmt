@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.domain.service.llm;
 
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProviderType;
+import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -74,19 +74,19 @@ class GeoLlmChannelServiceTest {
         verify(service, never()).updateById(any());
     }
 
-    /** 搜索能力始终由协议枚举推导。 */
+    /** 接口协议独立于联网能力，只包含已实现的交互格式。 */
     @Test
     void shouldRejectSearchForMockChannel() {
-        GeoLlmChannelEntity c = channel(); c.setProtocolType(LLMProviderType.MOCK);
-        assertFalse(c.getProtocolType().isWebSearchSupported());
-        c.setProtocolType(LLMProviderType.OPENAI_WEB_SEARCH);
-        assertTrue(c.getProtocolType().isWebSearchSupported());
+        GeoLlmChannelEntity c = channel(); c.setProtocolType(LLMProtocolType.MOCK);
+        assertEquals(LLMProtocolType.MOCK, c.getProtocolType());
+        c.setProtocolType(LLMProtocolType.OPENAI_RESPONSES);
+        assertEquals(LLMProtocolType.OPENAI_RESPONSES, c.getProtocolType());
     }
 
     /** 构造有效远程连接，但不进行真实请求。 */
     private GeoLlmChannelEntity channel() {
         GeoLlmChannelEntity c = new GeoLlmChannelEntity(); c.setChannelCode("test"); c.setChannelName("测试");
-        c.setProviderCode("test"); c.setProtocolType(LLMProviderType.OPENAI_STANDARD);
+        c.setProviderCode("test"); c.setProtocolType(LLMProtocolType.OPENAI_CHAT_COMPLETIONS);
         c.setBaseUrl("https://example.com/v1"); c.setModelName("test-model");
         return c;
     }
