@@ -17,10 +17,7 @@
         const syncProtocol = () => {
             const remote = form.elements.protocolType.value !== "MOCK";
             for (const key of ["baseUrl", "modelName"]) form.elements[key].required = remote;
-            const option = form.elements.protocolType.selectedOptions[0];
-            document.getElementById("protocol-help").textContent = option?.dataset.searchSupported === "true"
-                ? "此协议自动提供联网搜索工具，实际搜索和引用由模型返回。"
-                : "此协议提供普通问答，不支持联网搜索。";
+            document.getElementById("protocol-help").textContent = "协议决定交互格式；联网取决于供应商和模型，引用按接口实际响应提取。";
         };
         form.elements.protocolType.addEventListener("change", syncProtocol);
         button.disabled = true;
@@ -31,9 +28,9 @@
                 for (const protocol of protocols) {
                     const option = document.createElement("option");
                     option.value = protocol.type; option.textContent = protocol.description;
-                    option.dataset.searchSupported = String(protocol.webSearchSupported); select.append(option);
+                    select.append(option);
                 }
-                select.value = "OPENAI_COMPATIBLE";
+                select.value = "OPENAI_CHAT_COMPLETIONS";
                 if (!channel) { syncProtocol(); button.disabled = false; return; }
                 document.getElementById("model-heading").textContent = "编辑模型配置";
                 for (const element of form.elements) {
@@ -72,7 +69,7 @@
             rows.replaceChildren();
             for (const c of result.items) {
                 const row = document.createElement("tr");
-                const values = [c.id, c.channelName, c.providerCode, c.modelName || "本地模拟", c.webSearchSupported ? "支持" : "不支持", c.score, c.enabled ? "已启用" : "已停用"];
+                const values = [c.id, c.channelName, c.providerCode, c.modelName || "本地模拟", c.protocolType, c.score, c.enabled ? "已启用" : "已停用"];
                 for (const [i, value] of values.entries()) {
                     const cell = document.createElement("td"); cell.textContent = value;
                     if (i === 1) { const code = document.createElement("small"); code.className = "model-code"; code.textContent = c.channelCode; cell.append(code); }

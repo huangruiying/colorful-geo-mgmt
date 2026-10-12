@@ -93,7 +93,7 @@
                         <label>关联项目<select name="projectId" aria-label="关联项目" required><option value="">请选择项目</option></select></label>
                         <label>每题每渠道重复次数<input name="repeatCount" type="number" min="1" max="10" value="3" required></label>
                     </div>
-                    <fieldset><legend>被测模型渠道 <span class="muted">必须显式选择</span></legend><div id="test-channels" class="channel-grid"></div><p class="help">搜索能力沿用模型协议配置。被测渠道用于后续采样，与下方生成问题的渠道独立。</p></fieldset>
+                    <fieldset><legend>被测模型渠道 <span class="muted">必须显式选择</span></legend><div id="test-channels" class="channel-grid"></div><p class="help">引用按模型实际响应提取，接口协议不代表联网能力。被测渠道与生成问题的渠道独立。</p></fieldset>
                     </div>
                     <section class="generator" id="generator" aria-labelledby="generator-title">
                         <h3 id="generator-title">根据项目信息生成候选</h3>
@@ -120,5 +120,5 @@
     </div>
 </div>
 </body>
-<script src="./diagnosis-plans.js?v=20261012-plan8" defer></script>
+<script src="./diagnosis-plans.js?v=20261012-plan10" defer></script>
 </html>
