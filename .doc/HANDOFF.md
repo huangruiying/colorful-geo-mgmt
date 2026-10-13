@@ -4,6 +4,12 @@
 
 ## 当前任务：资产诊断方案与模型 Bean 路由
 
+- 移除 RequestConfig.Builder 已弃用的 setConnectTimeout，连接建立超时改由连接池 ConnectionConfig 管理；获取连接/响应超时仍在 RequestConfig。配置值及调用契约不变，Java 17 打包及差异检查通过，本次未重复运行测试。
+
+- 用户进一步要求提前注册具名 Bean、使用处直接注入：已改为 @Bean("llmRestTemplateWithTimeout") 和 llmHttpClient，两个协议模板 @Resource 按名称注入。删除动态创建方法、默认 Bean 和双客户端生命周期代码；超时/证书统一取 application.yml 的 http.llm。渠道 timeoutSeconds/sslVerify 仍保留但不影响 HTTP，页面清理待后续处理；主代码构建、25 项相关独立 JUnit 和差异检查通过。无数据库迁移、服务未重启。此条替代下述动态超时/双池说明。
+
+- 已按用户确认改为 infrastructure/config/RestTemplateConfig 共用 RestTemplate + HttpClient 5 连接池，删除 LlmHttpClientFactory。默认 Bean 和按超时创建的轻量客户端共用池；证书策略分池、默认校验、禁用重试/重定向/Cookie，Spring 关闭资源。两个协议模板 @Resource 注入，认证/请求体/引用规则不变。Java 17 构建、25 项相关独立 JUnit 通过（实际 TCP 复用、独立超时及协议 HTTP 回读）；常规测试仍受 WhatsAppDemo 依赖阻断。本轮未重启服务、未改数据库、未做真实模型/TLS 联调，见 [共用HTTP连接池](共用HTTP连接池.md)。
+
 - 按用户要求补齐 strategy 及 template 共 12 个 Java 文件的类、方法、参数和关键流程注释；说明通用 Bean 用途、厂商搜索参数边界、Mock 非自动降级、引用来源和证书配置。修正模板的旧 SDK/官方渠道描述，并如实注明当前 Responses 基础请求不发送生成参数。本轮仅注释变更，主代码打包及差异检查通过；之前包迁移导致的 5 处测试访问错误仍待修复，未宣称测试通过。
 
 - 用户将协议模板/接口/共用工具移入 strategy.template，主源码引用同步且 Java 17 跳过测试打包通过；LlmSearchRequestTest 独立编译确认 5 处跨包访问错误。仅做评审，尚未修复测试；建议厂商参数通过本地 HTTP 检验，解析测试迁到 template 同包，不放宽生产方法权限。数据库/Bean 名无需改动，见 [策略模板迁移检查](策略模板迁移检查.md)。
