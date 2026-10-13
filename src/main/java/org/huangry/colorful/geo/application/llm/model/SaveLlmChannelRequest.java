@@ -1,7 +1,6 @@
 package org.huangry.colorful.geo.application.llm.model;
 
 import lombok.Data;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 
 /** 模型渠道保存请求；接收连接、密钥与优先级，密钥仅允许输入且不打印。 */
 @Data
@@ -12,8 +11,8 @@ public class SaveLlmChannelRequest {
     private String channelName;
     /** 供应商标识。 */
     private String providerCode;
-    /** 调用协议。 */
-    private LLMProtocolType protocolType;
+    /** Spring 实际注册的策略 Bean 名，唯一调用路由依据。 */
+    private String strategyBeanName;
     /** 接口根地址。 */
     private String baseUrl;
     /** 模型标识。 */

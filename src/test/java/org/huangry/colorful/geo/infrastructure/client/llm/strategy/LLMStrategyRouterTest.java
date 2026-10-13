@@ -3,15 +3,15 @@ package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.apache.ibatis.session.Configuration;
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMStrategy;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.*;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
-import java.util.List;
+
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;

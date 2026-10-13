@@ -15,7 +15,9 @@ public class LlmChannelResponse {
     private String channelName;
     /** 供应商标识。 */
     private String providerCode;
-    /** 调用协议。 */
+    /** 实际注册的策略 Bean 名。 */
+    private String strategyBeanName;
+    /** 策略推导的协议，不独立维护。 */
     private LLMProtocolType protocolType;
     /** 接口根地址。 */
     private String baseUrl;

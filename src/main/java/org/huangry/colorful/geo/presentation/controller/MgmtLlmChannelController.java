@@ -1,13 +1,14 @@
 package org.huangry.colorful.geo.presentation.controller;
 
 import jakarta.annotation.Resource;
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMStrategy;
+import java.util.Map;
 import org.huangry.colorful.geo.application.llm.LlmChannelBusiness;
 import org.huangry.colorful.geo.application.llm.model.*;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import java.util.NoSuchElementException;
-import java.util.Arrays;
 import java.util.List;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 
@@ -18,15 +19,18 @@ public class MgmtLlmChannelController {
     @Resource
     private LlmChannelBusiness business;
 
-    /** 页面协议选项来自枚举，只描述接口格式。 */
-    @GetMapping("/protocols")
-    public List<ProtocolOption> protocols() {
-        return Arrays.stream(LLMProtocolType.values())
-            .map(type -> new ProtocolOption(type, type.getDescription())).toList();
+    @Resource
+    private Map<String, LLMStrategy> strategies;
+
+    /** 页面只展示 Spring 实际注册的策略，协议由策略推导。 */
+    @GetMapping("/strategies")
+    public List<StrategyOption> strategies() {
+        return strategies.entrySet().stream().sorted(Map.Entry.comparingByKey())
+            .map(entry -> new StrategyOption(entry.getKey(), entry.getValue().protocolType())).toList();
     }
 
-    /** 可选接口协议及展示名称，不声明联网能力。 */
-    public record ProtocolOption(LLMProtocolType type, String description) {}
+    /** 实际注册策略的 Bean 名和推导协议，不携带连接或凭据。 */
+    public record StrategyOption(String beanName, LLMProtocolType protocolType) {}
 
     /** 创建共享渠道，返回数据库生成标识。 */
     @PostMapping

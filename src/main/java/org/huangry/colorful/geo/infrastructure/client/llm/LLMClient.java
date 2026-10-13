@@ -25,7 +25,7 @@ public class LLMClient {
     private LLMStrategyRouter strategyRouter;
 
     /**
-     * 发起单轮大模型查询，请求方式由渠道协议决定。
+     * 发起单轮大模型查询，请求方式由渠道保存的策略 Bean 决定。
      *
      * <p>仍通过配置的通道调用大模型；远程通道会发送网络请求，本地模拟通道除外。</p>
      *
@@ -40,7 +40,7 @@ public class LLMClient {
      * 发起通用大模型查询。
      *
      * <p>网页搜索用于检索外部资料辅助模型回答，引用链接用于说明信息来源；
-     * 搜索协议自动提供搜索工具，不保证每次执行检索或返回引用，也不代表来源已经核验。
+     * 搜索参数由具体策略处理，不保证模型返回引用，也不代表来源已经核验。
      * 指定渠道不可用时明确失败，不自动切换被测模型。</p>
      *
      * @param request 查询参数
@@ -51,7 +51,7 @@ public class LLMClient {
             // 路由器记录实际选中的渠道，此处只负责统一异常边界。
             return strategyRouter.query(request);
         } catch (LLMClientException exception) {
-            LOGGER.warn("大模型调用被拒绝，provider={}, reason={}",
+            LOGGER.warn("大模型调用被拒绝，channel={}, reason={}",
                     request.channelCode(), exception.getMessage());
             throw exception;
         } catch (RuntimeException exception) {

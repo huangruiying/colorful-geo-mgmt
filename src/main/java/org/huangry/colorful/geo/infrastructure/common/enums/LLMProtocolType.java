@@ -3,7 +3,7 @@ package org.huangry.colorful.geo.infrastructure.common.enums;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-/** 大模型接口协议，只决定请求和响应格式，不表示模型支持联网。 */
+/** 大模型接口协议，只决定请求和响应格式。 */
 @Getter
 @RequiredArgsConstructor
 public enum LLMProtocolType {

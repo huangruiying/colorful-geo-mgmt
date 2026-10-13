@@ -23,7 +23,6 @@
         <lombok.version>1.18.30</lombok.version>
         <fastjson.version>1.2.83_noneautotype</fastjson.version>
         <playwright.version>1.58.0</playwright.version>
-        <langchain4j.version>1.10.0</langchain4j.version>
     </properties>
 
     <dependencies>
@@ -63,25 +62,6 @@
             <groupId>com.microsoft.playwright</groupId>
             <artifactId>playwright</artifactId>
             <version>${playwright.version}</version>
-        </dependency>
-
-        <!-- langchain4j-->
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j</artifactId>
-            <version>${langchain4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-http-client-jdk</artifactId>
-            <version>${langchain4j.version}</version>
-        </dependency>
-
-        <!-- OpenAI-compatible 大模型通道 -->
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-open-ai</artifactId>
-            <version>${langchain4j.version}</version>
         </dependency>
 
         <!-- 单元测试 -->

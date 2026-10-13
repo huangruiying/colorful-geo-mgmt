@@ -1,6 +1,8 @@
 package org.huangry.colorful.geo.application.llm;
 
 import jakarta.annotation.Resource;
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMStrategy;
+import java.util.Map;
 import org.huangry.colorful.geo.application.llm.model.*;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.domain.service.llm.GeoLlmChannelService;
@@ -12,6 +14,8 @@ import java.util.NoSuchElementException;
 public class LlmChannelBusiness {
     @Resource
     private GeoLlmChannelService service;
+    @Resource
+    private Map<String, LLMStrategy> strategies;
 
     /** 将页面请求转换为渠道资料，系统字段不能由输入覆盖。 */
     public LlmChannelResponse saveChannel(Long id, SaveLlmChannelRequest request) {
@@ -21,7 +25,7 @@ public class LlmChannelBusiness {
         channel.setChannelCode(request.getChannelCode());
         channel.setChannelName(request.getChannelName());
         channel.setProviderCode(request.getProviderCode());
-        channel.setProtocolType(request.getProtocolType());
+        channel.setStrategyBeanName(request.getStrategyBeanName());
         channel.setBaseUrl(request.getBaseUrl());
         channel.setModelName(request.getModelName());
         channel.setApiKey(request.getApiKey());
@@ -65,7 +69,9 @@ public class LlmChannelBusiness {
         response.setChannelCode(entity.getChannelCode());
         response.setChannelName(entity.getChannelName());
         response.setProviderCode(entity.getProviderCode());
-        response.setProtocolType(entity.getProtocolType());
+        var strategy = strategies.get(entity.getStrategyBeanName());
+        response.setStrategyBeanName(entity.getStrategyBeanName());
+        response.setProtocolType(strategy == null ? null : strategy.protocolType());
         response.setBaseUrl(entity.getBaseUrl());
         response.setModelName(entity.getModelName());
         response.setTemperature(entity.getTemperature());
