@@ -1,8 +1,6 @@
-package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
+package org.huangry.colorful.geo.infrastructure.client.llm.strategy.template;
 
-import dev.langchain4j.http.client.jdk.JdkHttpClient;
-import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
-import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 
@@ -29,29 +27,15 @@ final class LlmHttpClientFactory {
     }
 
     /**
-     * 构建 LangChain4j 使用的 HTTP 客户端。
+     * 构建两种协议共用的 Spring 请求工厂。
      *
-     * @param provider 供应商配置
-     * @return 配置完成的客户端构造器
-     */
-    static JdkHttpClientBuilder createLangChain4jClientBuilder(LLMConnectionConfig provider) {
-        Duration timeout = Duration.ofSeconds(provider.getTimeoutSeconds());
-        return JdkHttpClient.builder()
-                .httpClientBuilder(createJavaHttpClientBuilder(provider, timeout))
-                .connectTimeout(timeout)
-                .readTimeout(timeout);
-    }
-
-    /**
-     * 构建 Responses API 使用的 Spring 请求工厂。
-     *
-     * @param provider 供应商配置
+     * @param channel 供应商配置
      * @return 请求工厂
      */
-    static JdkClientHttpRequestFactory createSpringRequestFactory(LLMConnectionConfig provider) {
-        Duration timeout = Duration.ofSeconds(provider.getTimeoutSeconds());
+    static JdkClientHttpRequestFactory createSpringRequestFactory(GeoLlmChannelEntity channel) {
+        Duration timeout = Duration.ofSeconds(channel.getTimeoutSeconds());
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
-                createJavaHttpClientBuilder(provider, timeout).build());
+                createJavaHttpClientBuilder(channel, timeout).build());
         requestFactory.setReadTimeout(timeout);
         return requestFactory;
     }
@@ -61,13 +45,13 @@ final class LlmHttpClientFactory {
      *
      * <p>证书校验是默认安全边界；只有内部网关明确声明 sslVerify=false 时才进入不安全兼容分支。</p>
      *
-     * @param provider 供应商连接配置
+     * @param channel 供应商连接配置
      * @param timeout 连接与读取超时
      * @return JDK HTTP 客户端构造器
      */
-    private static HttpClient.Builder createJavaHttpClientBuilder(LLMConnectionConfig provider, Duration timeout) {
+    private static HttpClient.Builder createJavaHttpClientBuilder(GeoLlmChannelEntity channel, Duration timeout) {
         HttpClient.Builder builder = HttpClient.newBuilder().connectTimeout(timeout);
-        if (provider.isSslVerify()) {
+        if (!Boolean.FALSE.equals(channel.getSslVerify())) {
             return builder;
         }
 

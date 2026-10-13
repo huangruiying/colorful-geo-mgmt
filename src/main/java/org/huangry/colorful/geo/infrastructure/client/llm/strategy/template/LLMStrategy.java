@@ -1,6 +1,6 @@
-package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
+package org.huangry.colorful.geo.infrastructure.client.llm.strategy.template;
 
-import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
@@ -14,16 +14,15 @@ import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
  */
 public interface LLMStrategy {
 
-    /** 声明策略唯一处理的协议类型；搜索能力由枚举统一维护。 */
-    LLMProtocolType llmProviderType();
+    /** 策略使用的接口协议，仅供校验和展示。 */
+    LLMProtocolType protocolType();
 
     /**
      * 调用已匹配的模型通道。
      *
      * @param request 通用查询请求
-     * @param provider 供应商配置
-     * @param apiKey 已解析的密钥；mock 策略可忽略
+     * @param channel 供应商配置
      * @return 标准查询结果
      */
-    LLMResponse query(LLMQueryRequest request, LLMConnectionConfig provider, String apiKey);
+    LLMResponse query(LLMQueryRequest request, GeoLlmChannelEntity channel);
 }
