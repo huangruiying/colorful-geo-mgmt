@@ -4,6 +4,12 @@
 
 ## 当前任务：资产诊断方案与模型 Bean 路由
 
+- 菜单规则按用户最新要求调整：各页面仅为当前高亮链接所在分组添加 open，其他组默认收起。已同步 target/classes，HTTP 验证 8010 全部 11 页面均仅展开当前所在分组；无需脚本或状态缓存。此条替代此前全部收起规则，旧 jar 实例仍未重启。
+
+- 用户反馈菜单未生效：实测 8010/8014/8015 仍返回旧 HTML（4 组均 open）。已运行 Maven resources:resources 更新 IDE 8010 使用的 target/classes 资源，HTTP 回读全部 11 页面/44 组无 open。8014/8015 是旧 jar 实例，未重启，仍使用旧菜单；未做浏览器点击验证。
+
+- 管理后台 11 个页面的 44 个侧栏菜单分组已去掉 open 属性，初次加载默认收起，仍可点击展开，保留当前菜单高亮。未引入状态缓存或脚本；源码扫描确认没有默认展开残留，差异检查通过。本次未执行浏览器验证，运行服务需加载最新 HTML。
+
 - 移除 RequestConfig.Builder 已弃用的 setConnectTimeout，连接建立超时改由连接池 ConnectionConfig 管理；获取连接/响应超时仍在 RequestConfig。配置值及调用契约不变，Java 17 打包及差异检查通过，本次未重复运行测试。
 
 - 用户进一步要求提前注册具名 Bean、使用处直接注入：已改为 @Bean("llmRestTemplateWithTimeout") 和 llmHttpClient，两个协议模板 @Resource 按名称注入。删除动态创建方法、默认 Bean 和双客户端生命周期代码；超时/证书统一取 application.yml 的 http.llm。渠道 timeoutSeconds/sslVerify 仍保留但不影响 HTTP，页面清理待后续处理；主代码构建、25 项相关独立 JUnit 和差异检查通过。无数据库迁移、服务未重启。此条替代下述动态超时/双池说明。
