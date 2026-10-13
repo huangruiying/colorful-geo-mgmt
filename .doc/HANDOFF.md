@@ -4,6 +4,8 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-14 按用户确认收简模型响应：LLMResponse 改为 Lombok 普通数据类，保留正文/引用及诊断需要的模型、用量、结束状态、原始响应字段；删除 withMetadata、withoutCredential、递归脱敏和密钥字符串替换。现有两个 HTTP 模板直接解析 JSON 并显式填充数据，未新增包装层；问答/内容优化/问题生成/诊断落库等调用方同步改 getter。原问答 JSON 仍只输出 content/citations，原始响应现在按厂商原报文存储，不再承诺脱敏，页面提示和有效接口说明同步。Java 17 主代码编译通过；独立编译除原 WhatsAppDemo 外的测试并运行成功，原 Maven 全量测试仍受该演示依赖限制。未重启服务，未做真实厂商联调，未提交。本条替代此前关于响应脱敏的实现描述。
+
 - 豆包响应适配已按用户提供的完整 JSON 核对：现有 RestTemplate 直接 HTTP 请求方舟，未使用 OpenAI SDK；共享 Responses 模板继续映射最终正文、引用标题/URL、实际模型、usage（含搜索工具次数）、completed 状态与脱敏原始响应。引用解析补 summary 到 snippet 映射，缺少 summary 时保留原 text 兼容；site_name/publish_time 等字段保留原始响应，不增加通用模型字段。新增 2 项本地报文回归验证忽略推理/工具调用正文、引用缺少位置保留 null、用量/原始字段完整保留与 text 兼容。Java 17 编译及合计 8 项相关独立 JUnit 通过；未验证真实厂商，未重启服务、未提交。用户 curl 的 stream:true 是 SSE 模式，本项目继续非流式 JSON。
 
 - 豆包搜索策略已按用户确认补齐 `tools.web_search.sources = ["doubao"]`，保留 `tool_choice: required` 和非流式完整 JSON，模型标识仍来自数据库配置；类/方法/适配注释与大模型联网接入说明同步。新增豆包请求契约测试，覆盖来源、强制工具、模型、独立问题、输出上限及不启用流式；Java 17 主代码离线编译通过，独立 JUnit 运行该测试、Spring Bean 路由测试、HTTP 连接与引用回读测试，共 6 项全部通过。未调用真实厂商、未改渠道或任务数据、未重启服务、未提交；需重启加载新策略，再用已开通模型小规模验证实际引用。
