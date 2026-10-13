@@ -57,7 +57,7 @@ infrastructure/client：外部协议、平台及浏览器适配
 - 配置唯一来源为数据库 `geo_llm_channel`，不恢复 YAML 模型配置、自动导入或默认回退。
 - 默认筛选已启用渠道，按 `score` 降序、ID 升序选择；指定渠道或模型时增加对应约束。无匹配或调用失败明确返回，不自动切换模型。
 - 渠道直接保存 strategy_bean_name，用 Spring 注入的 Map<String, LLMStrategy> 按 Bean 名获取实例。不再维护额外策略编码、自建注册表或 strategyType/strategyCode/strategyName 包装方法；缺失 Bean 保存与调用时明确拒绝，不反射、不降级。
-- LLMStrategyType 只维护 Bean 名与页面名称，不能参与二次路由。协议由协议父类或 Mock 声明，不存入数据库或重复放入策略目录；枚举值、字段和业务方法须有简洁注释。重命名 Bean 时同步迁移数据库配置。
+- 页面使用数据库渠道名称和模型名称，策略选项直接展示 Spring Bean 名及协议，不额外维护策略中文名称枚举。协议由协议父类或 Mock 声明，不存入数据库或重复放入策略目录；枚举值、字段和业务方法须有简洁注释。重命名 Bean 时同步迁移数据库配置。
 - Chat Completions、Responses 抽象父类复用协议交互与引用解析，子策略处理厂商参数。protocol_type 不独立持久化，响应从实例推导；provider_code 只作供应商资料。页面选项来自 /llm-channels/strategies 的实际 Bean Map，不开放未实现策略。
 - 路由一次查询选取 GeoLlmChannelEntity 后直接交给策略，不建立同字段的连接配置副本或重复传递密钥。未知 Bean 和远程空密钥在调用前拒绝；实体的密钥不得参与日志、toString 或接口响应。只有协议调用和异常边界承担实际职责的层保留，纯转发和已停用 SDK 代码及时删除。
 - LLMProtocolType 只表示 MOCK、OPENAI_CHAT_COMPLETIONS、OPENAI_RESPONSES 交互格式。引用始终按响应的结构化字段解析，不根据搜索标志过滤，也不从正文 URL 或搜索召回来源猜测。搜索参数按供应商处理，不把普通兼容供应商自动标为支持联网。

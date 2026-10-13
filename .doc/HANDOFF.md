@@ -4,8 +4,13 @@
 
 ## 当前任务：资产诊断方案与模型 Bean 路由
 
+- 模型列表已拆分渠道名称/渠道编码，新增接口协议独立列，策略列展示 Bean 名。协议使用接口推导值，不增加数据库字段；未知策略显示“策略未注册”。表头/行/空状态统一 10 列，保持横向滚动，移除旧编码副标题样式；模型脚本和样式版本 20261013-bean3。JS 语法及差异检查通过，本次未执行浏览器验证，运行服务需加载最新静态资源。
+
+- 清理复查：删除无引用的 LLMProviderName。发现 Responses 请求未使用页面配置的 temperature/maxTokens、末尾斜杠处理与 Chat 不一致及旧注释/文档残留，详见 [大模型清理复查](大模型清理复查.md)。这些问题尚未修复；本次仅引用扫描和差异检查，未重新构建或联调。
+
 - 当前设计已收敛：geo_llm_channel 直接保存 strategy_bean_name，LLMStrategyRouter/配置校验/页面选项使用 Spring 注入的 Map<String, LLMStrategy>。自建 LLMStrategyRegistry 及 strategyType/strategyCode/strategyName 方法全部删除，不反射、不手工注册、不降级。
-- LLMStrategy 只保留 query 和 protocolType。两个协议父类复用 HTTP、基础请求与引用解析；实际子策略处理厂商参数。LLMStrategyType 仅维护 Bean 名和展示名称，不保存协议或参与路由；重命名 Bean 要迁移数据库。未知 Bean 在保存/调用前拒绝，查询仍可回读并修复配置。
+- LLMStrategy 只保留 query 和 protocolType。两个协议父类复用 HTTP、基础请求与引用解析；实际子策略处理厂商参数。已按用户要求删除策略名称枚举及 strategyName 响应字段，策略选项只返回 beanName/protocolType；模型列表和诊断方案展示直接使用 Bean 名。重命名 Bean 要迁移数据库。未知 Bean 在保存/调用前拒绝，查询仍可回读并修复配置。
+- 本次静态版本 models 为 20261013-bean2，diagnosis-plans 为 20261013-plan12；Java 17 构建、33 项相关测试（含 MVC 接口不再返回名称字段）、两个 JS 语法检查及 diff 检查通过。无数据库迁移，运行实例尚未重启，未做本轮浏览器或外部厂商联调。
 - 路由进一步清理：selectOne + 固定 LIMIT 1 选渠道，直接把 GeoLlmChannelEntity 交给策略，删除 LLMConnectionConfig、配置复制、单独密钥传参和解析方法。远程空密钥、未知 Bean、已启用筛选、score/ID 顺序、失败不降级均保留。实体密钥仍不参与 toString 或接口响应。
 - 删除未使用的 LangChain4j HTTP 方法及三个依赖；测试入口直接调用 LLMClient，删除 TestLLMBusiness、LLMQueryService 两层纯转发。保留 LLMClient 的异常边界和两个协议父类，不为减少文件数破坏职责。
 - 六个实际 Bean：compatibleChatCompletionsApiStrategy、compatibleResponsesApiStrategy、openAiChatCompletionsApiStrategy、openAiResponsesApiStrategy、doubaoResponsesApiStrategy、mockLlmStrategy。普通兼容与原生联网行为保持不变；Kimi/DeepSeek 独立检索未实现，不建立空厂商策略。
