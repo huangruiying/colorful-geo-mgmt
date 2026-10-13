@@ -15,6 +15,7 @@ import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
  */
 public interface LLMStrategy {
 
+
     /**
      * 声明交互协议，供页面展示和路由识别本地模拟。
      * @return 实际请求和响应使用的协议，不代表联网能力

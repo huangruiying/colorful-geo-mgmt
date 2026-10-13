@@ -41,9 +41,12 @@ public class LLMStrategyRouter {
         GeoLlmChannelEntity channel = selectChannel(request);
         // 2. 按数据库保存的 Bean 名直接获取 Spring 实例，由策略决定请求方式。
         LLMStrategy strategy = strategies.get(channel.getStrategyBeanName());
-        if (strategy == null) throw new LLMClientException("渠道配置的策略 Bean 未注册，请修改模型配置");
-        if (strategy.protocolType() != LLMProtocolType.MOCK && (StringUtils.isBlank(channel.getApiKey())))
+        if (strategy == null) {
+            throw new LLMClientException("渠道配置的策略 Bean 未注册，请修改模型配置");
+        }
+        if (strategy.protocolType() != LLMProtocolType.MOCK && (StringUtils.isBlank(channel.getApiKey()))) {
             throw new LLMClientException("模型渠道未保存 API 密钥");
+        }
         // 3. 只记录实际渠道与模型，不记录问题、回答或凭据。
         log.info("模型调用 channel={}, model={}, strategy={}", channel.getChannelCode(), channel.getModelName(), channel.getStrategyBeanName());
         return strategy.query(request, channel);
@@ -65,7 +68,9 @@ public class LLMStrategyRouter {
             .orderByDesc(GeoLlmChannelEntity::getScore).orderByAsc(GeoLlmChannelEntity::getId).last("LIMIT 1");
         // 只取排序后的第一条，无匹配项立即阻断调用。
         GeoLlmChannelEntity channel = channelDao.selectOne(query);
-        if (channel == null) throw new LLMClientException("没有符合渠道及模型条件的已启用模型配置");
+        if (channel == null) {
+            throw new LLMClientException("没有符合渠道及模型条件的已启用模型配置");
+        }
         return channel;
     }
 

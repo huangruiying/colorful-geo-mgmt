@@ -15,6 +15,7 @@ import java.util.List;
 @Component
 public class OpenAiResponsesApiStrategy extends AbstractResponsesApiStrategy {
 
+
     /**
      * 在基础问题请求上声明 OpenAI 搜索工具，并要求使用工具。
      * @param request 本次独立问题

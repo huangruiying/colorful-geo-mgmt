@@ -64,7 +64,8 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
 
     /**
      * 组装单轮 input，并请求不保存会话，厂商工具参数由子策略添加。
-     * <p>当前基础请求不发送渠道的 temperature 和 maxTokens。</p>
+     * <p>输出上限使用 max_output_tokens，包含接口计入的推理 token；
+     * 随机性仅在用户填写时发送，由实际模型校验是否接受。</p>
      * @param request 本次独立问题
      * @param channel 已选中的渠道配置
      * @return Responses 基础请求体
@@ -76,6 +77,14 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
             "role", "user",
             "content", List.of(Map.of("type", "input_text", "text", request.prompt())))));
         body.put("store", false);
+        // 输出长度采用 Responses 字段名，不发送 Chat 的 max_tokens。
+        if (channel.getMaxTokens() != null) {
+            body.put("max_output_tokens", channel.getMaxTokens());
+        }
+        // 留空采用供应商行为，填写则原值发送，不按模型名称猜测或静默过滤。
+        if (channel.getTemperature() != null) {
+            body.put("temperature", channel.getTemperature());
+        }
         return body;
     }
 
@@ -105,7 +114,9 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
                 if (!"output_text".equals(contentItem.path("type").asText())) {
                     continue;
                 }
-                if (!contentItem.path("text").isTextual()) continue;
+                if (!contentItem.path("text").isTextual()) {
+                    continue;
+                }
                 hasText = true;
                 content.append(contentItem.path("text").asText());
                 // 引用只从当前文本注解提取，搜索召回来源不计入回答引用。
@@ -113,7 +124,9 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
             }
         }
         // 只有工具调用而没有文本时明确失败，不伪装成成功的空答案。
-        if (!hasText) throw new LLMClientException("Responses 未返回文本回答");
+        if (!hasText) {
+            throw new LLMClientException("Responses 未返回文本回答");
+        }
         return new LLMResponse(content.toString(), List.copyOf(citationByUrl.values()));
     }
 

@@ -26,7 +26,8 @@ public class GeoLlmChannelEntity {
     /** 服务端调用密钥；不写入日志。 */
     @lombok.ToString.Exclude
     private String apiKey;
-    /** 生成随机性。 */
+    /** 可选生成随机性；null 不发送，编辑留空可以清除旧值。 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Double temperature;
     /** 输出 token 上限。 */
     private Integer maxTokens;

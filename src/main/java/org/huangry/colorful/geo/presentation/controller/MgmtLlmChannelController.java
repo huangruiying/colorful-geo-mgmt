@@ -29,7 +29,7 @@ public class MgmtLlmChannelController {
             .map(entry -> new StrategyOption(entry.getKey(), entry.getValue().protocolType())).toList();
     }
 
-    /** 实际注册策略的 Bean 名和推导协议，不携带连接或凭据。 */
+    /** 实际 Bean 和协议，不携带连接或凭据。 */
     public record StrategyOption(String beanName, LLMProtocolType protocolType) {}
 
     /** 创建共享渠道，返回数据库生成标识。 */

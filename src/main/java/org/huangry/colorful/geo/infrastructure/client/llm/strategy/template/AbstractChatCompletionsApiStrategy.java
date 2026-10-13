@@ -54,7 +54,9 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
                 .postForObject(baseUrl + "/chat/completions", new HttpEntity<>(body, headers), JsonNode.class);
 
         // 3. 响应结构不合法明确报错，不能把空响应伪装成成功。
-        if (response == null) throw new LLMClientException("Chat Completions 返回空响应");
+        if (response == null) {
+            throw new LLMClientException("Chat Completions 返回空响应");
+        }
         return parseResponse(response);
     }
 
@@ -68,8 +70,12 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", channel.getModelName());
         body.put("messages", List.of(Map.of("role", "user", "content", request.prompt())));
-        if (channel.getTemperature() != null) body.put("temperature", channel.getTemperature());
-        if (channel.getMaxTokens() != null) body.put("max_tokens", channel.getMaxTokens());
+        if (channel.getTemperature() != null) {
+            body.put("temperature", channel.getTemperature());
+        }
+        if (channel.getMaxTokens() != null) {
+            body.put("max_tokens", channel.getMaxTokens());
+        }
         return body;
     }
 

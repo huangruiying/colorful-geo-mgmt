@@ -72,10 +72,11 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
         if (enabled && strategies.get(channel.getStrategyBeanName()).protocolType() != LLMProtocolType.MOCK
                 && (channel.getApiKey() == null || channel.getApiKey().isBlank()))
             throw new IllegalArgumentException("启用远程模型前请保存 API 密钥");
-        GeoLlmChannelEntity entity = new GeoLlmChannelEntity();
-        entity.setId(id);
-        entity.setEnabled(enabled);
-        if (!updateById(entity)) throw new IllegalStateException("模型渠道状态更新失败");
+        // 仅更新状态，不使用实体的可空字段更新规则覆盖其他配置。
+        if (!lambdaUpdate().eq(GeoLlmChannelEntity::getId, id)
+                .set(GeoLlmChannelEntity::getEnabled, enabled).update()) {
+            throw new IllegalStateException("模型渠道状态更新失败");
+        }
         return getById(id);
     }
 
@@ -101,9 +102,10 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
         channel.setModelName(text(channel.getModelName(), "模型标识", 200, remote));
         if (remote) validateUrl(channel.getBaseUrl());
         // 3. 默认值与范围统一在领域层处理，页面和调用方遵循相同规则。
-        if (channel.getTemperature() == null) channel.setTemperature(0.3D);
-        if (!Double.isFinite(channel.getTemperature()) || channel.getTemperature() < 0 || channel.getTemperature() > 2)
+        if (channel.getTemperature() != null && (!Double.isFinite(channel.getTemperature())
+                || channel.getTemperature() < 0 || channel.getTemperature() > 2)) {
             throw new IllegalArgumentException("生成随机性必须在 0 到 2 之间");
+        }
         if (channel.getMaxTokens() == null) channel.setMaxTokens(1400);
         if (channel.getMaxTokens() < 1 || channel.getMaxTokens() > 1000000) throw new IllegalArgumentException("输出上限必须在 1 到 1000000 之间");
         if (channel.getTimeoutSeconds() == null) channel.setTimeoutSeconds(60);
