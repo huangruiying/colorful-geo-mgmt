@@ -126,14 +126,14 @@ class RestTemplateConfigTest {
             assertEquals(300, body.path("max_output_tokens").asInt());
             assertEquals(0.2, body.path("temperature").asDouble());
             assertFalse(body.has("max_tokens"));
-            // OpenAI 普通模型传随机性；未配置推理模式的已知推理系列只传输出上限。
+            // 模型名称不决定参数是否发送，用户填写则原值传递。
             channel.setModelName("gpt-4.1");
             context.getBean(OpenAiResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
             assertEquals(0.2, mapper.readTree(payload.get()).path("temperature").asDouble());
             channel.setModelName("gpt-5-mini");
             context.getBean(OpenAiResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
             body = mapper.readTree(payload.get());
-            assertFalse(body.has("temperature"));
+            assertEquals(0.2, body.path("temperature").asDouble());
             assertEquals(300, body.path("max_output_tokens").asInt());
             // 兼容网关不借用 OpenAI 模型名称的限制，不声明厂商搜索工具。
             context.getBean(CompatibleResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
@@ -141,6 +141,10 @@ class RestTemplateConfigTest {
             assertEquals(0.2, body.path("temperature").asDouble());
             assertEquals(300, body.path("max_output_tokens").asInt());
             assertFalse(body.has("tools"));
+            // 显式留空时所有 Responses 策略均不发送随机性。
+            channel.setTemperature(null);
+            context.getBean(OpenAiResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            assertFalse(mapper.readTree(payload.get()).has("temperature"));
         } finally { server.stop(0); }
     }
 

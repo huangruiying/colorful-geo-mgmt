@@ -34,7 +34,6 @@ class LlmChannelControllerTest {
         mvc.perform(get("/llm-channels/strategies")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].beanName").value("doubaoResponsesApiStrategy"))
                 .andExpect(jsonPath("$[0].protocolType").value("OPENAI_RESPONSES"))
-                .andExpect(jsonPath("$[0].temperatureExcludedModelPrefixes").isArray())
                 .andExpect(jsonPath("$[0].name").doesNotExist());
     }
 

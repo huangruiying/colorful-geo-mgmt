@@ -52,6 +52,22 @@ class GeoLlmChannelServiceTest {
         }
     }
 
+    /** 编辑留空不补随机性默认值，保留 null 以清除旧配置。 */
+    @Test
+    void shouldKeepOptionalTemperatureEmptyOnSave() {
+        GeoLlmChannelService service = spy(configuredService());
+        var existing = channel();
+        existing.setTemperature(0.3);
+        doReturn(existing).when(service).getById(1L);
+        doReturn(true).when(service).updateById(any());
+        var edited = channel();
+        edited.setTemperature(null);
+        service.saveChannel(1L, edited);
+        var saved = org.mockito.ArgumentCaptor.forClass(GeoLlmChannelEntity.class);
+        verify(service).updateById(saved.capture());
+        assertNull(saved.getValue().getTemperature());
+    }
+
     /** HTTP 地址内的凭据、查询参数和脚本协议不可保存。 */
     @Test
     void shouldRejectCredentialUrlsAndInvalidReferences() {
