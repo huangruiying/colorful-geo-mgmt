@@ -4,8 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMCitation;
 import java.util.Map;
 
-/** 两种协议共用的引用注解解析，只接受明确的 url_citation，不猜测正文或检索来源。 */
+/**
+ * 两种协议共用的引用解析工具，collect 将 url_citation 收集到 URL 索引。
+ * <p>兼容扁平和嵌套注解，不猜测正文链接或检索来源，不核验网页内容。</p>
+ */
 final class LlmCitationParser {
+    /** 仅提供静态解析方法，不创建工具实例。 */
     private LlmCitationParser() {}
 
     /**
@@ -16,12 +20,14 @@ final class LlmCitationParser {
     static void collect(JsonNode annotations, Map<String, LLMCitation> citations) {
         if (!annotations.isArray()) return;
         for (JsonNode annotation : annotations) {
-            // Chat Completions 使用嵌套对象，Responses 使用扁平注解。
+            // 仅处理明确的引用类型；Chat 通常嵌套，Responses 通常扁平。
             if (!"url_citation".equals(annotation.path("type").asText())) continue;
             JsonNode citation = annotation.path("url_citation").isObject()
                     ? annotation.path("url_citation") : annotation;
+            // 无有效 URL 的注解不入结果，同一 URL 保留首次出现的资料。
             JsonNode url = citation.path("url");
             if (!url.isTextual() || url.asText().isBlank()) continue;
+            // 标题和摘要缺失时为空，位置缺失时为 null，不补造来源信息。
             citations.putIfAbsent(url.asText(), new LLMCitation(
                     citation.path("title").asText(""), url.asText(),
                     citation.path("start_index").isIntegralNumber() ? citation.path("start_index").asInt() : null,

@@ -15,14 +15,18 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Chat Completions 抽象交互：复用 HTTP、基础请求与引用解析，厂商参数由子策略补充。 */
+/**
+ * Chat Completions 协议模板，query 负责组装独立问题、调用接口和解析首个回答。
+ * <p>子策略通过 buildRequestBody 补充厂商参数；模板只接受接口明确返回的引用，
+ * 不选择渠道、不主动声明搜索工具，也不抓取引用网页。</p>
+ */
 public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy {
     /** 声明父类实际处理的交互格式，子类不重复维护。 */
     @Override
     public final LLMProtocolType protocolType() { return LLMProtocolType.OPENAI_CHAT_COMPLETIONS; }
 
     /**
-     * 提交独立问题，读取原始响应以保留 SDK 未映射的引用注解。
+     * 提交独立问题并直接读取 JSON，保留回答中的结构化引用注解。
      * @param request 当前问题
      * @param channel 渠道连接配置
      * @return 正文及接口明确返回的引用，无引用时为空列表
@@ -70,10 +74,12 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
      * @return 首个回答及按链接去重的结构化引用
      */
     LLMResponse parseResponse(JsonNode response) {
+        // 只采用首个候选的文本，避免把多个回答合成一次采样结果。
         JsonNode message = response.path("choices").path(0).path("message");
         if (!message.path("content").isTextual()) {
             throw new LLMClientException("Chat Completions 未返回文本回答");
         }
+        // 引用仅取当前回答的注解，正文 URL 不作为引用来源。
         Map<String, LLMCitation> citations = new LinkedHashMap<>();
         LlmCitationParser.collect(message.path("annotations"), citations);
         return new LLMResponse(message.path("content").asText(), List.copyOf(citations.values()));
