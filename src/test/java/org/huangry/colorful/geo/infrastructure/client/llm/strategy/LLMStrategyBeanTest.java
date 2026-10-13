@@ -36,7 +36,7 @@ class LLMStrategyBeanTest {
             assertFalse(strategies.containsKey("doubao_responses"));
             assertEquals(strategies.get("openAiResponsesApiStrategy").protocolType(),
                     strategies.get("doubaoResponsesApiStrategy").protocolType());
-            assertTrue(context.getBean(LLMStrategyRouter.class).query(new LLMQueryRequest("问题")).content().contains("mock"));
+            assertTrue(context.getBean(LLMStrategyRouter.class).query(new LLMQueryRequest("问题")).getContent().contains("mock"));
         }
     }
 }

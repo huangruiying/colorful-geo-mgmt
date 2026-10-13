@@ -112,13 +112,13 @@ class RestTemplateConfigTest {
             channel.setTemperature(0.2);
             channel.setMaxTokens(300);
             var chat = context.getBean(CompatibleChatCompletionsApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
-            assertEquals("回答", chat.content());
-            assertEquals("https://source.example", chat.citations().get(0).url());
+            assertEquals("回答", chat.getContent());
+            assertEquals("https://source.example", chat.getCitations().get(0).url());
             assertTrue(payload.get().contains("messages"));
             assertEquals("Bearer local-test-only", auth.get());
             var responses = context.getBean(DoubaoResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
-            assertEquals("回答", responses.content());
-            assertEquals("https://source.example", responses.citations().get(0).url());
+            assertEquals("回答", responses.getContent());
+            assertEquals("https://source.example", responses.getCitations().get(0).url());
             assertTrue(payload.get().contains("web_search"));
             assertTrue(payload.get().contains("required"));
             var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
