@@ -21,6 +21,7 @@ class MgmtDiagnosisPlanControllerTest {
         assertFalse(response.getDetail().contains("remote-private"));
     }
 
+    /** 超时提示指向统一 HTTP 配置，候选格式错误不泄露模型原文。 */
     @Test
     void shouldDistinguishTimeoutFromInvalidCandidates() {
         var timeout = controller.generationFailed(new LLMClientException("remote",
@@ -28,6 +29,8 @@ class MgmtDiagnosisPlanControllerTest {
         var format = controller.generationFailed(new LLMClientException("候选无效",
                 new IllegalArgumentException("private-answer")));
         assertTrue(timeout.getDetail().contains("超时"));
+        assertTrue(timeout.getDetail().contains("统一 HTTP 超时配置"));
+        assertFalse(timeout.getDetail().contains("渠道超时配置"));
         assertTrue(format.getDetail().contains("格式"));
         assertFalse(format.getDetail().contains("private-answer"));
     }

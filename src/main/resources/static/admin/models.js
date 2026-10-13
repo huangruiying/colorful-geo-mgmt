@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261013-bean3", error = document.getElementById("model-error");
+    const version = "20261013-bean4", error = document.getElementById("model-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
     async function request(path, options = {}) {
         const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
@@ -19,10 +19,22 @@
             const protocol = option?.dataset.protocolType || "";
             const remote = protocol !== "MOCK";
             for (const key of ["baseUrl", "modelName"]) form.elements[key].required = remote;
+            // 对齐当前策略的实际请求：Responses、Mock 和 OpenAI 搜索专用模型不发送这两个参数。
+            const searchModel = option?.value === "openAiChatCompletionsApiStrategy"
+                && form.elements.modelName.value.trim() === "gpt-5-search-api";
+            const generationParameters = protocol === "OPENAI_CHAT_COMPLETIONS" && !searchModel;
+            for (const key of ["temperature", "maxTokens"]) {
+                form.elements[key].disabled = !generationParameters;
+                form.elements[key].required = generationParameters;
+            }
+            document.getElementById("generation-help").textContent = generationParameters
+                ? "生成随机性和 token 上限会随请求发送，所选模型是否接受这些参数仍由接口校验。"
+                : "当前策略或模型不发送生成随机性和 token 上限，因此不提供编辑。";
             document.getElementById("protocol-help").textContent = "策略 Bean：" + (option?.value || "请选择调用策略") + " · 接口协议：" + (protocol || "—")
                 + "。策略决定请求参数，模型和工具权限仍需实际验证。";
         };
         form.elements.strategyBeanName.addEventListener("change", syncStrategy);
+        form.elements.modelName.addEventListener("input", syncStrategy);
         button.disabled = true;
         Promise.all([request("/llm-channels/strategies"), id ? request("/llm-channels/" + id) : Promise.resolve(null)])
             .then(([strategies, channel]) => {
@@ -42,7 +54,6 @@
                     if (element.type === "checkbox") element.checked = Boolean(channel[element.name]);
                     else element.value = channel[element.name] ?? "";
                 }
-                form.dataset.sslVerify = String(channel.sslVerify);
                 document.getElementById("key-status").textContent = channel.keyConfigured ? "已保存密钥，留空保留；填写新密钥可替换。" : "尚未保存密钥。";
                 form.elements.channelCode.readOnly = true;
                 syncStrategy(); button.disabled = false;
@@ -51,10 +62,11 @@
             event.preventDefault(); if (button.disabled) return;
             button.disabled = true; button.textContent = "正在保存…"; showError("");
             const channel = Object.fromEntries(new FormData(form));
-            for (const key of ["score", "temperature", "maxTokens", "timeoutSeconds"]) channel[key] = Number(channel[key]);
+            // 禁用字段不在 FormData 中，不把缺失值转换为 NaN 或 null。
+            for (const key of ["score", "temperature", "maxTokens"]) {
+                if (key in channel) channel[key] = Number(channel[key]);
+            }
             channel.enabled = form.elements.enabled.checked;
-            // 默认校验证书；编辑旧配置时保留既有值，不额外提供弱化安全的页面开关。
-            channel.sslVerify = form.dataset.sslVerify !== "false";
             try {
                 const saved = await request(id ? "/llm-channels/" + id : "/llm-channels",
                     {method: id ? "PUT" : "POST", body: JSON.stringify(channel)});

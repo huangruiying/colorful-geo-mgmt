@@ -80,10 +80,11 @@
 <label class="project-field"><span>默认优先级</span><input name="score" id="score" type="number" required min="-2147483648" max="2147483647" value="0" placeholder="数值越大越优先"></label>
 <label class="project-field"><span>生成随机性</span><input name="temperature" id="temperature" type="number" required min="0" max="2" step="0.01" value="0.3" placeholder="0 到 2"></label>
 <label class="project-field"><span>输出 token 上限</span><input name="maxTokens" id="maxTokens" type="number" required min="1" max="1000000" value="1400" placeholder="1400"></label>
-<label class="project-field"><span>请求超时（秒）</span><input name="timeoutSeconds" id="timeoutSeconds" type="number" required min="1" max="600" value="60" placeholder="60"></label>
 <label class="model-check"><input type="checkbox" name="enabled" id="enabled">启用渠道</label>
-<p class="model-help" id="protocol-help">搜索能力由调用协议决定；支持搜索不代表每次调用实际搜索。</p>
+<p class="model-help" id="generation-help"></p>
+<p class="model-help">请求超时和 HTTPS 证书校验由服务的统一 HTTP 配置维护，不在渠道中单独设置。</p>
+<p class="model-help" id="protocol-help">请求参数由实际策略决定，接口协议不代表模型一定支持搜索。</p>
 </div></section>
 <p id="model-error" class="notice notice-error" role="alert" hidden></p>
 <div class="project-actions"><a class="text-button" href="./models.html?v=20261011-config3">返回模型列表</a><button id="save-model" class="primary-button" type="submit">保存模型配置</button></div>
-</form></main></div></div><script src="./models.js?v=20261013-bean3"></script></body></html>
+</form></main></div></div><script src="./models.js?v=20261013-bean4"></script></body></html>

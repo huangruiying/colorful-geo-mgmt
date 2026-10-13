@@ -94,7 +94,7 @@ public class MgmtDiagnosisPlanController {
 				break;
 			}
 			if (cause instanceof java.net.SocketTimeoutException || cause instanceof java.net.http.HttpTimeoutException) {
-				reason = "模型响应超时，请减少生成数量或检查渠道超时配置";
+				reason = "模型响应超时，请减少生成数量或检查服务的统一 HTTP 超时配置";
 				break;
 			}
 			if (cause instanceof com.fasterxml.jackson.core.JacksonException || cause instanceof IllegalArgumentException) {
