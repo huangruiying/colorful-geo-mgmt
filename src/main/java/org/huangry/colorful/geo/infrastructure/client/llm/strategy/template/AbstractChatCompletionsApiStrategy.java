@@ -9,7 +9,9 @@ import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.web.client.RestClient;
+import jakarta.annotation.Resource;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpEntity;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +23,9 @@ import java.util.Map;
  * 不选择渠道、不主动声明搜索工具，也不抓取引用网页。</p>
  */
 public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy {
+    /** 提前注册的模型 HTTP 客户端，超时及证书策略统一配置。 */
+    @Resource(name = "llmRestTemplateWithTimeout")
+    private RestTemplate llmRestTemplate;
     /** 声明父类实际处理的交互格式，子类不重复维护。 */
     @Override
     public final LLMProtocolType protocolType() { return LLMProtocolType.OPENAI_CHAT_COMPLETIONS; }
@@ -42,11 +47,11 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
 
         // 2. 密钥仅放入请求头，超时与证书策略沿用已有客户端工厂。
         String baseUrl = channel.getBaseUrl().replaceAll("/+$", "");
-        JsonNode response = RestClient.builder()
-                .requestFactory(LlmHttpClientFactory.createSpringRequestFactory(channel))
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + channel.getApiKey().strip())
-                .build().post().uri(baseUrl + "/chat/completions")
-                .contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(JsonNode.class);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(channel.getApiKey().strip());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        JsonNode response = llmRestTemplate
+                .postForObject(baseUrl + "/chat/completions", new HttpEntity<>(body, headers), JsonNode.class);
 
         // 3. 响应结构不合法明确报错，不能把空响应伪装成成功。
         if (response == null) throw new LLMClientException("Chat Completions 返回空响应");

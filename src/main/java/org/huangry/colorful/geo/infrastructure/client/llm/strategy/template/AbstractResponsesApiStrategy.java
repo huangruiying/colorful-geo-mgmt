@@ -9,7 +9,9 @@ import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.web.client.RestClient;
+import jakarta.annotation.Resource;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpEntity;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,6 +26,9 @@ import java.util.Map;
  * @author huangry
  */
 public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
+    /** 提前注册的模型 HTTP 客户端，超时及证书策略统一配置。 */
+    @Resource(name = "llmRestTemplateWithTimeout")
+    private RestTemplate llmRestTemplate;
     /** 声明父类实际处理的交互格式，子类不重复维护。 */
     @Override
     public final LLMProtocolType protocolType() { return LLMProtocolType.OPENAI_RESPONSES; }
@@ -43,16 +48,12 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
         Map<String, Object> requestBody = buildRequestBody(request, channel);
 
         // 2. 保持 API Key 仅存在于请求头，日志和响应对象均不保留密钥。
-        RestClient restClient = RestClient.builder()
-                .requestFactory(LlmHttpClientFactory.createSpringRequestFactory(channel))
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + channel.getApiKey().strip())
-                .build();
-        JsonNode responseBody = restClient.post()
-                .uri(normalizeBaseUrl(channel.getBaseUrl()) + "/responses")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(requestBody)
-                .retrieve()
-                .body(JsonNode.class);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(channel.getApiKey().strip());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        JsonNode responseBody = llmRestTemplate
+                .postForObject(normalizeBaseUrl(channel.getBaseUrl()) + "/responses",
+                        new HttpEntity<>(requestBody, headers), JsonNode.class);
         if (responseBody == null) {
             throw new LLMClientException("OpenAI Responses API 返回空响应");
         }
