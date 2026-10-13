@@ -39,7 +39,38 @@ public class LLMStrategyRouter {
     public LLMResponse query(LLMQueryRequest request) {
         // 1. 按指定渠道或模型筛选，再按优先级选择唯一配置。
         GeoLlmChannelEntity channel = selectChannel(request);
-        // 2. 按数据库保存的 Bean 名直接获取 Spring 实例，由策略决定请求方式。
+        // 启用筛选已经由数据库查询完成，沿用普通查询原有策略校验。
+        return execute(request, channel);
+    }
+
+    /**
+     * 按任务已校验的精确渠道调用，不再次按优先级选择其他渠道。
+     * @param request 独立问题
+     * @param channel 本次采样选定的渠道及当前凭据
+     * @return 模型响应
+     */
+    public LLMResponse query(LLMQueryRequest request, GeoLlmChannelEntity channel) {
+        return execute(request, channel);
+    }
+
+    /**
+     * 普通查询和精确渠道调用共用策略路由，不复制连接配置。
+     * @param request 独立问题
+     * @param channel 已选定配置
+     * @return 模型响应
+     */
+    private LLMResponse execute(LLMQueryRequest request, GeoLlmChannelEntity channel) {
+        LLMStrategy strategy = strategyFor(channel);
+        log.info("模型调用 channel={}, model={}, strategy={}", channel.getChannelCode(), channel.getModelName(), channel.getStrategyBeanName());
+        return strategy.query(request, channel);
+    }
+
+    /**
+     * 校验实际 Bean 与远程密钥，接口地址等协议条件仍由模板校验。
+     * @param channel 已选定渠道
+     * @return 已注册策略
+     */
+    private LLMStrategy strategyFor(GeoLlmChannelEntity channel) {
         LLMStrategy strategy = strategies.get(channel.getStrategyBeanName());
         if (strategy == null) {
             throw new LLMClientException("渠道配置的策略 Bean 未注册，请修改模型配置");
@@ -47,9 +78,7 @@ public class LLMStrategyRouter {
         if (strategy.protocolType() != LLMProtocolType.MOCK && (StringUtils.isBlank(channel.getApiKey()))) {
             throw new LLMClientException("模型渠道未保存 API 密钥");
         }
-        // 3. 只记录实际渠道与模型，不记录问题、回答或凭据。
-        log.info("模型调用 channel={}, model={}, strategy={}", channel.getChannelCode(), channel.getModelName(), channel.getStrategyBeanName());
-        return strategy.query(request, channel);
+        return strategy;
     }
 
     /**
