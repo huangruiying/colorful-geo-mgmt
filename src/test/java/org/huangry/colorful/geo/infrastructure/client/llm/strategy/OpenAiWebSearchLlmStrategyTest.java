@@ -1,6 +1,6 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
-import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMConnectionConfig;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -12,8 +12,8 @@ class OpenAiWebSearchLlmStrategyTest {
     /** 普通 Responses 不发送搜索工具，不能因接口格式误标联网能力。 */
     @Test
     void shouldNotDeclareSearchForPlainResponses() {
-        var strategy = new OpenAiResponsesApiStrategy();
-        var provider = new LLMConnectionConfig();
+        var strategy = new CompatibleResponsesApiStrategy();
+        var provider = new GeoLlmChannelEntity();
         var body = strategy.buildRequestBody(new LLMQueryRequest("问题"), provider);
         assertFalse(body.containsKey("tools"));
     }
@@ -34,9 +34,8 @@ class OpenAiWebSearchLlmStrategyTest {
     @Test
     void shouldAutomaticallySendSearchTool() {
         var strategy = new OpenAiResponsesApiStrategy();
-        var config = new LLMConnectionConfig();
-        config.setModel("test-model");
-        config.setProviderCode("openai");
+        var config = new GeoLlmChannelEntity();
+        config.setModelName("test-model");
         var ordinary = new LLMQueryRequest("问题");
         var plain = strategy.buildRequestBody(ordinary, config);
         assertEquals(List.of(Map.of("type", "web_search")), plain.get("tools"));

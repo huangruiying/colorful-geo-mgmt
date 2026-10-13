@@ -23,7 +23,17 @@ class LlmChannelControllerTest {
     private MockMvc createMvc() {
         var controller = new MgmtLlmChannelController();
         ReflectionTestUtils.setField(controller, "business", business);
+        ReflectionTestUtils.setField(controller, "strategies", java.util.Map.of(
+                "doubaoResponsesApiStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.DoubaoResponsesApiStrategy()));
         return MockMvcBuilders.standaloneSetup(controller).build();
+    }
+
+    /** 页面选项来自实际注册集合，不允许独立选择冲突的协议。 */
+    @Test
+    void shouldListRegisteredStrategyOptions() throws Exception {
+        mvc.perform(get("/llm-channels/strategies")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].beanName").value("doubaoResponsesApiStrategy"))
+                .andExpect(jsonPath("$[0].protocolType").value("OPENAI_RESPONSES"));
     }
 
     /** 创建返回标识，列表采用有限分页，输入不能携带密钥字段。 */

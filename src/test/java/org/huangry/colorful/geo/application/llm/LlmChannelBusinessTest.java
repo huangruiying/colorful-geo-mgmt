@@ -19,10 +19,12 @@ class LlmChannelBusinessTest {
         var service = mock(GeoLlmChannelService.class);
         var business = new LlmChannelBusiness();
         ReflectionTestUtils.setField(business, "service", service);
+        ReflectionTestUtils.setField(business, "strategies", java.util.Map.of(
+                "openAiResponsesApiStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.OpenAiResponsesApiStrategy()));
         var entity = new GeoLlmChannelEntity();
         entity.setId(1L);
         entity.setApiKey("unit-test-placeholder");
-        entity.setProtocolType(LLMProtocolType.OPENAI_RESPONSES);
+        entity.setStrategyBeanName("openAiResponsesApiStrategy");
         when(service.getById(1L)).thenReturn(entity);
         when(service.saveChannel(isNull(), any())).thenReturn(entity);
         when(service.listChannels(null, 20, 0)).thenReturn(List.of(entity));
