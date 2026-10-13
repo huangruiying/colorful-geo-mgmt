@@ -1,6 +1,12 @@
 server:
   port: 8010
 
+# 模型 HTTP 客户端提前注册，所有模型调用使用同一超时和证书策略。
+http:
+  llm:
+    timeout-seconds: 60
+    ssl-verify: true
+
 spring:
   datasource:
     url: ${GEO_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/colorful_geo?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}

@@ -22,8 +22,11 @@ class LLMStrategyBeanTest {
         channel.setSslVerify(true);
         when(dao.selectOne(any())).thenReturn(channel);
         try (var context = new AnnotationConfigApplicationContext()) {
+            org.springframework.test.context.support.TestPropertySourceUtils.addInlinedPropertiesToEnvironment(context,
+                    "http.llm.timeout-seconds=60", "http.llm.ssl-verify=true");
             context.registerBean(GeoLlmChannelDao.class, () -> dao);
-            context.register(LLMStrategyRouter.class, MockLlmStrategy.class,
+            context.register(org.huangry.colorful.geo.infrastructure.config.RestTemplateConfig.class,
+                    LLMStrategyRouter.class, MockLlmStrategy.class,
                     CompatibleChatCompletionsApiStrategy.class, CompatibleResponsesApiStrategy.class,
                     OpenAiChatCompletionsApiStrategy.class, OpenAiResponsesApiStrategy.class, DoubaoResponsesApiStrategy.class);
             context.refresh();
