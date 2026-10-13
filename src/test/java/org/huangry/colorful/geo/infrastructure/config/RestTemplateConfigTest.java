@@ -4,6 +4,8 @@ import com.sun.net.httpserver.HttpServer;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.CompatibleChatCompletionsApiStrategy;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.DoubaoResponsesApiStrategy;
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.OpenAiResponsesApiStrategy;
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.CompatibleResponsesApiStrategy;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -99,13 +101,16 @@ class RestTemplateConfigTest {
         });
         server.start();
         try (var context = context(3,
-                CompatibleChatCompletionsApiStrategy.class, DoubaoResponsesApiStrategy.class)) {
+                CompatibleChatCompletionsApiStrategy.class, DoubaoResponsesApiStrategy.class,
+                OpenAiResponsesApiStrategy.class, CompatibleResponsesApiStrategy.class)) {
             var channel = new GeoLlmChannelEntity();
             channel.setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
             channel.setModelName("test-model");
             channel.setApiKey("local-test-only");
             channel.setTimeoutSeconds(3);
             channel.setSslVerify(true);
+            channel.setTemperature(0.2);
+            channel.setMaxTokens(300);
             var chat = context.getBean(CompatibleChatCompletionsApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
             assertEquals("回答", chat.content());
             assertEquals("https://source.example", chat.citations().get(0).url());
@@ -116,6 +121,26 @@ class RestTemplateConfigTest {
             assertEquals("https://source.example", responses.citations().get(0).url());
             assertTrue(payload.get().contains("web_search"));
             assertTrue(payload.get().contains("required"));
+            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            var body = mapper.readTree(payload.get());
+            assertEquals(300, body.path("max_output_tokens").asInt());
+            assertEquals(0.2, body.path("temperature").asDouble());
+            assertFalse(body.has("max_tokens"));
+            // OpenAI 普通模型传随机性；未配置推理模式的已知推理系列只传输出上限。
+            channel.setModelName("gpt-4.1");
+            context.getBean(OpenAiResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            assertEquals(0.2, mapper.readTree(payload.get()).path("temperature").asDouble());
+            channel.setModelName("gpt-5-mini");
+            context.getBean(OpenAiResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            body = mapper.readTree(payload.get());
+            assertFalse(body.has("temperature"));
+            assertEquals(300, body.path("max_output_tokens").asInt());
+            // 兼容网关不借用 OpenAI 模型名称的限制，不声明厂商搜索工具。
+            context.getBean(CompatibleResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            body = mapper.readTree(payload.get());
+            assertEquals(0.2, body.path("temperature").asDouble());
+            assertEquals(300, body.path("max_output_tokens").asInt());
+            assertFalse(body.has("tools"));
         } finally { server.stop(0); }
     }
 

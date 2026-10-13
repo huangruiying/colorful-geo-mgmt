@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261013-bean4", error = document.getElementById("model-error");
+    const version = "20261013-bean5", error = document.getElementById("model-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
     async function request(path, options = {}) {
         const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
@@ -19,17 +19,20 @@
             const protocol = option?.dataset.protocolType || "";
             const remote = protocol !== "MOCK";
             for (const key of ["baseUrl", "modelName"]) form.elements[key].required = remote;
-            // 对齐当前策略的实际请求：Responses、Mock 和 OpenAI 搜索专用模型不发送这两个参数。
+            // 协议决定输出上限字段，厂商的模型排除规则由接口提供。
             const searchModel = option?.value === "openAiChatCompletionsApiStrategy"
                 && form.elements.modelName.value.trim() === "gpt-5-search-api";
-            const generationParameters = protocol === "OPENAI_CHAT_COMPLETIONS" && !searchModel;
-            for (const key of ["temperature", "maxTokens"]) {
-                form.elements[key].disabled = !generationParameters;
-                form.elements[key].required = generationParameters;
-            }
-            document.getElementById("generation-help").textContent = generationParameters
-                ? "生成随机性和 token 上限会随请求发送，所选模型是否接受这些参数仍由接口校验。"
-                : "当前策略或模型不发送生成随机性和 token 上限，因此不提供编辑。";
+            const generationParameters = Boolean(protocol) && remote && !searchModel;
+            const prefixes = JSON.parse(option?.dataset.temperatureExcludedModelPrefixes || "[]");
+            const excluded = prefixes.some(prefix => form.elements.modelName.value.trim().startsWith(prefix));
+            form.elements.temperature.disabled = !generationParameters || excluded;
+            form.elements.temperature.required = generationParameters && !excluded;
+            form.elements.maxTokens.disabled = !generationParameters;
+            form.elements.maxTokens.required = generationParameters;
+            document.getElementById("generation-help").textContent = !generationParameters
+                ? "当前策略或模型不发送这些生成参数，因此不提供编辑。"
+                : (excluded ? "当前 OpenAI 推理模型适配不发送随机性；输出上限仍会发送。" : "生成参数会随请求发送，具体模型是否接受仍由接口校验。")
+                    + (protocol === "OPENAI_RESPONSES" ? "输出上限使用 max_output_tokens，可能包含推理 token。" : "");
             document.getElementById("protocol-help").textContent = "策略 Bean：" + (option?.value || "请选择调用策略") + " · 接口协议：" + (protocol || "—")
                 + "。策略决定请求参数，模型和工具权限仍需实际验证。";
         };
@@ -41,9 +44,12 @@
                 const select = form.elements.strategyBeanName;
                 select.replaceChildren();
                 for (const strategy of strategies) {
+                    if (!Array.isArray(strategy.temperatureExcludedModelPrefixes))
+                        throw new Error("模型配置服务版本未更新，请重启服务后刷新页面");
                     const option = document.createElement("option");
                     option.value = strategy.beanName; option.textContent = strategy.beanName + " · " + strategy.protocolType;
                     option.dataset.protocolType = strategy.protocolType;
+                    option.dataset.temperatureExcludedModelPrefixes = JSON.stringify(strategy.temperatureExcludedModelPrefixes || []);
                     select.append(option);
                 }
                 select.value = "compatibleChatCompletionsApiStrategy";
