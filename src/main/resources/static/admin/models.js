@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261012-bean1", error = document.getElementById("model-error");
+    const version = "20261013-bean3", error = document.getElementById("model-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
     async function request(path, options = {}) {
         const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
@@ -30,7 +30,7 @@
                 select.replaceChildren();
                 for (const strategy of strategies) {
                     const option = document.createElement("option");
-                    option.value = strategy.beanName; option.textContent = strategy.name;
+                    option.value = strategy.beanName; option.textContent = strategy.beanName + " · " + strategy.protocolType;
                     option.dataset.protocolType = strategy.protocolType;
                     select.append(option);
                 }
@@ -73,10 +73,9 @@
             rows.replaceChildren();
             for (const c of result.items) {
                 const row = document.createElement("tr");
-                const values = [c.id, c.channelName, c.providerCode, c.modelName || "本地模拟", c.strategyName || c.strategyBeanName, c.score, c.enabled ? "已启用" : "已停用"];
-                for (const [i, value] of values.entries()) {
+                const values = [c.id, c.channelName, c.channelCode, c.providerCode, c.modelName || "本地模拟", c.strategyBeanName, c.protocolType || "策略未注册", c.score, c.enabled ? "已启用" : "已停用"];
+                for (const value of values) {
                     const cell = document.createElement("td"); cell.textContent = value;
-                    if (i === 1) { const code = document.createElement("small"); code.className = "model-code"; code.textContent = c.channelCode; cell.append(code); }
                     row.append(cell);
                 }
                 const cell = document.createElement("td"), edit = document.createElement("a"), toggle = document.createElement("button");
@@ -91,7 +90,7 @@
             }
             if (!result.items.length) {
                 const row = document.createElement("tr"), cell = document.createElement("td");
-                cell.colSpan = 8; cell.className = "table-message"; cell.textContent = keyword ? "没有匹配的模型渠道。" : "暂无模型渠道，点击“新增模型”添加配置。"; row.append(cell); rows.append(row);
+                cell.colSpan = 10; cell.className = "table-message"; cell.textContent = keyword ? "没有匹配的模型渠道。" : "暂无模型渠道，点击“新增模型”添加配置。"; row.append(cell); rows.append(row);
             }
             document.getElementById("model-total").textContent = "共 " + result.total + " 个渠道 · 按优先级降序排列";
             document.getElementById("model-page").textContent = "第 " + (page + 1) + " 页";
