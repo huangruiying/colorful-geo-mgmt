@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261013-bean5", error = document.getElementById("model-error");
+    const version = "20261013-bean6", error = document.getElementById("model-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
     async function request(path, options = {}) {
         const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
@@ -19,19 +19,17 @@
             const protocol = option?.dataset.protocolType || "";
             const remote = protocol !== "MOCK";
             for (const key of ["baseUrl", "modelName"]) form.elements[key].required = remote;
-            // 协议决定输出上限字段，厂商的模型排除规则由接口提供。
+            // 留空不发送随机性，填写由远端模型校验；仅保留明确不使用参数的策略限制。
             const searchModel = option?.value === "openAiChatCompletionsApiStrategy"
                 && form.elements.modelName.value.trim() === "gpt-5-search-api";
             const generationParameters = Boolean(protocol) && remote && !searchModel;
-            const prefixes = JSON.parse(option?.dataset.temperatureExcludedModelPrefixes || "[]");
-            const excluded = prefixes.some(prefix => form.elements.modelName.value.trim().startsWith(prefix));
-            form.elements.temperature.disabled = !generationParameters || excluded;
-            form.elements.temperature.required = generationParameters && !excluded;
+            form.elements.temperature.disabled = !generationParameters;
+            form.elements.temperature.required = false;
             form.elements.maxTokens.disabled = !generationParameters;
             form.elements.maxTokens.required = generationParameters;
             document.getElementById("generation-help").textContent = !generationParameters
                 ? "当前策略或模型不发送这些生成参数，因此不提供编辑。"
-                : (excluded ? "当前 OpenAI 推理模型适配不发送随机性；输出上限仍会发送。" : "生成参数会随请求发送，具体模型是否接受仍由接口校验。")
+                : "随机性可留空，留空不发送；填写则由模型接口校验。输出上限会随请求发送。"
                     + (protocol === "OPENAI_RESPONSES" ? "输出上限使用 max_output_tokens，可能包含推理 token。" : "");
             document.getElementById("protocol-help").textContent = "策略 Bean：" + (option?.value || "请选择调用策略") + " · 接口协议：" + (protocol || "—")
                 + "。策略决定请求参数，模型和工具权限仍需实际验证。";
@@ -44,12 +42,9 @@
                 const select = form.elements.strategyBeanName;
                 select.replaceChildren();
                 for (const strategy of strategies) {
-                    if (!Array.isArray(strategy.temperatureExcludedModelPrefixes))
-                        throw new Error("模型配置服务版本未更新，请重启服务后刷新页面");
                     const option = document.createElement("option");
                     option.value = strategy.beanName; option.textContent = strategy.beanName + " · " + strategy.protocolType;
                     option.dataset.protocolType = strategy.protocolType;
-                    option.dataset.temperatureExcludedModelPrefixes = JSON.stringify(strategy.temperatureExcludedModelPrefixes || []);
                     select.append(option);
                 }
                 select.value = "compatibleChatCompletionsApiStrategy";
@@ -69,9 +64,11 @@
             button.disabled = true; button.textContent = "正在保存…"; showError("");
             const channel = Object.fromEntries(new FormData(form));
             // 禁用字段不在 FormData 中，不把缺失值转换为 NaN 或 null。
-            for (const key of ["score", "temperature", "maxTokens"]) {
+            for (const key of ["score", "maxTokens"]) {
                 if (key in channel) channel[key] = Number(channel[key]);
             }
+            channel.temperature = "temperature" in channel && channel.temperature.trim() !== ""
+                ? Number(channel.temperature) : null;
             channel.enabled = form.elements.enabled.checked;
             try {
                 const saved = await request(id ? "/llm-channels/" + id : "/llm-channels",

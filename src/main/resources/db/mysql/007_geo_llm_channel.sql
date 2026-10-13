@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS geo_llm_channel (
   base_url VARCHAR(2048) NULL COMMENT '接口根地址',
   model_name VARCHAR(200) NULL COMMENT '模型标识',
   api_key TEXT NULL COMMENT '服务端调用密钥，不返回页面',
-  temperature DOUBLE NOT NULL DEFAULT 0.3 COMMENT '生成随机性',
+  temperature DOUBLE NULL DEFAULT NULL COMMENT '可选生成随机性，空值不发送',
   max_tokens INT NOT NULL DEFAULT 1400 COMMENT '输出 token 上限',
   timeout_seconds INT NOT NULL DEFAULT 60 COMMENT '请求超时秒数',
   ssl_verify BOOLEAN NOT NULL DEFAULT TRUE COMMENT '校验证书',

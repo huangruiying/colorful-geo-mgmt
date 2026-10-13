@@ -78,7 +78,7 @@
 </div></section>
 <section class="list-panel project-section"><div class="panel-heading"><div><h2>调用规则</h2><p>默认优先级越大越优先；相同时按渠道 ID 升序选择。停用渠道不参与调用。</p></div></div><div class="project-fields model-fields">
 <label class="project-field"><span>默认优先级</span><input name="score" id="score" type="number" required min="-2147483648" max="2147483647" value="0" placeholder="数值越大越优先"></label>
-<label class="project-field"><span>生成随机性</span><input name="temperature" id="temperature" type="number" required min="0" max="2" step="0.01" value="0.3" placeholder="0 到 2"></label>
+<label class="project-field"><span>生成随机性（可选）</span><input name="temperature" id="temperature" type="number" min="0" max="2" step="0.01" placeholder="留空不发送；填写 0 到 2"></label>
 <label class="project-field"><span>输出 token 上限</span><input name="maxTokens" id="maxTokens" type="number" required min="1" max="1000000" value="1400" placeholder="1400"></label>
 <label class="model-check"><input type="checkbox" name="enabled" id="enabled">启用渠道</label>
 <p class="model-help" id="generation-help"></p>
@@ -87,4 +87,4 @@
 </div></section>
 <p id="model-error" class="notice notice-error" role="alert" hidden></p>
 <div class="project-actions"><a class="text-button" href="./models.html?v=20261011-config3">返回模型列表</a><button id="save-model" class="primary-button" type="submit">保存模型配置</button></div>
-</form></main></div></div><script src="./models.js?v=20261013-bean5"></script></body></html>
+</form></main></div></div><script src="./models.js?v=20261013-bean6"></script></body></html>
