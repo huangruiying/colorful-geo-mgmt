@@ -25,7 +25,7 @@ class LLMStrategyRouterTest {
         var channel = mockChannel(); channel.setId(99L); channel.setEnabled(true);
         var strategy = mockStrategy();
         var request = new LLMQueryRequest("独立问题");
-        assertEquals("模拟结果", createRouter(Map.of("mockLlmStrategy", strategy)).query(request, channel).content());
+        assertEquals("模拟结果", createRouter(Map.of("mockLlmStrategy", strategy)).query(request, channel).getContent());
         verify(strategy).query(same(request), same(channel));
         verifyNoInteractions(dao);
     }
@@ -94,7 +94,7 @@ class LLMStrategyRouterTest {
             assertTrue(sql.contains("LIMIT 1"));
             return mockChannel();
         });
-        assertEquals("模拟结果", createRouter(Map.of("mockLlmStrategy", strategy)).query(new LLMQueryRequest("问题")).content());
+        assertEquals("模拟结果", createRouter(Map.of("mockLlmStrategy", strategy)).query(new LLMQueryRequest("问题")).getContent());
     }
 
     /** 指定渠道和模型时，两项约束进入筛选，协议不影响默认渠道选择。 */

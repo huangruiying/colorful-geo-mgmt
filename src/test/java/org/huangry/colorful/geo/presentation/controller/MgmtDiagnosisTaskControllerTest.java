@@ -20,7 +20,7 @@ class MgmtDiagnosisTaskControllerTest {
     void shouldReturnNotFoundForMissingTaskAndCrossTaskResult() throws Exception {
         var business = mock(DiagnosisTaskBusiness.class);
         var controller = new MgmtDiagnosisTaskController();
-        ReflectionTestUtils.setField(controller, "business", business);
+        ReflectionTestUtils.setField(controller, "diagnosisTaskBusiness", business);
         when(business.detail(999L)).thenThrow(new NoSuchElementException("诊断任务不存在"));
         when(business.result(1L, 2L)).thenThrow(new NoSuchElementException("诊断回答不存在或不属于该任务"));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller).build();

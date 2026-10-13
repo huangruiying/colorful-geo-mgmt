@@ -304,7 +304,7 @@
     function openInformation(title, value, type) {
         const content = byId("information-content"); content.replaceChildren();
         byId("information-title").textContent = title;
-        byId("information-note").textContent = type === "snapshot" ? "只读 · 创建任务时冻结的配置，后续修改不会改变本轮数据。" : type === "usage" ? "只读 · 按模型接口实际返回展示，子项不重复计入总量。" : "只读 · 服务端保存的脱敏响应，JSON 已格式化。";
+        byId("information-note").textContent = type === "snapshot" ? "只读 · 创建任务时冻结的配置，后续修改不会改变本轮数据。" : type === "usage" ? "只读 · 按模型接口实际返回展示，子项不重复计入总量。" : "只读 · 服务端保存的原始响应，JSON 已格式化。";
         let parsed = value;
         if (typeof value === "string") { try { parsed = JSON.parse(value); } catch { /* 非 JSON 响应保留原文。 */ } }
         if (parsed == null) { const empty = document.createElement("p"); empty.className = "help"; empty.textContent = "接口未提供此信息。"; content.append(empty); }
