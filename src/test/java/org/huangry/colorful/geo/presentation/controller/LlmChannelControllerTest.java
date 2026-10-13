@@ -33,7 +33,8 @@ class LlmChannelControllerTest {
     void shouldListRegisteredStrategyOptions() throws Exception {
         mvc.perform(get("/llm-channels/strategies")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].beanName").value("doubaoResponsesApiStrategy"))
-                .andExpect(jsonPath("$[0].protocolType").value("OPENAI_RESPONSES"));
+                .andExpect(jsonPath("$[0].protocolType").value("OPENAI_RESPONSES"))
+                .andExpect(jsonPath("$[0].name").doesNotExist());
     }
 
     /** 创建返回标识，列表采用有限分页，输入不能携带密钥字段。 */
@@ -43,7 +44,8 @@ class LlmChannelControllerTest {
         when(business.saveChannel(isNull(), any())).thenReturn(c);
         mvc.perform(post("/llm-channels").contentType("application/json").content("{}"))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(1))
-            .andExpect(jsonPath("$.apiKey").doesNotExist());
+            .andExpect(jsonPath("$.apiKey").doesNotExist())
+            .andExpect(jsonPath("$.strategyName").doesNotExist());
         when(business.listChannels(null, 0, 20)).thenReturn(new LlmChannelPage(List.of(c), 1, 0, 20));
         mvc.perform(get("/llm-channels")).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
     }

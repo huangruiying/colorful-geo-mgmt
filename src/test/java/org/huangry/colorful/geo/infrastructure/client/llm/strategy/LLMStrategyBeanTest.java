@@ -1,6 +1,5 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMStrategyType;
 import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
@@ -29,7 +28,6 @@ class LLMStrategyBeanTest {
             context.refresh();
             var strategies = context.getBeansOfType(LLMStrategy.class);
             assertEquals(6, strategies.size());
-            for (LLMStrategyType type : LLMStrategyType.values()) assertTrue(strategies.containsKey(type.getBeanName()));
             assertSame(context.getBean(DoubaoResponsesApiStrategy.class), strategies.get("doubaoResponsesApiStrategy"));
             assertFalse(strategies.containsKey("doubao_responses"));
             assertEquals(strategies.get("openAiResponsesApiStrategy").protocolType(),
