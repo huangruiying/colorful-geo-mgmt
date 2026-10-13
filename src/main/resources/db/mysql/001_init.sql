@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS geo_llm_channel (
   channel_code VARCHAR(100) NOT NULL COMMENT '唯一渠道编码',
   channel_name VARCHAR(200) NOT NULL COMMENT '渠道名称',
   provider_code VARCHAR(100) NOT NULL COMMENT '供应商标识',
-  protocol_type VARCHAR(40) NOT NULL COMMENT '调用协议',
+  strategy_bean_name VARCHAR(100) NOT NULL COMMENT 'Spring 实际注册的策略 Bean 名',
   base_url VARCHAR(2048) NULL COMMENT '接口根地址',
   model_name VARCHAR(200) NULL COMMENT '模型标识',
   api_key TEXT NULL COMMENT '服务端调用密钥，不返回页面',

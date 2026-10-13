@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261011-config3", error = document.getElementById("model-error");
+    const version = "20261012-bean1", error = document.getElementById("model-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
     async function request(path, options = {}) {
         const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
@@ -14,24 +14,28 @@
         const button = document.getElementById("save-model");
         const id = rawId && /^[1-9]\d*$/.test(rawId) ? rawId : null;
         if (rawId && !id) { showError("渠道 ID 无效"); button.disabled = true; return; }
-        const syncProtocol = () => {
-            const remote = form.elements.protocolType.value !== "MOCK";
+        const syncStrategy = () => {
+            const option = form.elements.strategyBeanName.selectedOptions[0];
+            const protocol = option?.dataset.protocolType || "";
+            const remote = protocol !== "MOCK";
             for (const key of ["baseUrl", "modelName"]) form.elements[key].required = remote;
-            document.getElementById("protocol-help").textContent = "协议决定交互格式；联网取决于供应商和模型，引用按接口实际响应提取。";
+            document.getElementById("protocol-help").textContent = "策略 Bean：" + (option?.value || "请选择调用策略") + " · 接口协议：" + (protocol || "—")
+                + "。策略决定请求参数，模型和工具权限仍需实际验证。";
         };
-        form.elements.protocolType.addEventListener("change", syncProtocol);
+        form.elements.strategyBeanName.addEventListener("change", syncStrategy);
         button.disabled = true;
-        Promise.all([request("/llm-channels/protocols"), id ? request("/llm-channels/" + id) : Promise.resolve(null)])
-            .then(([protocols, channel]) => {
-                const select = form.elements.protocolType;
+        Promise.all([request("/llm-channels/strategies"), id ? request("/llm-channels/" + id) : Promise.resolve(null)])
+            .then(([strategies, channel]) => {
+                const select = form.elements.strategyBeanName;
                 select.replaceChildren();
-                for (const protocol of protocols) {
+                for (const strategy of strategies) {
                     const option = document.createElement("option");
-                    option.value = protocol.type; option.textContent = protocol.description;
+                    option.value = strategy.beanName; option.textContent = strategy.name;
+                    option.dataset.protocolType = strategy.protocolType;
                     select.append(option);
                 }
-                select.value = "OPENAI_CHAT_COMPLETIONS";
-                if (!channel) { syncProtocol(); button.disabled = false; return; }
+                select.value = "compatibleChatCompletionsApiStrategy";
+                if (!channel) { syncStrategy(); button.disabled = false; return; }
                 document.getElementById("model-heading").textContent = "编辑模型配置";
                 for (const element of form.elements) {
                     if (!element.name || !(element.name in channel)) continue;
@@ -41,7 +45,7 @@
                 form.dataset.sslVerify = String(channel.sslVerify);
                 document.getElementById("key-status").textContent = channel.keyConfigured ? "已保存密钥，留空保留；填写新密钥可替换。" : "尚未保存密钥。";
                 form.elements.channelCode.readOnly = true;
-                syncProtocol(); button.disabled = false;
+                syncStrategy(); button.disabled = false;
             }).catch(failure => showError(failure.message));
         form.addEventListener("submit", async event => {
             event.preventDefault(); if (button.disabled) return;
@@ -69,7 +73,7 @@
             rows.replaceChildren();
             for (const c of result.items) {
                 const row = document.createElement("tr");
-                const values = [c.id, c.channelName, c.providerCode, c.modelName || "本地模拟", c.protocolType, c.score, c.enabled ? "已启用" : "已停用"];
+                const values = [c.id, c.channelName, c.providerCode, c.modelName || "本地模拟", c.strategyName || c.strategyBeanName, c.score, c.enabled ? "已启用" : "已停用"];
                 for (const [i, value] of values.entries()) {
                     const cell = document.createElement("td"); cell.textContent = value;
                     if (i === 1) { const code = document.createElement("small"); code.className = "model-code"; code.textContent = c.channelCode; cell.append(code); }
