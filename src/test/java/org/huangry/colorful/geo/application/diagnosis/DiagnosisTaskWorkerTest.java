@@ -1,0 +1,111 @@
+package org.huangry.colorful.geo.application.diagnosis;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
+import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskService;
+import org.huangry.colorful.geo.infrastructure.client.llm.LLMClient;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
+import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
+import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordResultEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
+import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.test.util.ReflectionTestUtils;
+import java.sql.Connection;
+import java.net.SocketTimeoutException;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+/** 执行故障隔离测试：模型失败继续采样，保存失败停止外部调用。 */
+class DiagnosisTaskWorkerTest {
+    /** 空白回答不算成功采样，不自动重试，也不落成功响应。 */
+    @Test
+    void shouldRecordBlankAnswerAsFailureWithoutRetry() throws Exception {
+        var service = mock(GeoDiagnosisTaskService.class);
+        var client = mock(LLMClient.class);
+        var worker = worker(service, client);
+        var sample = sample(1L, "独立问题");
+        var channel = new GeoLlmChannelEntity(); channel.setId(7L);
+        when(service.claimSample(5L)).thenReturn(sample, null);
+        when(service.prepareChannel(sample)).thenReturn(channel);
+        when(client.query(any(LLMQueryRequest.class), same(channel))).thenReturn(LLMResponse.withoutCitations(" "));
+        ReflectionTestUtils.invokeMethod(worker, "execute", 5L);
+        verify(service).fail(eq(sample), eq("渠道不可用或模型未返回有效回答，请检查模型配置"), anyLong());
+        verify(service, never()).succeed(any(), any(), anyLong());
+        verify(client, times(1)).query(any(LLMQueryRequest.class), same(channel));
+    }
+    /** 每个问题独立请求，首个超时不重试，后续问题继续落库。 */
+    @Test
+    void shouldContinueAfterModelFailureWithoutRetryingOrAddingContext() throws Exception {
+        var service = mock(GeoDiagnosisTaskService.class);
+        var client = mock(LLMClient.class);
+        var worker = worker(service, client);
+        var first = sample(1L, "问题一");
+        var second = sample(2L, "问题二");
+        var channel = new GeoLlmChannelEntity(); channel.setId(7L);
+        when(service.claimSample(5L)).thenReturn(first, second, null);
+        when(service.prepareChannel(any())).thenReturn(channel);
+        when(client.query(new LLMQueryRequest("问题一"), channel)).thenThrow(
+                new LLMClientException("private-remote-message", new SocketTimeoutException("private-key")));
+        var response = LLMResponse.withoutCitations("独立回答");
+        when(client.query(new LLMQueryRequest("问题二"), channel)).thenReturn(response);
+        ReflectionTestUtils.invokeMethod(worker, "execute", 5L);
+        verify(client, times(1)).query(new LLMQueryRequest("问题一"), channel);
+        verify(client, times(1)).query(new LLMQueryRequest("问题二"), channel);
+        verify(service).fail(eq(first), eq("模型调用超时，请检查统一 HTTP 超时配置"), anyLong());
+        verify(service).succeed(eq(second), same(response), anyLong());
+        verify(service).finish(5L);
+    }
+
+    /** 模型已返回但落库失败时，不再次发出请求，也不领取后续采样。 */
+    @Test
+    void shouldStopCallingModelsAfterPersistenceFailure() throws Exception {
+        var service = mock(GeoDiagnosisTaskService.class);
+        var client = mock(LLMClient.class);
+        var worker = worker(service, client);
+        var sample = sample(1L, "独立问题");
+        var channel = new GeoLlmChannelEntity(); channel.setId(7L);
+        var response = LLMResponse.withoutCitations("回答");
+        when(service.claimSample(5L)).thenReturn(sample);
+        when(service.prepareChannel(sample)).thenReturn(channel);
+        when(client.query(any(LLMQueryRequest.class), same(channel))).thenReturn(response);
+        doThrow(new DataAccessResourceFailureException("private-sql"))
+                .when(service).succeed(eq(sample), same(response), anyLong());
+        assertThrows(DataAccessResourceFailureException.class, () -> ReflectionTestUtils.invokeMethod(worker, "execute", 5L));
+        verify(service, times(1)).claimSample(5L);
+        verify(client, times(1)).query(any(LLMQueryRequest.class), same(channel));
+        verify(service, never()).fail(any(), anyString(), anyLong());
+    }
+
+    /**
+     * 用固定的有效会话锁测试执行循环，不创建调度线程或外部连接。
+     * @param service 持久化替身
+     * @param client 模型替身
+     * @return 待测执行组件
+     */
+    private DiagnosisTaskWorker worker(GeoDiagnosisTaskService service, LLMClient client) throws Exception {
+        var worker = new DiagnosisTaskWorker();
+        var snapshots = new DiagnosisTaskSnapshots();
+        ReflectionTestUtils.setField(snapshots, "mapper", new ObjectMapper());
+        ReflectionTestUtils.setField(worker, "service", service);
+        ReflectionTestUtils.setField(worker, "llmClient", client);
+        ReflectionTestUtils.setField(worker, "snapshots", snapshots);
+        var lease = mock(Connection.class); when(lease.isValid(2)).thenReturn(true);
+        ReflectionTestUtils.setField(worker, "lease", lease);
+        return worker;
+    }
+
+    /**
+     * 构造仅包含独立问题的冻结输入。
+     * @param id 采样 ID
+     * @param text 问题原文
+     * @return 采样
+     */
+    private GeoDiagnosisPlanExecRecordResultEntity sample(long id, String text) {
+        var sample = new GeoDiagnosisPlanExecRecordResultEntity();
+        sample.setId(id); sample.setExecRecordId(5L); sample.setQuestionSnapshot("{\"text\":\"" + text + "\"}");
+        return sample;
+    }
+}

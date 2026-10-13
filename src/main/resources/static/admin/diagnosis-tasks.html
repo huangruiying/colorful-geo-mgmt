@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#10233f">
     <title>诊断任务 · GEO 管理平台</title>
     <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./diagnosis-tasks.css?v=20261013-task2">
 </head>
 <body>
 <div class="app-shell">
@@ -32,7 +33,7 @@
                     <a class="navigation-item" href="./diagnose.html?v=20261012-plan1">
                         <span class="navigation-icon" aria-hidden="true">◉</span><span>诊断方案</span>
                     </a>
-                    <a class="navigation-item active" href="./diagnosis-tasks.html?v=20261011-config3" aria-current="page"><span class="navigation-icon" aria-hidden="true">▷</span><span>诊断任务</span></a>
+                    <a class="navigation-item active" href="./diagnosis-tasks.html?v=20261013-task2" aria-current="page"><span class="navigation-icon" aria-hidden="true">▷</span><span>诊断任务</span></a>
                     <a class="navigation-item" href="./history-report.html?v=20261011-config3">
                         <span class="navigation-icon" aria-hidden="true">▦</span><span>诊断报告</span>
                     </a>
@@ -71,25 +72,64 @@
                 <div>
                     <p class="eyebrow">DIAGNOSIS TASKS</p>
                     <h1>诊断任务</h1>
-                    <p class="page-description">从已确认的方案发起一轮诊断，查看执行进度与样本结果，处理失败采样。</p>
+                    <p class="page-description">从已保存的方案发起一轮诊断，查看执行进度、模型回答和失败原因。</p>
                 </div>
+                <button type="button" class="primary-button" id="new-task" disabled>发起诊断</button>
             </div>
-            <section class="list-panel" aria-label="诊断任务功能规划">
-                <div class="panel-heading"><div><h2>任务执行规划</h2><p>页面入口已建立，以下能力待接入。</p></div></div>
+            <div id="task-error" class="notice error" role="alert" hidden></div>
+            <div id="task-success" class="notice success" role="status" hidden></div>
+            <section class="list-panel" aria-label="诊断任务列表">
+                <div class="panel-heading"><h2>诊断任务</h2><form id="task-filters" class="inline-controls">
+                    <select id="filter-plan" aria-label="筛选方案"><option value="">全部方案</option></select>
+                    <select id="filter-status" aria-label="筛选状态"><option value="">全部状态</option><option value="PENDING">待执行</option><option value="RUNNING">执行中</option><option value="SUCCEEDED">全部成功</option><option value="PARTIAL_FAILED">部分失败</option><option value="FAILED">全部失败</option></select>
+                    <button class="refresh-button">查询</button>
+                </form></div>
                 <div class="table-scroll">
                     <table>
-                        <thead><tr><th scope="col">功能</th><th scope="col">说明</th><th scope="col">状态</th></tr></thead>
-                        <tbody>
-                            <tr><td>发起诊断</td><td>选择方案，冻结本轮项目资料、题库与平台配置。</td><td class="table-message">待接入</td></tr>
-                            <tr><td>执行进度</td><td>查看计划、成功和失败的样本数量及各渠道执行状态。</td><td class="table-message">待接入</td></tr>
-                            <tr><td>失败处理</td><td>展示失败原因并重试失败样本，保留每次执行记录。</td><td class="table-message">待接入</td></tr>
-                            <tr><td>结果分析</td><td>保存原始回答与引用，分析完成后关联本轮诊断报告。</td><td class="table-message">待接入</td></tr>
-                        </tbody>
+                        <thead><tr><th scope="col">任务</th><th scope="col">方案 / 项目</th><th scope="col">状态</th><th scope="col">进度</th><th scope="col">成功 / 失败</th><th scope="col">创建时间</th><th scope="col">操作</th></tr></thead>
+                        <tbody id="task-list"></tbody>
                     </table>
                 </div>
+                <div class="task-pagination"><button type="button" class="refresh-button" id="task-previous">上一页</button><span id="task-page-info"></span><button type="button" class="refresh-button" id="task-next">下一页</button></div>
             </section>
+            <p class="help">后台按创建顺序逐条采样，关闭页面不影响执行。失败不自动重试；重新发起会执行方案中的全部问题，并保留原任务。</p>
         </main>
     </div>
 </div>
+<dialog id="create-task-dialog" class="task-dialog task-create-dialog" aria-labelledby="create-task-title">
+    <div class="panel-heading"><h2 id="create-task-title">发起诊断</h2><button type="button" class="refresh-button" id="close-create">关闭</button></div>
+    <form id="create-task-form" class="task-dialog-body">
+        <div id="create-error" class="notice error" role="alert" hidden></div>
+        <label class="task-field">选择已保存的方案<select id="create-plan" required><option value="">请选择方案</option></select></label>
+        <div id="create-preview" class="task-overview"><p class="help">选择方案后查看项目、渠道和本轮调用次数。</p></div>
+        <p class="help">提交时冻结本轮配置；每次回答独立采样，不把项目背景或历史回答发送给被测模型。执行会消耗渠道的实际调用额度。</p>
+        <div class="task-actions"><button type="submit" class="primary-button" id="create-submit" disabled>确认并发起诊断</button></div>
+    </form>
+</dialog>
+<dialog id="task-detail-dialog" class="task-dialog" aria-labelledby="task-detail-title">
+    <div class="panel-heading"><div><h2 id="task-detail-title">查看诊断任务</h2><p id="detail-refresh-note">执行中的任务每 3 秒刷新。</p></div><button type="button" class="refresh-button" id="close-detail">关闭</button></div>
+    <div class="task-dialog-body">
+        <div id="detail-error" class="notice error" role="alert" hidden></div>
+        <div id="task-overview" class="task-overview"></div>
+        <div id="channel-progress" class="task-channel-progress"></div>
+        <div class="task-snapshot"><button type="button" class="refresh-button" id="view-snapshot" disabled>查看本轮冻结配置</button><span class="help">只读查看本轮使用的项目、问题与模型配置</span></div>
+        <div class="result-heading"><h3>逐次回答</h3><form id="result-filters" class="inline-controls">
+            <select id="result-channel" aria-label="筛选采样渠道"><option value="">全部渠道</option></select>
+            <select id="result-status" aria-label="筛选采样状态"><option value="">全部状态</option><option value="PENDING">待执行</option><option value="RUNNING">执行中</option><option value="SUCCEEDED">成功</option><option value="FAILED">失败</option></select>
+            <button class="refresh-button">查询</button>
+        </form></div>
+        <div class="table-scroll"><table class="result-table"><thead><tr><th scope="col">问题</th><th scope="col">渠道 / 次数</th><th scope="col">状态</th><th scope="col">耗时</th><th scope="col">操作</th></tr></thead><tbody id="result-list"></tbody></table></div>
+        <div class="task-pagination"><button type="button" class="refresh-button" id="result-previous">上一页</button><span id="result-page-info"></span><button type="button" class="refresh-button" id="result-next">下一页</button></div>
+    </div>
+</dialog>
+<dialog id="answer-dialog" class="task-dialog task-answer-dialog" aria-labelledby="answer-title">
+    <div class="panel-heading"><div><h2 id="answer-title">回答详情</h2><p class="help">本次独立采样的回答与引用</p></div><button type="button" class="refresh-button" id="close-answer">返回任务</button></div>
+    <div class="task-dialog-body"><div id="answer-error" class="notice error" role="alert" hidden></div><div id="answer-content"></div></div>
+</dialog>
+<dialog id="information-dialog" class="task-dialog" aria-labelledby="information-title">
+    <div class="panel-heading"><div><h2 id="information-title">查看详情</h2><p id="information-note" class="help"></p></div><button type="button" class="refresh-button" id="close-information">返回</button></div>
+    <div id="information-content" class="task-dialog-body"></div>
+</dialog>
+<script src="./diagnosis-tasks.js?v=20261013-task2" defer></script>
 </body>
 </html>

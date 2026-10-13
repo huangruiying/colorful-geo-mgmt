@@ -119,15 +119,17 @@ SET NAMES utf8mb4;
 
 CREATE TABLE IF NOT EXISTS geo_diagnosis_plan_exec_record (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    request_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL COMMENT '创建请求唯一标识，用于防止重复提交；历史记录可为空',
     plan_id BIGINT UNSIGNED NOT NULL COMMENT '来源方案ID',
     project_id BIGINT UNSIGNED NOT NULL COMMENT '执行时关联项目ID',
-    plan_snapshot JSON NOT NULL COMMENT '执行时方案、问题及渠道非敏感配置快照',
+    plan_snapshot JSON NOT NULL COMMENT '执行时项目资料、方案、问题及渠道非敏感配置快照',
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / RUNNING / SUCCEEDED / PARTIAL_FAILED / FAILED',
     started_at DATETIME(3) NULL,
     finished_at DATETIME(3) NULL,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
+    UNIQUE KEY uk_diagnosis_exec_request (request_id),
     KEY idx_diagnosis_exec_plan_created (plan_id, created_at),
     KEY idx_diagnosis_exec_status (status, created_at),
     CONSTRAINT fk_diagnosis_exec_plan FOREIGN KEY (plan_id) REFERENCES geo_diagnosis_plan(id),

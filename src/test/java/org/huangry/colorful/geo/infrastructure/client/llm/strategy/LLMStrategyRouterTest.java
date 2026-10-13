@@ -19,6 +19,27 @@ import static org.mockito.ArgumentMatchers.any;
 
 /** 渠道路由规则回归；验证筛选、确定性排序、协议匹配与无自动切换。 */
 class LLMStrategyRouterTest {
+    /** 任务指定的实体直接交给策略，不再查询优先级渠道。 */
+    @Test
+    void shouldUseExactTaskChannelWithoutSelectingFallback() {
+        var channel = mockChannel(); channel.setId(99L); channel.setEnabled(true);
+        var strategy = mockStrategy();
+        var request = new LLMQueryRequest("独立问题");
+        assertEquals("模拟结果", createRouter(Map.of("mockLlmStrategy", strategy)).query(request, channel).content());
+        verify(strategy).query(same(request), same(channel));
+        verifyNoInteractions(dao);
+    }
+
+    /** 精确任务入口不能使用停用渠道，即使 Bean 已注册也不调用。 */
+    @Test
+    void shouldRejectDisabledExactTaskChannel() {
+        var channel = mockChannel(); channel.setEnabled(false);
+        var strategy = mockStrategy();
+        assertThrows(LLMClientException.class, () -> createRouter(Map.of("mockLlmStrategy", strategy))
+                .query(new LLMQueryRequest("问题"), channel));
+        verify(strategy, never()).query(any(), any());
+        verifyNoInteractions(dao);
+    }
     /** 远程渠道缺少密钥时，在请求前拒绝，不影响 Mock 无密钥调用。 */
     @Test
     void shouldRejectBlankRemoteKeyBeforeCallingStrategy() {
