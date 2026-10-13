@@ -35,7 +35,7 @@ public class QuestionGenerateService {
 		if (channelCode != null && channelCode.length() > 100) throw new IllegalArgumentException("生成渠道编码过长");
 		// 2. 项目资料作为数据提供给制题模型，不能成为后续诊断回答的隐藏上下文。
 		String prompt = buildPrompt(project, count, language.strip());
-		String content = llmClient.query(new LLMQueryRequest(prompt, channelCode, null)).content();
+		String content = llmClient.query(new LLMQueryRequest(prompt, channelCode, null)).getContent();
 		// 3. 严格解析并复用保存校验；失败不降级为空问题集合。
 		try {
 			List<GeoDiagnosisPlanQuestionEntity> candidates = parseCandidates(content, language.strip(), count);
