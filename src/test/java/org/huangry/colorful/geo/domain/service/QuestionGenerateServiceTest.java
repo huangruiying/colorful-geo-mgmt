@@ -1,6 +1,5 @@
 package org.huangry.colorful.geo.domain.service;
 
-import com.alibaba.fastjson.JSON;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisPlanService;
 import org.huangry.colorful.geo.infrastructure.client.llm.LLMClient;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.*;
@@ -50,11 +49,12 @@ class QuestionGenerateServiceTest {
 
     @Test
     void shouldRejectInvalidOrMisleadingModelOutput() {
-        for (String response : List.of("说明而不是 JSON", "[]",
+        for (String response : List.of("说明而不是 JSON", "[]", "null", "[null]", "[123]",
                 "[{\"text\":{},\"intent\":\"RECOMMENDATION\",\"brandScope\":\"NON_BRAND\"}]",
                 "[{\"text\":\"WeKnora 好用吗？\",\"intent\":\"RECOMMENDATION\",\"brandScope\":\"NON_BRAND\"}]",
                 "[{\"text\":\"企业知识库推荐？\",\"intent\":\"INVALID\",\"brandScope\":\"NON_BRAND\"}]",
-                "[{\"text\":\"企业知识库推荐？\",\"intent\":\"RECOMMENDATION\",\"brandScope\":\"NON_BRAND\"}] trailing")) {
+                "[{\"text\":\"企业知识库推荐？\",\"intent\":\"RECOMMENDATION\",\"brandScope\":\"NON_BRAND\"}] trailing",
+                "[{\"text\":\"企业知识库推荐？\",\"intent\":\"RECOMMENDATION\",\"brandScope\":\"NON_BRAND\"}] {}")) {
             when(client.query(any(LLMQueryRequest.class))).thenReturn(LLMResponse.withoutCitations(response));
             assertThrows(LLMClientException.class, () -> service.generate(project, null, 1, "中文"));
         }

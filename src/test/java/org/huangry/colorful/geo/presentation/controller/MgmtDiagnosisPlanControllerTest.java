@@ -41,4 +41,15 @@ class MgmtDiagnosisPlanControllerTest {
         assertTrue(response.getDetail().contains("已有问题和候选保留"));
         assertFalse(response.getDetail().contains("private-configuration"));
     }
+
+    /** Fastjson 解析错误仍归为候选格式问题，解析异常中的原文不回传页面。 */
+    @Test
+    void shouldClassifyFastjsonFailureWithoutLeakingPayload() {
+        var response = controller.generationFailed(new LLMClientException("生成失败",
+                new com.alibaba.fastjson.JSONException("private-generated-answer")));
+        assertEquals(502, response.getStatus());
+        assertTrue(response.getDetail().contains("格式"));
+        assertTrue(response.getDetail().contains("已有问题和候选保留"));
+        assertFalse(response.getDetail().contains("private-generated-answer"));
+    }
 }
