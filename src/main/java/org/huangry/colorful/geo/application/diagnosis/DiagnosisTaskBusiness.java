@@ -3,6 +3,8 @@ package org.huangry.colorful.geo.application.diagnosis;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.alibaba.fastjson.JSONObject;
 import jakarta.annotation.Resource;
+import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskStatus;
+import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskResultStatus;
 import org.huangry.colorful.geo.application.diagnosis.model.CreateDiagnosisTaskRequest;
 import org.huangry.colorful.geo.application.diagnosis.model.DiagnosisTaskResponse;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
@@ -151,13 +153,18 @@ public class DiagnosisTaskBusiness {
             long channelId = ((Number) row.get("channel_id")).longValue();
             long count = ((Number) row.get("sample_count")).longValue();
             String status = (String) row.get("status");
-            int index = switch (status) {
-                case "PENDING" -> 1;
-                case "RUNNING" -> 2;
-                case "SUCCEEDED" -> 3;
-                case "FAILED" -> 4;
-                default -> throw new IllegalStateException("诊断状态损坏");
-            };
+            int index;
+            try {
+                index = switch (DiagnosisTaskResultStatus.valueOf(status)) {
+                    case PENDING -> 1;
+                    case RUNNING -> 2;
+                    case SUCCEEDED -> 3;
+                    case FAILED -> 4;
+                };
+            } catch (IllegalArgumentException exception) {
+                // 数据库未知状态是存储异常，不能按请求筛选无效处理或忽略计数
+                throw new IllegalStateException("诊断状态损坏", exception);
+            }
             long[] channel = counts.computeIfAbsent(channelId, ignored -> new long[5]);
             channel[0] += count;
             channel[index] += count;
@@ -222,12 +229,15 @@ public class DiagnosisTaskBusiness {
      * @param task 是否任务状态
      */
     private void validateStatus(String status, boolean task) {
+        // 未填写不限制状态，保持列表原有的可选筛选行为
         if (status == null || status.isBlank()) {
             return;
         }
-        Set<String> allowed = task ? Set.of("PENDING", "RUNNING", "SUCCEEDED", "PARTIAL_FAILED", "FAILED")
-                : Set.of("PENDING", "RUNNING", "SUCCEEDED", "FAILED");
-        if (!allowed.contains(status)) {
+        // 按对应枚举校验，整轮的部分失败不能作为单条采样状态
+        boolean valid = task
+                ? Arrays.stream(DiagnosisTaskStatus.values()).anyMatch(value -> value.name().equals(status))
+                : Arrays.stream(DiagnosisTaskResultStatus.values()).anyMatch(value -> value.name().equals(status));
+        if (!valid) {
             throw new IllegalArgumentException("诊断状态筛选无效");
         }
     }

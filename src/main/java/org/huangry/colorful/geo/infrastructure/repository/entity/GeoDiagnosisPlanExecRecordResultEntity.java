@@ -26,7 +26,7 @@ public class GeoDiagnosisPlanExecRecordResultEntity {
     private String channelSnapshot;
     /** 同一问题和渠道的独立采样序号，从 1 开始，最多 10 次。 */
     private Integer repeatIndex;
-    /** PENDING / RUNNING / SUCCEEDED / FAILED。 */
+    /** 单条采样状态，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskResultStatus} 的枚举名称。 */
     private String status;
     /** 模型回答正文，未成功时为空。 */
     private String answerText;

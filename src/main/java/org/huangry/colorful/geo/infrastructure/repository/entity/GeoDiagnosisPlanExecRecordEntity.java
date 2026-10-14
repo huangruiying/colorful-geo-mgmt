@@ -20,7 +20,7 @@ public class GeoDiagnosisPlanExecRecordEntity {
     private Long projectId;
     /** JSON 字符串：项目资料、方案、问题集合与渠道非敏感配置，不保存凭据。 */
     private String planSnapshot;
-    /** PENDING / RUNNING / SUCCEEDED / PARTIAL_FAILED / FAILED。 */
+    /** 整轮任务状态，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskStatus} 的枚举名称。 */
     private String status;
     /** 实际开始执行的时间，待执行时为空。 */
     private LocalDateTime startedAt;

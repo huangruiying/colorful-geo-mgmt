@@ -6,6 +6,8 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import jakarta.annotation.Resource;
+import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskStatus;
+import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskResultStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.application.diagnosis.model.CreateDiagnosisTaskRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
@@ -86,7 +88,7 @@ public class GeoDiagnosisTaskService {
         task.setPlanId(plan.getId());
         task.setProjectId(project.getId());
         task.setPlanSnapshot(JSON.toJSONString(snapshots.plan(plan, project, questions, channels), SerializerFeature.WriteMapNullValue));
-        task.setStatus("PENDING");
+        task.setStatus(DiagnosisTaskStatus.PENDING.name());
         if (taskDao.insert(task) != 1) {
             throw new IllegalStateException("诊断任务创建失败");
         }
@@ -121,6 +123,7 @@ public class GeoDiagnosisTaskService {
                     sample.setChannelId(channel.getId());
                     sample.setChannelSnapshot(channelJson.get(channel.getId()));
                     sample.setRepeatIndex(repeat);
+                    sample.setStatus(DiagnosisTaskResultStatus.PENDING.name());
                     batch.add(sample);
                     // 3. 满批即写入创建事务，唯一键固定采样身份，异常由外层事务回滚
                     if (batch.size() == 250) {
@@ -173,15 +176,17 @@ public class GeoDiagnosisTaskService {
      */
     @Transactional
     public GeoDiagnosisPlanExecRecordEntity claimNext() {
+        // 锁定最早排队的任务，终态和执行中的任务不重复领取
         GeoDiagnosisPlanExecRecordEntity task = taskDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisPlanExecRecordEntity>()
-                .eq(GeoDiagnosisPlanExecRecordEntity::getStatus, "PENDING")
+                .eq(GeoDiagnosisPlanExecRecordEntity::getStatus, DiagnosisTaskStatus.PENDING.name())
                 .orderByAsc(GeoDiagnosisPlanExecRecordEntity::getId).last("LIMIT 1 FOR UPDATE"));
         if (task == null) {
             return null;
         }
+        // 仅把仍待执行的任务置为执行中，更新成功后才交给后台调用模型
         int changed = taskDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisPlanExecRecordEntity>()
-                .eq(GeoDiagnosisPlanExecRecordEntity::getId, task.getId()).eq(GeoDiagnosisPlanExecRecordEntity::getStatus, "PENDING")
-                .set(GeoDiagnosisPlanExecRecordEntity::getStatus, "RUNNING")
+                .eq(GeoDiagnosisPlanExecRecordEntity::getId, task.getId()).eq(GeoDiagnosisPlanExecRecordEntity::getStatus, DiagnosisTaskStatus.PENDING.name())
+                .set(GeoDiagnosisPlanExecRecordEntity::getStatus, DiagnosisTaskStatus.RUNNING.name())
                 .set(GeoDiagnosisPlanExecRecordEntity::getStartedAt, LocalDateTime.now()));
         return changed == 1 ? task : null;
     }
@@ -193,17 +198,20 @@ public class GeoDiagnosisTaskService {
      */
     @Transactional
     public GeoDiagnosisPlanExecRecordResultEntity claimSample(long taskId) {
+        // 1. 按冻结的采样顺序锁定一条待执行记录，没有剩余采样时结束领取
         GeoDiagnosisPlanExecRecordResultEntity result = resultDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisPlanExecRecordResultEntity>()
                 .eq(GeoDiagnosisPlanExecRecordResultEntity::getExecRecordId, taskId)
-                .eq(GeoDiagnosisPlanExecRecordResultEntity::getStatus, "PENDING")
+                .eq(GeoDiagnosisPlanExecRecordResultEntity::getStatus, DiagnosisTaskResultStatus.PENDING.name())
                 .orderByAsc(GeoDiagnosisPlanExecRecordResultEntity::getQuestionSortOrder)
                 .orderByAsc(GeoDiagnosisPlanExecRecordResultEntity::getChannelId)
                 .orderByAsc(GeoDiagnosisPlanExecRecordResultEntity::getRepeatIndex).last("LIMIT 1 FOR UPDATE"));
         if (result == null) {
             return null;
         }
+        // 2. 记录本次开始时间并进入执行中，区别于整轮任务状态
         result.setStartedAt(LocalDateTime.now());
-        result.setStatus("RUNNING");
+        result.setStatus(DiagnosisTaskResultStatus.RUNNING.name());
+        // 3. 领取状态必须成功落库，失败时不得继续调用模型
         if (resultDao.updateById(result) != 1) {
             throw new IllegalStateException("采样领取失败");
         }
@@ -253,7 +261,7 @@ public class GeoDiagnosisTaskService {
                     .fluentPut("snippet", citation.snippet()));
         }
         // 2. 组装本次成功结果，引用空值与厂商元数据保持原样
-        sample.setStatus("SUCCEEDED");
+        sample.setStatus(DiagnosisTaskResultStatus.SUCCEEDED.name());
         sample.setAnswerText(response.getContent());
         sample.setCitations(JSON.toJSONString(citations, SerializerFeature.WriteMapNullValue));
         sample.setModelName(response.getModelName());
@@ -265,7 +273,7 @@ public class GeoDiagnosisTaskService {
         // 3. 仅允许正在执行的采样完成；保存失败向外暴露，不能重新调用模型
         if (resultDao.update(sample, new LambdaUpdateWrapper<GeoDiagnosisPlanExecRecordResultEntity>()
                 .eq(GeoDiagnosisPlanExecRecordResultEntity::getId, sample.getId())
-                .eq(GeoDiagnosisPlanExecRecordResultEntity::getStatus, "RUNNING")) != 1) {
+                .eq(GeoDiagnosisPlanExecRecordResultEntity::getStatus, DiagnosisTaskResultStatus.RUNNING.name())) != 1) {
             throw new IllegalStateException("诊断结果保存失败");
         }
     }
@@ -278,13 +286,15 @@ public class GeoDiagnosisTaskService {
      */
     @Transactional
     public void fail(GeoDiagnosisPlanExecRecordResultEntity sample, String reason, long durationMs) {
+        // 仅允许执行中的采样进入失败终态，不覆盖已经保存的成功或失败结果
         int changed = resultDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisPlanExecRecordResultEntity>()
                 .eq(GeoDiagnosisPlanExecRecordResultEntity::getId, sample.getId())
-                .eq(GeoDiagnosisPlanExecRecordResultEntity::getStatus, "RUNNING")
-                .set(GeoDiagnosisPlanExecRecordResultEntity::getStatus, "FAILED")
+                .eq(GeoDiagnosisPlanExecRecordResultEntity::getStatus, DiagnosisTaskResultStatus.RUNNING.name())
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getStatus, DiagnosisTaskResultStatus.FAILED.name())
                 .set(GeoDiagnosisPlanExecRecordResultEntity::getErrorMessage, reason)
                 .set(GeoDiagnosisPlanExecRecordResultEntity::getDurationMs, durationMs)
                 .set(GeoDiagnosisPlanExecRecordResultEntity::getFinishedAt, LocalDateTime.now()));
+        // 写入数量不符表示未成功保存失败结果，向外暴露而非继续伪装执行成功
         if (changed != 1) {
             throw new IllegalStateException("诊断失败结果保存失败");
         }
@@ -296,25 +306,29 @@ public class GeoDiagnosisTaskService {
      */
     @Transactional
     public void finish(long taskId) {
+        // 1. 汇总采样终态；仍有待执行或执行中记录时拒绝结束整轮任务
         long succeeded = 0;
         long failed = 0;
         for (Map<String, Object> count : resultDao.countStatuses(taskId)) {
             String status = (String) count.get("status");
             long number = ((Number) count.get("sample_count")).longValue();
-            if ("PENDING".equals(status) || "RUNNING".equals(status)) {
+            if (DiagnosisTaskResultStatus.PENDING.name().equals(status) || DiagnosisTaskResultStatus.RUNNING.name().equals(status)) {
                 throw new IllegalStateException("诊断尚有未完成采样");
             }
-            if ("SUCCEEDED".equals(status)) {
+            if (DiagnosisTaskResultStatus.SUCCEEDED.name().equals(status)) {
                 succeeded += number;
             } else {
                 failed += number;
             }
         }
-        String status = succeeded == 0 ? "FAILED" : failed == 0 ? "SUCCEEDED" : "PARTIAL_FAILED";
+        // 2. 整轮独立判定：无成功为失败、无失败为成功，否则为部分失败
+        DiagnosisTaskStatus status = succeeded == 0 ? DiagnosisTaskStatus.FAILED
+                : failed == 0 ? DiagnosisTaskStatus.SUCCEEDED : DiagnosisTaskStatus.PARTIAL_FAILED;
+        // 3. 仅更新执行中的整轮任务，保留既有终态
         taskDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisPlanExecRecordEntity>()
                 .eq(GeoDiagnosisPlanExecRecordEntity::getId, taskId)
-                .eq(GeoDiagnosisPlanExecRecordEntity::getStatus, "RUNNING")
-                .set(GeoDiagnosisPlanExecRecordEntity::getStatus, status)
+                .eq(GeoDiagnosisPlanExecRecordEntity::getStatus, DiagnosisTaskStatus.RUNNING.name())
+                .set(GeoDiagnosisPlanExecRecordEntity::getStatus, status.name())
                 .set(GeoDiagnosisPlanExecRecordEntity::getFinishedAt, LocalDateTime.now()));
     }
 
@@ -325,12 +339,14 @@ public class GeoDiagnosisTaskService {
      */
     @Transactional
     public void interrupt(long taskId, String reason) {
+        // 先终止未完成采样，已保存的成功或失败结果保持原样
         resultDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisPlanExecRecordResultEntity>()
                 .eq(GeoDiagnosisPlanExecRecordResultEntity::getExecRecordId, taskId)
-                .in(GeoDiagnosisPlanExecRecordResultEntity::getStatus, "PENDING", "RUNNING")
-                .set(GeoDiagnosisPlanExecRecordResultEntity::getStatus, "FAILED")
+                .in(GeoDiagnosisPlanExecRecordResultEntity::getStatus, DiagnosisTaskResultStatus.PENDING.name(), DiagnosisTaskResultStatus.RUNNING.name())
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getStatus, DiagnosisTaskResultStatus.FAILED.name())
                 .set(GeoDiagnosisPlanExecRecordResultEntity::getErrorMessage, reason)
                 .set(GeoDiagnosisPlanExecRecordResultEntity::getFinishedAt, LocalDateTime.now()));
+        // 再根据所有采样汇总整轮终态，不把整轮状态直接当作单条结果状态
         finish(taskId);
     }
 
@@ -339,8 +355,10 @@ public class GeoDiagnosisTaskService {
      */
     @Transactional
     public void recoverInterrupted() {
+        // 只恢复此前已领取的任务，待执行与已经结束的任务不在恢复范围内
         for (GeoDiagnosisPlanExecRecordEntity task : taskDao.selectList(new LambdaQueryWrapper<GeoDiagnosisPlanExecRecordEntity>()
-                .eq(GeoDiagnosisPlanExecRecordEntity::getStatus, "RUNNING"))) {
+                .eq(GeoDiagnosisPlanExecRecordEntity::getStatus, DiagnosisTaskStatus.RUNNING.name()))) {
+            // 将不确定的未完成采样收尾为失败，保留已有回答，避免重复计费
             interrupt(task.getId(), "执行服务中断，未完成样本不自动重发；可重新发起整轮诊断");
         }
     }
