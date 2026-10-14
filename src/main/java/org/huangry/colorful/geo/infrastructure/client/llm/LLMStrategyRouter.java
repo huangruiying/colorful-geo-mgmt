@@ -84,6 +84,7 @@ public class LLMStrategyRouter {
                     callId, channel.getChannelCode(), channel.getModelName(), channel.getStrategyBeanName(),
                     (System.nanoTime() - started) / 1_000_000, exception.getClass().getSimpleName(),
                     cause.getClass().getSimpleName(), exception instanceof RestClientResponseException http ? http.getStatusCode().value() : null);
+            log.error("模型调用失败", cause);
             throw exception;
         }
     }
