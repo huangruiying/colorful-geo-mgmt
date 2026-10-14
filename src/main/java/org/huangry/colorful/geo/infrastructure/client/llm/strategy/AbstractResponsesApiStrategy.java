@@ -70,6 +70,10 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
                 channel.getChannelCode(), channel.getModelName(), Boolean.TRUE.equals(requestBody.get("stream")),
                 requestBody.get("tools"), requestBody.get("tool_choice"), requestBody.get("max_output_tokens"),
                 requestBody.get("temperature"), request.prompt().length());
+
+        // 3. 确定 URL
+        String requestURL = normalizeBaseUrl(channel.getBaseUrl()) + "/responses";
+
         // 仅策略显式开启 stream=true 时读取 SSE；Boolean.TRUE.equals 可安全处理未填写的 null。
         // 联网搜索可能较慢，持续读取进度事件可避免一直等最终 JSON；首响应及读取空闲超时仍生效。
         if (Boolean.TRUE.equals(requestBody.get("stream"))) {
@@ -78,17 +82,17 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
             // execute 分别提供请求写入、响应读取回调，避免用 String 转换器先缓冲整个事件流。
             // 响应读取是同步的：回调内读到完成事件并组装结果后才返回，页面不会收到逐字推送。
             // 必须在回调内消费响应流，因为 execute 结束时 RestTemplate 会关闭响应并释放连接资源。
-            return llmRestTemplate.execute(normalizeBaseUrl(channel.getBaseUrl()) + "/responses", HttpMethod.POST,
+            log.info("Accept SSE Request URL: {}", requestURL);
+            return llmRestTemplate.execute(requestURL, HttpMethod.POST,
                     outgoing -> {
                         // 请求回调：携带认证和媒体类型，以 UTF-8 JSON 字节写入当前策略的完整请求体。
                         outgoing.getHeaders().putAll(headers);
                         outgoing.getBody().write(JSON.toJSONBytes(requestBody));
-                    // 响应回调：逐帧读取，只有完成事件中的完整回答可返回；失败或断流继续抛错。
+                        // 响应回调：逐帧读取，只有完成事件中的完整回答可返回；失败或断流继续抛错。
                     }, this::readStreamResponse);
         }
         String responseBody = llmRestTemplate
-                .postForObject(normalizeBaseUrl(channel.getBaseUrl()) + "/responses",
-                        new HttpEntity<>(requestBody, headers), String.class);
+                .postForObject(requestURL, new HttpEntity<>(requestBody, headers), String.class);
         if (responseBody == null || responseBody.isBlank() || "null".equals(responseBody.strip())) {
             throw new LLMClientException("OpenAI Responses API 返回空响应");
         }
@@ -133,6 +137,7 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
         if (result == null) {
             throw new LLMClientException("Responses 流在完整回答返回前中断");
         }
+        log.info("模型请求完成，响应结果: {}",JSON.toJSONString(result));
         return result;
     }
 
