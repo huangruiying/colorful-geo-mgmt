@@ -2,15 +2,15 @@
 
 ## 实现
 
-`infrastructure/config/RestTemplateConfig` 提前注册 Apache HttpClient 5 客户端和 RestTemplate，各远程模型策略通过 `@Resource(name = "llmRestTemplateWithTimeout")` 注入同一实例。协议抽象父类已删除，各策略直接维护自身调用；未恢复绑定渠道实体的 LlmHttpClientFactory，也未新增模型路由层。
+`infrastructure/config/RestTemplateConfig` 提前注册 Apache HttpClient 5 客户端和 RestTemplate，两个协议抽象父类通过 `@Resource(name = "llmRestTemplateWithTimeout")` 注入同一实例。具体策略继承对应协议父类；未恢复绑定渠道实体的 LlmHttpClientFactory，也未新增模型路由层。
 
 - `llmHttpClient`：提前创建模型专用连接池客户端，Spring 通过 destroyMethod=close 释放资源。
-- `llmRestTemplateWithTimeout`：具名 Bean，各远程策略直接注入；已删除通用默认 Bean、动态 getRestTemplate 方法和双池创建逻辑。
+- `llmRestTemplateWithTimeout`：具名 Bean，两个协议抽象父类注入；已删除通用默认 Bean、动态 getRestTemplate 方法和双池创建逻辑。
 - `application.yml` 的 http.llm.timeout-seconds=60、http.llm.ssl-verify=true 统一控制模型 HTTP 超时和证书校验，不依赖渠道实体。数据库渠道 timeoutSeconds/sslVerify 字段仍保留，但不再影响 HTTP 请求，页面字段尚未清理；后续应删除或改为只读说明，避免误导。
 - 连接上限 100、单目标上限 20；一个具名客户端对应一个池。只有明确将统一配置设为 false 才关闭证书链和主机名校验，接口没有总体执行截止时间。
 - 自动回收过期及闲置 30 秒的连接，Spring 停止时关闭客户端及回收线程。不手工创建调度器，不加入负载均衡。
 - 禁用自动重试、重定向和 Cookie 管理；认证头只存在于业务请求，不存入共用客户端。
-- 模型策略仍负责地址、认证头、请求体及 JSON 解析；本次不修改搜索参数、引用规则或数据库配置。
+- 协议父类负责地址、认证头、基础请求体及 JSON 解析，具体策略负责厂商参数；本次不修改搜索参数、引用规则或数据库配置。
 
 ## 验证
 

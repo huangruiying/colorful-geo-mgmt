@@ -4,6 +4,10 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-14 当前最终结构以本条为准：按用户最新要求将两个协议客户端改为 strategy 包下 AbstractChatCompletionsApiStrategy、AbstractResponsesApiStrategy；五个具体策略继承对应父类，Common 使用默认实现，OpenAI/豆包只重写 protected buildRequestBody 并调用 super。协议声明、query 校验/组装/HTTP/解析集中到父类，父类不注册 Bean，仍共用原 HTTP 连接资源；六个策略 Bean 名保持不变，无新增迁移。Java 17 编译、全新隔离目录 17 项相关测试通过，含 Spring 继承字段注入、五策略本地 HTTP 和工具隔离；注释/架构逐方法复核及有效文档同步。未全量测试、未重启、未真实厂商联调、未提交；此前 019/020 更名迁移仍未执行。
+
+- 2026-10-14 最新结构：按用户确认抽取 ChatCompletionsApiClient、ResponsesApiClient，共用对应协议的基础请求、配置校验、HTTP 与响应解析；五个策略字段注入客户端，只维护默认或厂商参数，Bean 名与页面契约不变。两个客户端不实现策略接口，仍共用 llmRestTemplateWithTimeout 与 LlmCitationParser，没有新连接池、父类、路由或搜索流程。主代码 148 文件编译、全新隔离目录 17 项相关测试通过，覆盖六个策略 Bean、五策略本地 HTTP、请求隔离及引用/元数据。逐方法注释及架构复核见策略独立实现检查；接入和连接池文档同步。未执行全量测试、未重启、未真实厂商联调、未提交；此前 019/020 Bean 更名 SQL 仍未执行，本轮无需新增迁移。
+
 - 2026-10-14 最新命名统一为“协议 + 厂商 + Strategy”：ChatCompletionsApiCommonStrategy、ChatCompletionsApiOpenAiStrategy、ResponsesApiCommonStrategy、ResponsesApiOpenAiStrategy、ResponsesApiDoubaoStrategy，Spring Bean 同步使用首字母小写的新名称。MockLlmStrategy 无协议厂商组合，保持原名。文件、测试类及引用、页面默认选项、OpenAI 搜索模型识别条件、资源版本和有效策略说明同步；新增 020 SQL，在 019 后迁移数据库 Bean 名，均未执行。历史快照保持原样，升级前先结束旧策略的未完成任务，升级后重新创建。主代码编译、全新隔离输出目录的 17 项相关测试、JS 语法及限定文件 diff 检查通过；首次复用旧测试目录误加载已更名测试的残留 class，换新目录后通过。仅重命名，逐方法注释及架构职责复核无变化；未重启、未真实厂商联调、未提交。
 
 - 升级 019 的边界：诊断执行严格比较冻结渠道配置，历史快照不改写；先结束使用旧通用策略的未完成任务，升级后重新创建，避免 Bean 更名被判定为渠道配置变化。

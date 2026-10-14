@@ -20,7 +20,7 @@ class DoubaoResponseParsingTest {
                  "usage":{"input_tokens":3666,"output_tokens":1610,"total_tokens":5276,
                   "tool_usage":{"web_search":1},"tool_usage_details":{"web_search":{"doubao":1}}}}
                 """);
-        ResponsesApiDoubaoStrategy strategy = new ResponsesApiDoubaoStrategy();
+        ResponsesApiCommonStrategy strategy = new ResponsesApiCommonStrategy();
         var result = strategy.parseResponse(json);
 
         assertEquals("最终回答", result.getContent());
@@ -44,7 +44,7 @@ class DoubaoResponseParsingTest {
                 {"status":"completed","output":[{"type":"message","content":[{"type":"output_text",
                 "text":"回答","annotations":[{"type":"url_citation","url":"https://example.com","text":"原摘要"}]}]}]}
                 """);
-        ResponsesApiDoubaoStrategy strategy = new ResponsesApiDoubaoStrategy();
+        ResponsesApiCommonStrategy strategy = new ResponsesApiCommonStrategy();
         assertEquals("原摘要", strategy.parseResponse(json).getCitations().get(0).snippet());
     }
 }
