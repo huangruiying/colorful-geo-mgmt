@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpServer;
 import com.alibaba.fastjson.JSON;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.CompatibleChatCompletionsApiStrategy;
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.OpenAiChatCompletionsApiStrategy;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.DoubaoResponsesApiStrategy;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.OpenAiResponsesApiStrategy;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.CompatibleResponsesApiStrategy;
@@ -103,7 +104,7 @@ class RestTemplateConfigTest {
         server.start();
         try (var context = context(3,
                 CompatibleChatCompletionsApiStrategy.class, DoubaoResponsesApiStrategy.class,
-                OpenAiResponsesApiStrategy.class, CompatibleResponsesApiStrategy.class)) {
+                OpenAiResponsesApiStrategy.class, CompatibleResponsesApiStrategy.class, OpenAiChatCompletionsApiStrategy.class)) {
             var channel = new GeoLlmChannelEntity();
             channel.setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
             channel.setModelName("test-model");
@@ -117,6 +118,16 @@ class RestTemplateConfigTest {
             assertEquals("https://source.example", chat.getCitations().get(0).url());
             assertTrue(payload.get().contains("messages"));
             assertEquals("Bearer local-test-only", auth.get());
+            // 独立 OpenAI Chat 策略仍保持搜索专用模型的请求契约。
+            channel.setModelName("gpt-5-search-api");
+            var openAiChat = context.getBean(OpenAiChatCompletionsApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            assertEquals("回答", openAiChat.getContent());
+            assertEquals("https://source.example", openAiChat.getCitations().get(0).url());
+            var searchBody = JSON.parseObject(payload.get());
+            assertTrue(searchBody.containsKey("web_search_options"));
+            assertFalse(searchBody.containsKey("temperature"));
+            assertFalse(searchBody.containsKey("max_tokens"));
+            channel.setModelName("test-model");
             var responses = context.getBean(DoubaoResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
             assertEquals("回答", responses.getContent());
             assertEquals("https://source.example", responses.getCitations().get(0).url());
