@@ -79,10 +79,12 @@ public class MgmtDiagnosisPlanController {
 
 	/**
 	 * 不透出远程响应、凭据或模型生成原文。
+	 * @param exception 制题或模型调用异常
+	 * @return 固定分类的网关失败提示，保留页面已有候选
 	 */
 	@ExceptionHandler(LLMClientException.class)
 	public ProblemDetail generationFailed(LLMClientException exception) {
-		// 只根据异常类型提供处理建议，不回传可能带凭据的远程异常消息。
+		// 先按异常链识别连接、超时与 Fastjson 格式错误，不回传远程异常消息
 		String reason = "模型调用失败，请检查生成渠道配置或稍后重试";
 		for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
 			if (cause instanceof javax.net.ssl.SSLException) {
@@ -97,11 +99,12 @@ public class MgmtDiagnosisPlanController {
 				reason = "模型响应超时，请减少生成数量或检查服务的统一 HTTP 超时配置";
 				break;
 			}
-			if (cause instanceof com.fasterxml.jackson.core.JacksonException || cause instanceof IllegalArgumentException) {
+			if (cause instanceof com.alibaba.fastjson.JSONException || cause instanceof IllegalArgumentException) {
 				reason = "模型返回的问题格式、数量或品牌标记不符合要求，请重试或更换生成模型";
 				break;
 			}
 		}
+		// 所有模型生成失败沿用网关失败状态，页面继续保留用户已有编辑内容
 		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, reason + "；已有问题和候选保留");
 	}
 }
