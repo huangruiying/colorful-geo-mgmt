@@ -13,6 +13,8 @@ import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.springframework.stereotype.Component;
 import java.util.Map;
+import java.util.UUID;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * 数据库模型路由，query 选择已启用渠道并按 Bean 名调用实际策略。
@@ -54,15 +56,36 @@ public class LLMStrategyRouter {
     }
 
     /**
-     * 普通查询和精确渠道调用共用策略路由，不复制连接配置。
+     * 执行已选策略并记录调用标识、耗时、结果摘要及安全的失败类型。
      * @param request 独立问题
      * @param channel 已选定配置
      * @return 模型响应
      */
     private LLMResponse execute(LLMQueryRequest request, GeoLlmChannelEntity channel) {
         LLMStrategy strategy = strategyFor(channel);
-        log.info("模型调用 channel={}, model={}, strategy={}", channel.getChannelCode(), channel.getModelName(), channel.getStrategyBeanName());
-        return strategy.query(request, channel);
+        // 1. 生成单次调用标识，开始和结果日志不包含凭据或问题正文。
+        String callId = UUID.randomUUID().toString();
+        long started = System.nanoTime();
+        log.info("模型调用开始 callId={}, channel={}, model={}, strategy={}", callId, channel.getChannelCode(), channel.getModelName(), channel.getStrategyBeanName());
+        try {
+            // 2. 只调用一次；记录长度与引用数，不记录回答或远端错误原文。
+            LLMResponse response = strategy.query(request, channel);
+            log.info("模型调用成功 callId={}, channel={}, costMs={}, answerChars={}, citationCount={}, finishReason={}",
+                    callId, channel.getChannelCode(), (System.nanoTime() - started) / 1_000_000,
+                    response.getContent().length(), response.getCitations().size(), response.getFinishReason());
+            return response;
+        } catch (RuntimeException exception) {
+            // 不打印异常原文或远端响应体，避免其中的密钥、问题和回答进入日志。
+            Throwable cause = exception;
+            while (cause.getCause() != null && cause.getCause() != cause) {
+                cause = cause.getCause();
+            }
+            log.warn("模型调用失败 callId={}, channel={}, model={}, strategy={}, costMs={}, errorType={}, causeType={}, httpStatus={}",
+                    callId, channel.getChannelCode(), channel.getModelName(), channel.getStrategyBeanName(),
+                    (System.nanoTime() - started) / 1_000_000, exception.getClass().getSimpleName(),
+                    cause.getClass().getSimpleName(), exception instanceof RestClientResponseException http ? http.getStatusCode().value() : null);
+            throw exception;
+        }
     }
 
     /**
