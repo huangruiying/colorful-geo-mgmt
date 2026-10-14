@@ -70,6 +70,8 @@ class GeoDiagnosisTaskServiceTest {
         configure(2, 2, 3);
         var task = service.create(new CreateDiagnosisTaskRequest(1L, "create-test"));
         assertEquals(12, inserted.size());
+        assertEquals("PENDING", task.getStatus());
+        assertTrue(inserted.stream().allMatch(row -> "PENDING".equals(row.getStatus())));
         assertEquals(List.of(12), batchSizes);
         assertEquals(12, inserted.stream().map(row -> row.getQuestionSortOrder() + ":" + row.getChannelId() + ":" + row.getRepeatIndex()).distinct().count());
         assertTrue(inserted.stream().allMatch(row -> row.getExecRecordId().equals(55L)));
@@ -163,6 +165,56 @@ class GeoDiagnosisTaskServiceTest {
         assertEquals(citation.snippet(), savedCitation.getString("snippet"));
         assertTrue(savedCitation.containsKey("startIndex"));
         assertNull(savedCitation.get("startIndex"));
+    }
+
+    /** 汇总使用整轮枚举，但写入数据库的仍是原有三个终态字符串。 */
+    @Test
+    void shouldKeepTaskTerminalStatusValuesWhenAggregatingResults() {
+        List<List<Map<String, Object>>> counts = List.of(
+                List.of(Map.of("status", "SUCCEEDED", "sample_count", 2L)),
+                List.of(Map.of("status", "FAILED", "sample_count", 2L)),
+                List.of(Map.of("status", "SUCCEEDED", "sample_count", 1L),
+                        Map.of("status", "FAILED", "sample_count", 1L)));
+        List<String> expected = List.of("SUCCEEDED", "FAILED", "PARTIAL_FAILED");
+        for (int index = 0; index < counts.size(); index++) {
+            clearInvocations(tasks);
+            when(results.countStatuses(55L)).thenReturn(counts.get(index));
+            service.finish(55L);
+            var wrapper = org.mockito.ArgumentCaptor.forClass(
+                    com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class);
+            verify(tasks).update(isNull(), wrapper.capture());
+            wrapper.getValue().getSqlSet();
+            wrapper.getValue().getSqlSegment();
+            assertTrue(wrapper.getValue().getParamNameValuePairs().containsValue(expected.get(index)));
+            assertTrue(wrapper.getValue().getParamNameValuePairs().containsValue("RUNNING"));
+        }
+    }
+
+    /** 仍有未完成采样时不能因为更换状态表达方式而提前结束整轮任务。 */
+    @Test
+    void shouldRejectFinishingTaskWithPendingOrRunningSamples() {
+        for (String status : List.of("PENDING", "RUNNING")) {
+            when(results.countStatuses(55L)).thenReturn(List.of(Map.of("status", status, "sample_count", 1L)));
+            assertThrows(IllegalStateException.class, () -> service.finish(55L));
+        }
+        verify(tasks, never()).update(any(), any());
+    }
+
+    /** 真实 MyBatis 动态 SQL 必须把初始状态作为参数绑定，不能在批量插入时丢失。 */
+    @Test
+    void shouldBindInitialSampleStatusInBatchInsert() {
+        var configuration = new MybatisConfiguration();
+        configuration.addMapper(GeoDiagnosisPlanExecRecordResultDao.class);
+        var sample = new GeoDiagnosisPlanExecRecordResultEntity();
+        sample.setStatus("PENDING");
+        var statement = configuration.getMappedStatement(GeoDiagnosisPlanExecRecordResultDao.class.getName() + ".insertSamples");
+        var sql = statement.getBoundSql(Map.of("items", List.of(sample)));
+        var statusParameter = sql.getParameterMappings().stream()
+                .filter(parameter -> parameter.getProperty().endsWith(".status")).findFirst().orElseThrow();
+        Object value = configuration.newMetaObject(sql.getAdditionalParameters()).getValue(statusParameter.getProperty());
+        assertEquals("PENDING", value);
+        assertFalse(sql.getSql().contains("'PENDING'"));
+        assertEquals(8, sql.getParameterMappings().size());
     }
 
     /**
