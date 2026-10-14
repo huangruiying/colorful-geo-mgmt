@@ -20,6 +20,16 @@ import java.util.*;
 /** 任务创建、分页与结果展示编排；响应显式映射，列表不携带大段回答。 */
 @Service
 public class DiagnosisTaskBusiness {
+    /**
+     * 重新排队当前任务的非成功结果并回读实时进度。
+     * @param id 当前任务 ID
+     * @return 同一个任务的详情，后台可能已经领取执行
+     */
+    public DiagnosisTaskResponse restart(long id) {
+        service.restart(id);
+        return detail(id);
+    }
+
     @Resource
     private GeoDiagnosisTaskService service;
     @Resource

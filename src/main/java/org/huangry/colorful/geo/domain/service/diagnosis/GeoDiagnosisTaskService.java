@@ -171,6 +171,52 @@ public class GeoDiagnosisTaskService {
     }
 
     /**
+     * 重新排队已结束任务的非成功结果，保留成功回答及原冻结配置。
+     * @param taskId 当前任务 ID
+     */
+    @Transactional
+    public void restart(long taskId) {
+        // 1. 锁住主任务，与后台领取和并发重新发起串行；活动任务不能重置。
+        var task = taskDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisPlanExecRecordEntity>()
+                .eq(GeoDiagnosisPlanExecRecordEntity::getId, taskId).last("FOR UPDATE"));
+        if (task == null) {
+            throw new NoSuchElementException("诊断任务不存在");
+        }
+        if (!DiagnosisTaskStatus.FAILED.name().equals(task.getStatus())
+                && !DiagnosisTaskStatus.PARTIAL_FAILED.name().equals(task.getStatus())) {
+            throw new IllegalArgumentException("仅失败或部分失败的已结束任务可以重新发起");
+        }
+        // 2. 只清空非成功结果的旧调用数据；问题、渠道、重复序号和成功结果不变。
+        int changed = resultDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisPlanExecRecordResultEntity>()
+                .eq(GeoDiagnosisPlanExecRecordResultEntity::getExecRecordId, taskId)
+                .ne(GeoDiagnosisPlanExecRecordResultEntity::getStatus, DiagnosisTaskResultStatus.SUCCEEDED.name())
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getStatus, DiagnosisTaskResultStatus.PENDING.name())
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getAnswerText, null)
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getCitations, null)
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getModelName, null)
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getUsageInfo, null)
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getDurationMs, null)
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getFinishReason, null)
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getRawResponse, null)
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getErrorMessage, null)
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getStartedAt, null)
+                .set(GeoDiagnosisPlanExecRecordResultEntity::getFinishedAt, null));
+        if (changed == 0) {
+            throw new IllegalArgumentException("当前任务没有需要重新执行的诊断结果");
+        }
+        // 3. 主从记录同一事务提交后才对后台可见，不在接口中直接调用模型。
+        if (taskDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisPlanExecRecordEntity>()
+                .eq(GeoDiagnosisPlanExecRecordEntity::getId, taskId)
+                .eq(GeoDiagnosisPlanExecRecordEntity::getStatus, task.getStatus())
+                .set(GeoDiagnosisPlanExecRecordEntity::getStatus, DiagnosisTaskStatus.PENDING.name())
+                .set(GeoDiagnosisPlanExecRecordEntity::getStartedAt, null)
+                .set(GeoDiagnosisPlanExecRecordEntity::getFinishedAt, null)) != 1) {
+            throw new IllegalStateException("诊断任务重新排队失败");
+        }
+        log.info("诊断任务重新排队 taskId={}, resultCount={}", taskId, changed);
+    }
+
+    /**
      * 领取最早排队的任务，状态更新提交后才开始外部调用。
      * @return 本次领取的任务，没有排队任务时为空
      */

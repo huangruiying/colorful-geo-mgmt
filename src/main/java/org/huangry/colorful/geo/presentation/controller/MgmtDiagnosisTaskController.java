@@ -30,6 +30,16 @@ public class MgmtDiagnosisTaskController {
     }
 
     /**
+     * 将当前已结束任务的非成功结果重新排队，不创建新任务或直接调用模型。
+     * @param id 当前任务 ID
+     * @return 重新排队后的任务详情
+     */
+    @PostMapping("/{id}/restart")
+    public DiagnosisTaskResponse restart(@PathVariable("id") long id) {
+        return diagnosisTaskBusiness.restart(id);
+    }
+
+    /**
      * 查询任务列表，支持方案与状态筛选。
      * @param planId 方案 ID
      * @param status 状态
