@@ -4,6 +4,25 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-14 按用户确认拆分诊断状态枚举：新增 `DiagnosisTaskStatus`（整轮，含部分失败）和 `DiagnosisTaskResultStatus`（单条采样，不含部分失败），类首句概括用途，枚举项及流转边界有注释。查询、更新、汇总和筛选校验均替换；批量初始化由 Service 设置采样初态，DAO 改绑定 `item.status`，不再写死 SQL 字符串。实体及接口状态仍为原字符串，未改表结构、前端协议、事务或恢复语义。Java 17 主代码编译、20 项相关独立 JUnit（含真实 MyBatis SQL 参数绑定、整轮终态、筛选边界、进度统计、执行组件与 MVC 契约）、差异检查通过；未运行全量测试，原 WhatsAppDemo 缺依赖的限制沿用。未重启、未改数据库、未做真实联调、未提交。
+
+  注释与架构复核：两个枚举只有状态定义，无自定义业务方法；使用现有 common/enums 目录，未增加转换层。实体字段仅更新状态来源说明。全部变更方法均已检查职责、分段和决策：
+
+  | 方法 | 实际阶段 | 方法说明 | 分段/编号 | 决策说明 | 结果 |
+  |---|---|---|---|---|---|
+  | GeoDiagnosisTaskService#create | 校验/锁定 → 冻结任务 → 初始化采样 | 完整 | 三段编号 | 待执行初态、事务与幂等保留 | 通过 |
+  | GeoDiagnosisTaskService#insertSamples | 复用快照 → 组装采样 → 批量写入 | 完整 | 三段编号 | 采样枚举初始化、尾批与唯一键保留 | 通过 |
+  | GeoDiagnosisTaskService#claimNext | 查询锁定 → 条件领取 | 完整 | 两段 | 仅待执行任务可进入执行中 | 通过 |
+  | GeoDiagnosisTaskService#claimSample | 查询锁定 → 设置开始 → 保存领取 | 完整 | 三段编号 | 写入失败不得调用模型 | 通过 |
+  | GeoDiagnosisTaskService#succeed | 映射引用 → 组装回答 → 条件保存 | 完整 | 三段编号 | 仅执行中采样可保存成功 | 通过 |
+  | GeoDiagnosisTaskService#fail | 条件写入 → 确认保存 | 完整 | 两段 | 不覆盖终态、失败向外暴露 | 通过 |
+  | GeoDiagnosisTaskService#finish | 汇总采样 → 决定整轮终态 → 写入 | 完整 | 三段编号 | 未完成拒绝、部分失败仅整轮使用 | 通过 |
+  | GeoDiagnosisTaskService#interrupt | 终止未完成采样 → 汇总整轮 | 完整 | 两段 | 保留已有回答、不重发 | 通过 |
+  | GeoDiagnosisTaskService#recoverInterrupted | 读取执行中任务 → 逐轮收尾 | 完整 | 两段 | 唯一锁前提、保留已存结果 | 通过 |
+  | DiagnosisTaskBusiness#response | 回读/统计 → 渠道进度 → 组装详情 | 完整 | 三段编号 | 未知持久化状态仍按状态损坏处理 | 通过 |
+  | DiagnosisTaskBusiness#validateStatus | 空筛选 → 按对应枚举校验 | 完整 | 两段 | 大小写与原值精确匹配、拒绝跨状态域 | 通过 |
+  | GeoDiagnosisPlanExecRecordResultDao#insertSamples | 批量绑定并写入 | 完整 | 单阶段不编号 | 初态由 Service 指定，DAO 不另设规则 | 通过 |
+
 - 2026-10-14 按用户要求整理 `DiagnosisTaskResponse`：五个 record 均改为每个组件独占一行，补任务/采样标识、状态、冻结名称、进度计数、分页、JSON 结构、耗时单位、空值及列表/详情差异的字段注释。仅格式和注释变更；五个 record 的职责及字段逐项核对，无业务方法需阶段审计，架构不变。Java 17 独立编译、五个类型的 javap 构造参数/访问器签名对比及 diff 检查通过；未重复运行行为测试、未重启或提交。
 
 - 2026-10-14 按用户确认统一业务 JSON 为现有 Fastjson `1.2.83_noneautotype`：诊断快照/结果、模型协议响应、制题、表单/扫码账号及东方财富草稿解析已替换；Spring MVC 默认转换器和密钥隐藏等 Jackson 注解保留。快照显式保留空值并统一数字比较；引用 record 在落库处显式映射五个字段，避免 Fastjson 1.x 输出空对象。制题异常分类和测试/回归脚本同步。Java 17 主代码编译、除 WhatsAppDemo 外的独立测试编译、平台回归脚本编译、MVC JSON 契约及 diff 检查通过；JUnit 共 302 项，301 通过，唯一失败为原有 `shouldRejectDisabledExactTaskChannel`（路由和测试均与 HEAD 一致，本次未修改）。常规 Maven 测试编译仍受 WhatsAppDemo 缺依赖阻断。逐方法注释及架构证据见 [Fastjson统一替换检查](Fastjson统一替换检查.md)。未改数据库、未重启、未调用真实平台、未提交；使用前加载新 Java 类，渠道启停与精确调用的既有测试分歧另行确认。
