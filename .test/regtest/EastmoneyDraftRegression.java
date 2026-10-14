@@ -3,7 +3,6 @@ package org.huangry.colorful.geo.regtest;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.WaitUntilState;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.huangry.colorful.geo.infrastructure.client.playwright.PlaywrightBrowserComponent;
 import org.huangry.colorful.geo.infrastructure.client.publish.browser.eastmoney.EastmoneyBrowserClient;
 import org.huangry.colorful.geo.infrastructure.client.publish.browser.PublicationBrowserProperties;
@@ -37,7 +36,7 @@ public class EastmoneyDraftRegression extends AbstractDraftRegression {
 
     @Override
     protected DraftCreatedResult createDraft(PlatformBrowserLoginDao dao, String title, String content) throws Exception {
-        EastmoneyBrowserClient client = new EastmoneyBrowserClient(dao, browser, props, new ObjectMapper());
+        EastmoneyBrowserClient client = new EastmoneyBrowserClient(dao, browser, props);
         EastmoneyBrowserClient.DraftCreated d = client.createDraft(title, content);
         return new DraftCreatedResult(d.remoteContentId(), d.draftUrl());
     }
