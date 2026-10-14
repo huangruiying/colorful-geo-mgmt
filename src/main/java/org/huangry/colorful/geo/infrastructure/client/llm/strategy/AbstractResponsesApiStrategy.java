@@ -22,11 +22,19 @@ import org.springframework.http.HttpEntity;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.client.ClientHttpResponse;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 发送 Responses 请求并校验、解析最终回答和引用。
  * 复用当前业务使用的基础协议；子策略调整请求参数，连接资源使用共用 HTTP 客户端。
  */
+@Slf4j
 public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
     /**
      * 声明当前协议格式，不据此推断模型或搜索能力。
@@ -41,7 +49,7 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
     @Resource(name = "llmRestTemplateWithTimeout")
     private RestTemplate llmRestTemplate;
     /**
-     * 发送策略已组装的 Responses 请求，解析完整文本回答及引用。
+     * 组装并发送 Responses 请求，按策略选择完整 JSON 或 SSE 完成事件解析。
      *
      * @param request 当前独立问题
      * @param channel 已选中的渠道配置，可来自官方接口或兼容网关
@@ -54,10 +62,30 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
 
         Map<String, Object> requestBody = buildRequestBody(request, channel);
 
-        // 2. 密钥放在请求头，读取原始响应文本后用 Fastjson 解析，不修改共用 HTTP 转换器。
+        // 2. 密钥仅放在请求头；流式请求在连接内持续读取，普通请求读取完整 JSON。
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(channel.getApiKey().strip());
         headers.setContentType(MediaType.APPLICATION_JSON);
+        log.info("模型请求 channel={}, protocol=responses, model={}, stream={}, tools={}, toolChoice={}, maxOutputTokens={}, temperature={}, promptChars={}",
+                channel.getChannelCode(), channel.getModelName(), Boolean.TRUE.equals(requestBody.get("stream")),
+                requestBody.get("tools"), requestBody.get("tool_choice"), requestBody.get("max_output_tokens"),
+                requestBody.get("temperature"), request.prompt().length());
+        // 仅策略显式开启 stream=true 时读取 SSE；Boolean.TRUE.equals 可安全处理未填写的 null。
+        // 联网搜索可能较慢，持续读取进度事件可避免一直等最终 JSON；首响应及读取空闲超时仍生效。
+        if (Boolean.TRUE.equals(requestBody.get("stream"))) {
+            // Accept 声明期望接收 SSE；请求体仍是上面 Content-Type 指定的 JSON。
+            headers.setAccept(List.of(MediaType.TEXT_EVENT_STREAM));
+            // execute 分别提供请求写入、响应读取回调，避免用 String 转换器先缓冲整个事件流。
+            // 响应读取是同步的：回调内读到完成事件并组装结果后才返回，页面不会收到逐字推送。
+            // 必须在回调内消费响应流，因为 execute 结束时 RestTemplate 会关闭响应并释放连接资源。
+            return llmRestTemplate.execute(normalizeBaseUrl(channel.getBaseUrl()) + "/responses", HttpMethod.POST,
+                    outgoing -> {
+                        // 请求回调：携带认证和媒体类型，以 UTF-8 JSON 字节写入当前策略的完整请求体。
+                        outgoing.getHeaders().putAll(headers);
+                        outgoing.getBody().write(JSON.toJSONBytes(requestBody));
+                    // 响应回调：逐帧读取，只有完成事件中的完整回答可返回；失败或断流继续抛错。
+                    }, this::readStreamResponse);
+        }
         String responseBody = llmRestTemplate
                 .postForObject(normalizeBaseUrl(channel.getBaseUrl()) + "/responses",
                         new HttpEntity<>(requestBody, headers), String.class);
@@ -67,6 +95,72 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
 
         // 3. 只提取接口返回的结构化来源；来源是否准确仍需核验，缺少引用时保留空列表。
         return parseResponse(JSON.parseObject(responseBody));
+    }
+
+    /**
+     * 在响应连接关闭前读取 SSE，只用完成事件中的完整响应组装结果。
+     * @param response 当前 HTTP 响应，资源由 RestTemplate 统一关闭
+     * @return 完整模型回答，断流、失败或不完整事件不会产生成功结果
+     * @throws IOException 读取连接失败或超时
+     */
+    private LLMResponse readStreamResponse(ClientHttpResponse response) throws IOException {
+        // 1. 兼容明确返回 JSON 的网关，仍按原有完整响应规则校验。
+        MediaType contentType = response.getHeaders().getContentType();
+        if (contentType != null && MediaType.APPLICATION_JSON.isCompatibleWith(contentType)) {
+            return parseResponse(JSON.parseObject(new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8)));
+        }
+        // 2. 按 SSE 空行分帧，多行 data 合并；忽略心跳及非 data 字段，不拼接增量正文。
+        BufferedReader reader = new BufferedReader(new InputStreamReader(response.getBody(), StandardCharsets.UTF_8));
+        StringBuilder data = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            if (line.isEmpty()) {
+                LLMResponse result = parseStreamEvent(data.toString());
+                data.setLength(0);
+                if (result != null) {
+                    return result;
+                }
+            } else if (line.startsWith("data:")) {
+                if (!data.isEmpty()) {
+                    data.append('\n');
+                }
+                String value = line.substring(5);
+                data.append(value.startsWith(" ") ? value.substring(1) : value);
+            }
+        }
+        // 3. EOF 前最后一帧可以没有空行；没有完成事件则拒绝保存部分回答。
+        LLMResponse result = parseStreamEvent(data.toString());
+        if (result == null) {
+            throw new LLMClientException("Responses 流在完整回答返回前中断");
+        }
+        return result;
+    }
+
+    /**
+     * 识别最终完成事件，其他进度事件不作为回答，失败事件立即终止调用。
+     * @param data 单个 SSE 事件的数据，不记录远端文本
+     * @return 完整回答；进度事件返回 null
+     */
+    private LLMResponse parseStreamEvent(String data) {
+        if (data.isBlank()) {
+            return null;
+        }
+        if ("[DONE]".equals(data.strip())) {
+            throw new LLMClientException("Responses 流未返回完成事件");
+        }
+        JSONObject event = JSON.parseObject(data);
+        String type = event.getString("type");
+        if ("response.failed".equals(type) || "response.incomplete".equals(type) || "error".equals(type)) {
+            throw new LLMClientException("Responses 流返回失败或不完整回答");
+        }
+        if (!"response.completed".equals(type)) {
+            return null;
+        }
+        if (!(event.get("response") instanceof JSONObject completed)
+                || !"completed".equals(completed.getString("status"))) {
+            throw new LLMClientException("Responses 完成事件缺少有效响应");
+        }
+        return parseResponse(completed);
     }
 
     /**
