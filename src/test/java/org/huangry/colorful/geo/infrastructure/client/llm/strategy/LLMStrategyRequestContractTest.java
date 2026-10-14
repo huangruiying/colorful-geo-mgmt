@@ -62,7 +62,7 @@ class LLMStrategyRequestContractTest {
             assertEquals(0.2, body.get("temperature"));
             assertEquals(300, body.get("max_output_tokens"));
             assertEquals(false, body.get("store"));
-            assertFalse(body.containsKey("stream"));
+            assertEquals(body == doubao ? Boolean.TRUE : null, body.get("stream"));
         }
     }
 

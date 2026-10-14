@@ -9,11 +9,11 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** 验证豆包搜索来源与非流式请求契约，不调用外部模型。 */
+/** 验证豆包搜索来源与流式请求契约，不调用外部模型。 */
 class ResponsesApiDoubaoStrategyTest {
     /** 指定豆包来源并强制搜索，保留模型与单次问题配置。 */
     @Test
-    void shouldRequireDoubaoSearchWithoutStreaming() {
+    void shouldRequireDoubaoSearchWithStreaming() {
         var channel = new GeoLlmChannelEntity();
         channel.setModelName("doubao-seed-2-1-pro-260915");
         channel.setMaxTokens(2000);
@@ -23,7 +23,7 @@ class ResponsesApiDoubaoStrategyTest {
         assertEquals("required", body.get("tool_choice"));
         assertEquals(channel.getModelName(), body.get("model"));
         assertEquals(2000, body.get("max_output_tokens"));
-        assertFalse(body.containsKey("stream"));
+        assertEquals(true, body.get("stream"));
         assertFalse(body.containsKey("temperature"));
         assertEquals(false, body.get("store"));
         assertEquals(List.of(Map.of("role", "user", "content", List.of(Map.of("type", "input_text", "text", "今天有什么 AI 领域的热点新闻？")))), body.get("input"));

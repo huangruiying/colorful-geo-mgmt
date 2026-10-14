@@ -73,7 +73,7 @@
 <label class="project-field"><span>供应商标识</span><input name="providerCode" id="providerCode" type="text" required maxlength="100" placeholder="例如：deepseek"></label>
 <label class="project-field"><span>调用策略</span><select name="strategyBeanName" id="strategyBeanName" required><option value="">正在加载策略…</option></select></label>
 <label class="project-field"><span>接口地址</span><input name="baseUrl" id="baseUrl" type="url" maxlength="2048" placeholder="https://api.example.com/v1"></label>
-<label class="project-field"><span>模型标识</span><input name="modelName" id="modelName" type="text" maxlength="200" placeholder="供应商提供的模型名称"></label>
+<label class="project-field"><span>选用模型</span><input name="modelName" id="modelName" type="text" maxlength="200" placeholder="填写平台提供的模型 ID 或接入点 ID"><small>填写平台调用示例中的 model 值，不是“豆包”等展示名称。</small></label>
 <label class="project-field"><span>API 密钥</span><input name="apiKey" id="apiKey" type="password" maxlength="8192" autocomplete="new-password" placeholder="填写密钥；编辑时留空保留原值"><small id="key-status">远程渠道启用前需保存密钥。</small></label>
 </div></section>
 <section class="list-panel project-section"><div class="panel-heading"><div><h2>调用规则</h2><p>默认优先级越大越优先；相同时按渠道 ID 升序选择。停用渠道不参与调用。</p></div></div><div class="project-fields model-fields">
