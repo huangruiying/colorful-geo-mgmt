@@ -3,6 +3,7 @@ package org.huangry.colorful.geo.infrastructure.client.llm;
 import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.LLMStrategyRouter;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.slf4j.Logger;
@@ -56,6 +57,22 @@ public class LLMClient {
             throw exception;
         } catch (RuntimeException exception) {
             LOGGER.error("大模型远程调用失败，channel={}", request.channelCode());
+            throw new LLMClientException("大模型远程调用失败", exception);
+        }
+    }
+
+    /**
+     * 执行任务已经冻结并校验的指定渠道，不触发默认路由或降级。
+     * @param request 本次独立问题
+     * @param channel 已选定渠道及当前凭据
+     * @return 接口实际响应
+     */
+    public LLMResponse query(LLMQueryRequest request, GeoLlmChannelEntity channel) {
+        try {
+            return strategyRouter.query(request, channel);
+        } catch (LLMClientException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
             throw new LLMClientException("大模型远程调用失败", exception);
         }
     }
