@@ -10,7 +10,7 @@ class FastjsonResponseParsingTest {
     /** 首个候选独立解析，嵌套引用去重，非文本 URL 和小数位置不强转。 */
     @Test
     void shouldPreserveChatTextCitationsAndMetadata() {
-        CompatibleChatCompletionsApiStrategy strategy = new CompatibleChatCompletionsApiStrategy();
+        ChatCompletionsApiCommonStrategy strategy = new ChatCompletionsApiCommonStrategy();
         var result = strategy.parseResponse(JSON.parseObject("""
                 {"model":"test-model","usage":{"total_tokens":0,"detail":null},"extra":null,
                  "choices":[{"finish_reason":"stop","message":{"content":"回答","annotations":[
@@ -34,7 +34,7 @@ class FastjsonResponseParsingTest {
     /** 错误结构不能经 Fastjson 的类型转换被当作有效回答。 */
     @Test
     void shouldRejectMalformedChatTextAndChoices() {
-        CompatibleChatCompletionsApiStrategy strategy = new CompatibleChatCompletionsApiStrategy();
+        ChatCompletionsApiCommonStrategy strategy = new ChatCompletionsApiCommonStrategy();
         for (String body : new String[]{"{}", "{\"choices\":{}}", "{\"choices\":[null]}",
                 "{\"choices\":[{\"message\":{\"content\":123}}]}"}) {
             assertThrows(LLMClientException.class, () -> strategy.parseResponse(JSON.parseObject(body)));
@@ -44,7 +44,7 @@ class FastjsonResponseParsingTest {
     /** 失败、截断或纯工具响应均拒绝，不能产生成功的空回答。 */
     @Test
     void shouldRejectFailedIncompleteAndToolOnlyResponses() {
-        CompatibleResponsesApiStrategy strategy = new CompatibleResponsesApiStrategy();
+        ResponsesApiCommonStrategy strategy = new ResponsesApiCommonStrategy();
         for (String body : new String[]{"{\"status\":\"failed\"}", "{\"status\":\"incomplete\"}",
                 "{\"error\":{}}", "{\"output\":[{\"type\":\"web_search_call\"}]}",
                 "{\"output\":{}}", "{\"output\":[{\"type\":\"message\",\"content\":{}}]}"}) {

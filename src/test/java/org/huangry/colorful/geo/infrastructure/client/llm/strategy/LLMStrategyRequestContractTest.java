@@ -13,7 +13,7 @@ class LLMStrategyRequestContractTest {
     @Test
     void shouldKeepGenericChatIndependentOfVendorSearch() {
         var channel = channel();
-        var strategy = new CompatibleChatCompletionsApiStrategy();
+        var strategy = new ChatCompletionsApiCommonStrategy();
         var body = strategy.buildRequestBody(new LLMQueryRequest("问题"), channel);
         assertEquals(List.of(Map.of("role", "user", "content", "问题")), body.get("messages"));
         assertEquals(0.2, body.get("temperature"));
@@ -31,7 +31,7 @@ class LLMStrategyRequestContractTest {
     @Test
     void shouldKeepOpenAiChatSearchLimitedToExistingModel() {
         var channel = channel();
-        var strategy = new OpenAiChatCompletionsApiStrategy();
+        var strategy = new ChatCompletionsApiOpenAiStrategy();
         var normal = strategy.buildRequestBody(new LLMQueryRequest("问题"), channel);
         assertFalse(normal.containsKey("web_search_options"));
         assertEquals(0.2, normal.get("temperature"));
@@ -47,9 +47,9 @@ class LLMStrategyRequestContractTest {
     void shouldKeepResponsesToolsSpecificToEachStrategy() {
         var channel = channel();
         var request = new LLMQueryRequest("独立问题");
-        var generic = new CompatibleResponsesApiStrategy().buildRequestBody(request, channel);
-        var openAi = new OpenAiResponsesApiStrategy().buildRequestBody(request, channel);
-        var doubao = new DoubaoResponsesApiStrategy().buildRequestBody(request, channel);
+        var generic = new ResponsesApiCommonStrategy().buildRequestBody(request, channel);
+        var openAi = new ResponsesApiOpenAiStrategy().buildRequestBody(request, channel);
+        var doubao = new ResponsesApiDoubaoStrategy().buildRequestBody(request, channel);
         assertFalse(generic.containsKey("tools"));
         assertFalse(generic.containsKey("tool_choice"));
         assertEquals(List.of(Map.of("type", "web_search")), openAi.get("tools"));

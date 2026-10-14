@@ -61,10 +61,10 @@ class LLMStrategyRouterTest {
                         when(openai.protocolType()).thenReturn(LLMProtocolType.OPENAI_RESPONSES);
         when(doubao.protocolType()).thenReturn(LLMProtocolType.OPENAI_RESPONSES);
         var channel = mockChannel();
-        channel.setStrategyBeanName("doubaoResponsesApiStrategy");
+        channel.setStrategyBeanName("responsesApiDoubaoStrategy");
         channel.setApiKey("unit-test-key");
         when(dao.selectOne(any())).thenReturn(channel);
-        createRouter(Map.of("openAiResponsesApiStrategy", openai, "doubaoResponsesApiStrategy", doubao)).query(new LLMQueryRequest("问题"));
+        createRouter(Map.of("responsesApiOpenAiStrategy", openai, "responsesApiDoubaoStrategy", doubao)).query(new LLMQueryRequest("问题"));
         verify(doubao).query(any(), same(channel));
         verify(openai, never()).query(any(), any());
     }

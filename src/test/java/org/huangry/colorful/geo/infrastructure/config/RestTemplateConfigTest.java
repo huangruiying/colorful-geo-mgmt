@@ -3,11 +3,11 @@ package org.huangry.colorful.geo.infrastructure.config;
 import com.sun.net.httpserver.HttpServer;
 import com.alibaba.fastjson.JSON;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
-import org.huangry.colorful.geo.infrastructure.client.llm.strategy.CompatibleChatCompletionsApiStrategy;
-import org.huangry.colorful.geo.infrastructure.client.llm.strategy.OpenAiChatCompletionsApiStrategy;
-import org.huangry.colorful.geo.infrastructure.client.llm.strategy.DoubaoResponsesApiStrategy;
-import org.huangry.colorful.geo.infrastructure.client.llm.strategy.OpenAiResponsesApiStrategy;
-import org.huangry.colorful.geo.infrastructure.client.llm.strategy.CompatibleResponsesApiStrategy;
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.ChatCompletionsApiCommonStrategy;
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.ChatCompletionsApiOpenAiStrategy;
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiDoubaoStrategy;
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiOpenAiStrategy;
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiCommonStrategy;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -103,8 +103,8 @@ class RestTemplateConfigTest {
         });
         server.start();
         try (var context = context(3,
-                CompatibleChatCompletionsApiStrategy.class, DoubaoResponsesApiStrategy.class,
-                OpenAiResponsesApiStrategy.class, CompatibleResponsesApiStrategy.class, OpenAiChatCompletionsApiStrategy.class)) {
+                ChatCompletionsApiCommonStrategy.class, ResponsesApiDoubaoStrategy.class,
+                ResponsesApiOpenAiStrategy.class, ResponsesApiCommonStrategy.class, ChatCompletionsApiOpenAiStrategy.class)) {
             var channel = new GeoLlmChannelEntity();
             channel.setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
             channel.setModelName("test-model");
@@ -113,14 +113,14 @@ class RestTemplateConfigTest {
             channel.setSslVerify(true);
             channel.setTemperature(0.2);
             channel.setMaxTokens(300);
-            var chat = context.getBean(CompatibleChatCompletionsApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            var chat = context.getBean(ChatCompletionsApiCommonStrategy.class).query(new LLMQueryRequest("问题"), channel);
             assertEquals("回答", chat.getContent());
             assertEquals("https://source.example", chat.getCitations().get(0).url());
             assertTrue(payload.get().contains("messages"));
             assertEquals("Bearer local-test-only", auth.get());
             // 独立 OpenAI Chat 策略仍保持搜索专用模型的请求契约。
             channel.setModelName("gpt-5-search-api");
-            var openAiChat = context.getBean(OpenAiChatCompletionsApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            var openAiChat = context.getBean(ChatCompletionsApiOpenAiStrategy.class).query(new LLMQueryRequest("问题"), channel);
             assertEquals("回答", openAiChat.getContent());
             assertEquals("https://source.example", openAiChat.getCitations().get(0).url());
             var searchBody = JSON.parseObject(payload.get());
@@ -128,7 +128,7 @@ class RestTemplateConfigTest {
             assertFalse(searchBody.containsKey("temperature"));
             assertFalse(searchBody.containsKey("max_tokens"));
             channel.setModelName("test-model");
-            var responses = context.getBean(DoubaoResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            var responses = context.getBean(ResponsesApiDoubaoStrategy.class).query(new LLMQueryRequest("问题"), channel);
             assertEquals("回答", responses.getContent());
             assertEquals("https://source.example", responses.getCitations().get(0).url());
             assertTrue(payload.get().contains("web_search"));
@@ -140,22 +140,22 @@ class RestTemplateConfigTest {
             assertFalse(body.containsKey("max_tokens"));
             // 模型名称不决定参数是否发送，用户填写则原值传递。
             channel.setModelName("gpt-4.1");
-            context.getBean(OpenAiResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            context.getBean(ResponsesApiOpenAiStrategy.class).query(new LLMQueryRequest("问题"), channel);
             assertEquals(0.2, JSON.parseObject(payload.get()).getDoubleValue("temperature"));
             channel.setModelName("gpt-5-mini");
-            context.getBean(OpenAiResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            context.getBean(ResponsesApiOpenAiStrategy.class).query(new LLMQueryRequest("问题"), channel);
             body = JSON.parseObject(payload.get());
             assertEquals(0.2, body.getDoubleValue("temperature"));
             assertEquals(300, body.getIntValue("max_output_tokens"));
             // 兼容网关不借用 OpenAI 模型名称的限制，不声明厂商搜索工具。
-            context.getBean(CompatibleResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            context.getBean(ResponsesApiCommonStrategy.class).query(new LLMQueryRequest("问题"), channel);
             body = JSON.parseObject(payload.get());
             assertEquals(0.2, body.getDoubleValue("temperature"));
             assertEquals(300, body.getIntValue("max_output_tokens"));
             assertFalse(body.containsKey("tools"));
             // 显式留空时所有 Responses 策略均不发送随机性。
             channel.setTemperature(null);
-            context.getBean(OpenAiResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
+            context.getBean(ResponsesApiOpenAiStrategy.class).query(new LLMQueryRequest("问题"), channel);
             assertFalse(JSON.parseObject(payload.get()).containsKey("temperature"));
         } finally { server.stop(0); }
     }

@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261013-bean6", error = document.getElementById("model-error");
+    const version = "20261014-protocol1", error = document.getElementById("model-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
     async function request(path, options = {}) {
         const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
@@ -20,7 +20,7 @@
             const remote = protocol !== "MOCK";
             for (const key of ["baseUrl", "modelName"]) form.elements[key].required = remote;
             // 留空不发送随机性，填写由远端模型校验；仅保留明确不使用参数的策略限制。
-            const searchModel = option?.value === "openAiChatCompletionsApiStrategy"
+            const searchModel = option?.value === "chatCompletionsApiOpenAiStrategy"
                 && form.elements.modelName.value.trim() === "gpt-5-search-api";
             const generationParameters = Boolean(protocol) && remote && !searchModel;
             form.elements.temperature.disabled = !generationParameters;
@@ -47,7 +47,7 @@
                     option.dataset.protocolType = strategy.protocolType;
                     select.append(option);
                 }
-                select.value = "compatibleChatCompletionsApiStrategy";
+                select.value = "chatCompletionsApiCommonStrategy";
                 if (!channel) { syncStrategy(); button.disabled = false; return; }
                 document.getElementById("model-heading").textContent = "编辑模型配置";
                 for (const element of form.elements) {

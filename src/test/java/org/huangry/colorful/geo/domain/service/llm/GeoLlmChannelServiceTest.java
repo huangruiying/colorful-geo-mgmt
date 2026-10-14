@@ -104,8 +104,8 @@ class GeoLlmChannelServiceTest {
     void shouldRejectSearchForMockChannel() {
         GeoLlmChannelEntity c = channel(); c.setStrategyBeanName("mockLlmStrategy");
         assertEquals("mockLlmStrategy", c.getStrategyBeanName());
-        c.setStrategyBeanName("compatibleResponsesApiStrategy");
-        assertEquals("compatibleResponsesApiStrategy", c.getStrategyBeanName());
+        c.setStrategyBeanName("responsesApiCommonStrategy");
+        assertEquals("responsesApiCommonStrategy", c.getStrategyBeanName());
     }
 
     /** 模拟 Spring 注册与字段注入，校验走实际策略注册表。 */
@@ -113,15 +113,15 @@ class GeoLlmChannelServiceTest {
         var service = new GeoLlmChannelService();
         org.springframework.test.util.ReflectionTestUtils.setField(service, "strategies", java.util.Map.of(
                 "mockLlmStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.MockLlmStrategy(),
-                "compatibleChatCompletionsApiStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.CompatibleChatCompletionsApiStrategy(),
-                "compatibleResponsesApiStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.CompatibleResponsesApiStrategy()));
+                "chatCompletionsApiCommonStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ChatCompletionsApiCommonStrategy(),
+                "responsesApiCommonStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiCommonStrategy()));
         return service;
     }
 
     /** 构造有效远程连接，但不进行真实请求。 */
     private GeoLlmChannelEntity channel() {
         GeoLlmChannelEntity c = new GeoLlmChannelEntity(); c.setChannelCode("test"); c.setChannelName("测试");
-        c.setProviderCode("test"); c.setStrategyBeanName("compatibleChatCompletionsApiStrategy");
+        c.setProviderCode("test"); c.setStrategyBeanName("chatCompletionsApiCommonStrategy");
         c.setBaseUrl("https://example.com/v1"); c.setModelName("test-model");
         return c;
     }

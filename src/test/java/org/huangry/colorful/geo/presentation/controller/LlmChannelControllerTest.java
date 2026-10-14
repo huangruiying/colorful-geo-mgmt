@@ -24,7 +24,7 @@ class LlmChannelControllerTest {
         var controller = new MgmtLlmChannelController();
         ReflectionTestUtils.setField(controller, "business", business);
         ReflectionTestUtils.setField(controller, "strategies", java.util.Map.of(
-                "doubaoResponsesApiStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.DoubaoResponsesApiStrategy()));
+                "responsesApiDoubaoStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiDoubaoStrategy()));
         return MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -32,7 +32,7 @@ class LlmChannelControllerTest {
     @Test
     void shouldListRegisteredStrategyOptions() throws Exception {
         mvc.perform(get("/llm-channels/strategies")).andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].beanName").value("doubaoResponsesApiStrategy"))
+                .andExpect(jsonPath("$[0].beanName").value("responsesApiDoubaoStrategy"))
                 .andExpect(jsonPath("$[0].protocolType").value("OPENAI_RESPONSES"))
                 .andExpect(jsonPath("$[0].name").doesNotExist());
     }

@@ -27,15 +27,21 @@ class LLMStrategyBeanTest {
             context.registerBean(GeoLlmChannelDao.class, () -> dao);
             context.register(org.huangry.colorful.geo.infrastructure.config.RestTemplateConfig.class,
                     LLMStrategyRouter.class, MockLlmStrategy.class,
-                    CompatibleChatCompletionsApiStrategy.class, CompatibleResponsesApiStrategy.class,
-                    OpenAiChatCompletionsApiStrategy.class, OpenAiResponsesApiStrategy.class, DoubaoResponsesApiStrategy.class);
+                    ChatCompletionsApiCommonStrategy.class, ResponsesApiCommonStrategy.class,
+                    ChatCompletionsApiOpenAiStrategy.class, ResponsesApiOpenAiStrategy.class, ResponsesApiDoubaoStrategy.class);
             context.refresh();
             var strategies = context.getBeansOfType(LLMStrategy.class);
             assertEquals(6, strategies.size());
-            assertSame(context.getBean(DoubaoResponsesApiStrategy.class), strategies.get("doubaoResponsesApiStrategy"));
+            assertSame(context.getBean(ChatCompletionsApiCommonStrategy.class), strategies.get("chatCompletionsApiCommonStrategy"));
+            assertSame(context.getBean(ResponsesApiCommonStrategy.class), strategies.get("responsesApiCommonStrategy"));
+            assertFalse(strategies.containsKey("compatibleChatCompletionsApiStrategy"));
+            assertFalse(strategies.containsKey("compatibleResponsesApiStrategy"));
+            assertSame(context.getBean(ResponsesApiDoubaoStrategy.class), strategies.get("responsesApiDoubaoStrategy"));
+            assertSame(context.getBean(ChatCompletionsApiOpenAiStrategy.class), strategies.get("chatCompletionsApiOpenAiStrategy"));
+            assertSame(context.getBean(ResponsesApiOpenAiStrategy.class), strategies.get("responsesApiOpenAiStrategy"));
             assertFalse(strategies.containsKey("doubao_responses"));
-            assertEquals(strategies.get("openAiResponsesApiStrategy").protocolType(),
-                    strategies.get("doubaoResponsesApiStrategy").protocolType());
+            assertEquals(strategies.get("responsesApiOpenAiStrategy").protocolType(),
+                    strategies.get("responsesApiDoubaoStrategy").protocolType());
             assertTrue(context.getBean(LLMStrategyRouter.class).query(new LLMQueryRequest("问题")).getContent().contains("mock"));
         }
     }
