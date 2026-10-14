@@ -22,11 +22,13 @@ import org.springframework.http.HttpEntity;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 发送 Chat Completions 请求并解析正文、引用和元数据。
  * 复用当前业务使用的基础协议；子策略调整请求参数，连接资源使用共用 HTTP 客户端。
  */
+@Slf4j
 public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy {
     /**
      * 声明当前协议格式，不据此推断模型或搜索能力。
@@ -55,6 +57,9 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
         }
 
         Map<String, Object> body = buildRequestBody(request, channel);
+        log.info("模型请求 channel={}, protocol=chatCompletions, model={}, stream=false, search={}, maxTokens={}, temperature={}, promptChars={}",
+                channel.getChannelCode(), channel.getModelName(), body.containsKey("web_search_options"),
+                body.get("max_tokens"), body.get("temperature"), request.prompt().length());
 
         // 2. 密钥仅放入请求头，超时与证书策略沿用统一 HTTP 客户端。
         String baseUrl = channel.getBaseUrl().replaceAll("/+$", "");
