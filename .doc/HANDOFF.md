@@ -4,6 +4,10 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-14 按用户指出的注释缺漏，逐方法核对 DiagnosisTaskWorker：补类职责/入口/边界、执行状态字段语义，poll/tick/execute/acquireLease 的编号主流程，以及模型失败、空回答、落库中断、异常分类和锁释放决策注释；补 SQLException 方法说明。仅修改注释，未改变执行逻辑；diff 检查通过，未重复跑测试、未重启或提交。
+
+- 2026-10-14 Worker 按用户确认改用 @Resource(name="diagnosisTaskExecutor") TaskExecutor：应用就绪仅提交一次后台轮询，按执行后间隔一秒顺序运行；删除 ScheduledExecutorService、Executors、PostConstruct 初始化和自建线程池关闭逻辑。停机只标记停止并中断本组件线程，不关闭共享线程池；数据库会话锁由执行线程退出 finally 释放，避免调用未结束提前接管。补重复启动只提交一次、排队中关闭不领取任务两项测试。diff 检查通过；主代码编译被当前工作区 GeoDiagnosisTaskService 调用已不存在的 router.validateChannel 阻断，相关测试未能运行，不恢复用户路由改动。未重启、未提交；先解决路由调用不一致再复验。
+
 - 2026-10-14 按用户确认收简模型响应：LLMResponse 改为 Lombok 普通数据类，保留正文/引用及诊断需要的模型、用量、结束状态、原始响应字段；删除 withMetadata、withoutCredential、递归脱敏和密钥字符串替换。现有两个 HTTP 模板直接解析 JSON 并显式填充数据，未新增包装层；问答/内容优化/问题生成/诊断落库等调用方同步改 getter。原问答 JSON 仍只输出 content/citations，原始响应现在按厂商原报文存储，不再承诺脱敏，页面提示和有效接口说明同步。Java 17 主代码编译通过；独立编译除原 WhatsAppDemo 外的测试并运行成功，原 Maven 全量测试仍受该演示依赖限制。未重启服务，未做真实厂商联调，未提交。本条替代此前关于响应脱敏的实现描述。
 
 - 豆包响应适配已按用户提供的完整 JSON 核对：现有 RestTemplate 直接 HTTP 请求方舟，未使用 OpenAI SDK；共享 Responses 模板继续映射最终正文、引用标题/URL、实际模型、usage（含搜索工具次数）、completed 状态与脱敏原始响应。引用解析补 summary 到 snippet 映射，缺少 summary 时保留原 text 兼容；site_name/publish_time 等字段保留原始响应，不增加通用模型字段。新增 2 项本地报文回归验证忽略推理/工具调用正文、引用缺少位置保留 null、用量/原始字段完整保留与 text 兼容。Java 17 编译及合计 8 项相关独立 JUnit 通过；未验证真实厂商，未重启服务、未提交。用户 curl 的 stream:true 是 SSE 模式，本项目继续非流式 JSON。
