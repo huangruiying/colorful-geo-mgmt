@@ -25,6 +25,8 @@ public class ResponsesApiDoubaoStrategy extends AbstractResponsesApiStrategy {
         // 厂商搜索参数由本策略维护，不向通用策略注入工具。
         body.put("tools", List.of(Map.of("type", "web_search", "sources", List.of("doubao"))));
         body.put("tool_choice", "required");
+        // 搜索期间持续读取事件，完成事件仍通过父类解析并保存完整回答。
+        body.put("stream", true);
         return body;
     }
 }
