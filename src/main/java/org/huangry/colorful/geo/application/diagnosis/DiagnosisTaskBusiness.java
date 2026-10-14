@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.application.diagnosis;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.alibaba.fastjson.JSONObject;
 import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.application.diagnosis.model.CreateDiagnosisTaskRequest;
 import org.huangry.colorful.geo.application.diagnosis.model.DiagnosisTaskResponse;
@@ -143,7 +143,8 @@ public class DiagnosisTaskBusiness {
      * @return 安全响应
      */
     private DiagnosisTaskResponse response(GeoDiagnosisPlanExecRecordEntity task, boolean detail) {
-        JsonNode snapshot = snapshots.read(task.getPlanSnapshot());
+        // 1. 回读冻结配置并汇总采样状态，未知状态明确失败
+        JSONObject snapshot = (JSONObject) snapshots.read(task.getPlanSnapshot());
         Map<Long, long[]> counts = new LinkedHashMap<>();
         long[] total = new long[5];
         for (Map<String, Object> row : resultDao.countStatuses(task.getId())) {
@@ -163,14 +164,17 @@ public class DiagnosisTaskBusiness {
             total[0] += count;
             total[index] += count;
         }
+        // 2. 按冻结渠道组装进度，不以当前配置覆盖历史名称
         List<DiagnosisTaskResponse.ChannelProgressResponse> channels = new ArrayList<>();
-        for (JsonNode channel : snapshot.path("channels")) {
-            long id = channel.path("id").asLong();
-            channels.add(new DiagnosisTaskResponse.ChannelProgressResponse(id, channel.path("channelName").asText(),
+        for (Object value : snapshot.getJSONArray("channels")) {
+            JSONObject channel = (JSONObject) value;
+            long id = channel.getLongValue("id");
+            channels.add(new DiagnosisTaskResponse.ChannelProgressResponse(id, channel.getString("channelName"),
                     progress(counts.getOrDefault(id, new long[5]))));
         }
-        return new DiagnosisTaskResponse(task.getId(), task.getPlanId(), snapshot.path("planName").asText(),
-                task.getProjectId(), snapshot.path("project").path("name").asText(), task.getStatus(), progress(total),
+        // 3. 详情附带完整快照，列表仅返回摘要
+        return new DiagnosisTaskResponse(task.getId(), task.getPlanId(), snapshot.getString("planName"),
+                task.getProjectId(), snapshot.getJSONObject("project").getString("name"), task.getStatus(), progress(total),
                 channels, detail ? snapshot : null, task.getCreatedAt(), task.getStartedAt(), task.getFinishedAt());
     }
 
@@ -180,10 +184,12 @@ public class DiagnosisTaskBusiness {
      * @return 安全结果响应
      */
     private DiagnosisTaskResponse.ResultResponse resultResponse(GeoDiagnosisPlanExecRecordResultEntity row) {
-        JsonNode question = snapshots.read(row.getQuestionSnapshot());
-        JsonNode channel = snapshots.read(row.getChannelSnapshot());
+        // 回读问题和渠道对象，保留本次采样创建时的内容
+        JSONObject question = (JSONObject) snapshots.read(row.getQuestionSnapshot());
+        JSONObject channel = (JSONObject) snapshots.read(row.getChannelSnapshot());
+        // 引用和用量保留原 JSON 结构，缺失时不构造默认数据
         return new DiagnosisTaskResponse.ResultResponse(row.getId(), row.getExecRecordId(), row.getQuestionSortOrder(),
-                question.path("text").asText(), question, row.getChannelId(), channel.path("channelName").asText(), channel,
+                question.getString("text"), question, row.getChannelId(), channel.getString("channelName"), channel,
                 row.getRepeatIndex(), row.getStatus(), row.getAnswerText(),
                 row.getCitations() == null ? null : snapshots.read(row.getCitations()), row.getModelName(),
                 row.getUsageInfo() == null ? null : snapshots.read(row.getUsageInfo()), row.getDurationMs(),

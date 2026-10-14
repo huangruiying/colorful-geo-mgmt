@@ -1,6 +1,10 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy.template;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+import jakarta.annotation.Nonnull;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMCitation;
@@ -38,28 +42,29 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
      *
      * @param request 通用查询请求
      * @param channel 已选中的渠道配置，可来自官方接口或兼容网关
-     * @return 模型正文及接口返回的结构化引用；未返回引用时列表为空
+     * @return 正文、结构化引用及实际响应元数据；未返回引用时列表为空
      */
     @Override
     public final LLMResponse query(LLMQueryRequest request, GeoLlmChannelEntity channel) {
+        // 1. 校验接口必需配置，缺失时不发起远程调用
         validateProvider(channel);
 
-        // 1. 搜索请求参数按供应商处理，不从接口协议推导联网能力。
+        // 2. 搜索请求参数按供应商处理，不从接口协议推导联网能力。
         Map<String, Object> requestBody = buildRequestBody(request, channel);
 
-        // 2. 保持 API Key 仅存在于请求头，日志和响应对象均不保留密钥。
+        // 3. 密钥放在请求头，读取原始响应文本后用 Fastjson 解析，不修改共用 HTTP 转换器。
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(channel.getApiKey().strip());
         headers.setContentType(MediaType.APPLICATION_JSON);
-        JsonNode responseBody = llmRestTemplate
+        String responseBody = llmRestTemplate
                 .postForObject(normalizeBaseUrl(channel.getBaseUrl()) + "/responses",
-                        new HttpEntity<>(requestBody, headers), JsonNode.class);
-        if (responseBody == null) {
+                        new HttpEntity<>(requestBody, headers), String.class);
+        if (responseBody == null || responseBody.isBlank() || "null".equals(responseBody.strip())) {
             throw new LLMClientException("OpenAI Responses API 返回空响应");
         }
 
-        // 3. 只提取接口返回的结构化来源；来源是否准确仍需核验，缺少引用时保留空列表。
-        return parseResponse(responseBody);
+        // 4. 只提取接口返回的结构化来源；来源是否准确仍需核验，缺少引用时保留空列表。
+        return parseResponse(JSON.parseObject(responseBody));
     }
 
     /**
@@ -96,38 +101,50 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
      * @param responseBody Responses 原始响应
      * @return 标准模型响应
      */
-    LLMResponse parseResponse(JsonNode responseBody) {
-        // 失败或被截断的回答不能当成完整诊断结果，错误不透传远端原文。
-        String status = responseBody.path("status").asText();
-        if (responseBody.hasNonNull("error") || "failed".equals(status) || "incomplete".equals(status)) {
+    LLMResponse parseResponse(JSONObject responseBody) {
+        // 1. 失败或被截断的回答不能当成完整诊断结果，错误不透传远端原文
+        String status = responseBody.getString("status");
+        if (responseBody.get("error") != null || "failed".equals(status) || "incomplete".equals(status)) {
             throw new LLMClientException("Responses 返回失败或不完整回答");
         }
-        // 按返回顺序拼接消息文本；工具调用、检索结果不作为回答正文。
+        // 2. 按返回顺序拼接消息文本；工具调用、检索结果不作为回答正文
         StringBuilder content = new StringBuilder();
         boolean hasText = false;
         Map<String, LLMCitation> citationByUrl = new LinkedHashMap<>();
-        for (JsonNode outputItem : responseBody.path("output")) {
-            if (!"message".equals(outputItem.path("type").asText())) {
+        JSONArray output = responseBody.get("output") instanceof JSONArray array ? array : null;
+        for (Object value : output == null ? List.of() : output) {
+            if (!(value instanceof JSONObject outputItem) || !"message".equals(outputItem.getString("type"))) {
                 continue;
             }
-            for (JsonNode contentItem : outputItem.path("content")) {
-                if (!"output_text".equals(contentItem.path("type").asText())) {
-                    continue;
-                }
-                if (!contentItem.path("text").isTextual()) {
+            JSONArray items = outputItem.get("content") instanceof JSONArray array ? array : null;
+            for (Object item : items == null ? List.of() : items) {
+                if (!(item instanceof JSONObject contentItem) || !"output_text".equals(contentItem.getString("type"))
+                        || !(contentItem.get("text") instanceof String)) {
                     continue;
                 }
                 hasText = true;
-                content.append(contentItem.path("text").asText());
+                content.append(contentItem.getString("text"));
                 // 引用只从当前文本注解提取，搜索召回来源不计入回答引用。
-                LlmCitationParser.collect(contentItem.path("annotations"), citationByUrl);
+                LlmCitationParser.collect(contentItem.get("annotations"), citationByUrl);
             }
         }
-        // 只有工具调用而没有文本时明确失败，不伪装成成功的空答案。
+        // 3. 只有工具调用而没有文本时明确失败，成功时保留原始元数据和显式空值
         if (!hasText) {
             throw new LLMClientException("Responses 未返回文本回答");
         }
-        return new LLMResponse(content.toString(), List.copyOf(citationByUrl.values()));
+        String reason = responseBody.get("status") instanceof String value ? value : null;
+        // 直接填充网络响应字段，结果对象不负责 JSON 解析。
+	    return assembleLLMResponse(responseBody, content, citationByUrl, reason);
+    }
+
+    @Nonnull
+    private static LLMResponse assembleLLMResponse(JSONObject responseBody, StringBuilder content, Map<String, LLMCitation> citationByUrl, String reason) {
+        LLMResponse result = new LLMResponse(content.toString(), List.copyOf(citationByUrl.values()));
+        result.setModelName(responseBody.get("model") instanceof String value ? value : null);
+        result.setUsageInfo(responseBody.get("usage") == null ? null : JSON.toJSONString(responseBody.get("usage"), SerializerFeature.WriteMapNullValue));
+        result.setFinishReason(reason);
+        result.setRawResponse(JSON.toJSONString(responseBody, SerializerFeature.WriteMapNullValue));
+        return result;
     }
 
     /**

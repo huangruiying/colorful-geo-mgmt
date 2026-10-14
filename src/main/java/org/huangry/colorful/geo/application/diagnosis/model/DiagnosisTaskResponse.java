@@ -1,26 +1,140 @@
 package org.huangry.colorful.geo.application.diagnosis.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.alibaba.fastjson.JSONObject;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 任务接口只展示冻结的非敏感配置，不返回渠道实体或认证密钥。 */
+/**
+ * 诊断任务创建、列表与详情接口的响应，名称和配置取自创建任务时的快照。
+ * 只展示冻结的非敏感配置，不返回渠道实体或认证密钥；顶层空字段不输出到 JSON。
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record DiagnosisTaskResponse(Long id, Long planId, String planName, Long projectId, String projectName,
-        String status, ProgressResponse progress, List<ChannelProgressResponse> channels, JsonNode snapshot,
-        LocalDateTime createdAt, LocalDateTime startedAt, LocalDateTime finishedAt) {
-    /** 从采样结果实时聚合，结束数量为 succeeded + failed。 */
-    public record ProgressResponse(long total, long pending, long running, long succeeded, long failed) {}
-    /** 每个冻结渠道的进度，不使用当前渠道名称替换历史配置。 */
-    public record ChannelProgressResponse(Long channelId, String channelName, ProgressResponse progress) {}
-    /** 沿用管理后台从零开始的页码。 */
-    public record PageResponse<T>(List<T> items, long total, int page, int size) {}
-    /** 采样列表不携带大段正文与原始响应；详情查询才提供这些内容。 */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record ResultResponse(Long id, Long taskId, int questionSortOrder, String questionText,
-            JsonNode questionSnapshot, Long channelId, String channelName, JsonNode channelSnapshot,
-            int repeatIndex, String status, String answerText, JsonNode citations, String modelName,
-            JsonNode usageInfo, Long durationMs, String finishReason, String rawResponse, String errorMessage,
-            LocalDateTime startedAt, LocalDateTime finishedAt) {}
+public record DiagnosisTaskResponse(
+        /** 本轮诊断任务 ID，区别于来源方案 ID。 */
+		Long id,
+		/** 创建本轮任务的来源方案 ID。 */
+		Long planId,
+		/** 创建任务时冻结的方案名称，后续编辑方案不影响历史展示。 */
+		String planName,
+		/** 创建任务时关联的项目 ID。 */
+		Long projectId,
+		/** 创建任务时冻结的项目名称。 */
+		String projectName,
+
+		/** 任务状态：PENDING 待执行、RUNNING 执行中、SUCCEEDED 全部成功、PARTIAL_FAILED 部分失败、FAILED 失败。 */
+		String status,
+		/** 整轮任务的实时采样统计。 */
+		ProgressResponse progress,
+		/** 按冻结渠道分别统计的采样进度，列表与详情均返回。 */
+		List<ChannelProgressResponse> channels,
+		/** 项目、方案、问题与渠道的完整冻结配置；创建和详情返回，任务列表省略。 */
+		JSONObject snapshot,
+
+		/** 数据库记录的任务创建时间。 */
+		LocalDateTime createdAt,
+		/** 整轮任务开始执行的时间，尚未开始时为空。 */
+		LocalDateTime startedAt,
+		/** 整轮任务进入终态的时间，尚未结束时为空。 */
+		LocalDateTime finishedAt
+) {
+	/**
+	 * 从采样结果实时聚合的数量统计，可用于整轮任务或单个渠道。
+	 * 已结束数量为 succeeded + failed，总数为四种采样状态数量之和。
+	 */
+	public record ProgressResponse(
+			/** 当前统计范围内的采样总数，不是问题数或渠道数。 */
+			long total,
+			/** 尚未领取执行的采样数。 */
+			long pending,
+			/** 已领取且尚未保存最终结果的采样数。 */
+			long running,
+			/** 已成功保存有效回答的采样数。 */
+			long succeeded,
+			/** 已记录失败结果的采样数。 */
+			long failed
+	) {
+	}
+
+	/**
+	 * 每个冻结渠道的进度，不使用当前渠道配置替换历史名称。
+	 */
+	public record ChannelProgressResponse(
+			/** 本轮任务选定的渠道 ID。 */
+			Long channelId,
+			/** 创建任务时冻结的渠道名称。 */
+			String channelName,
+			/** 仅统计本渠道在当前任务中的采样。 */
+			ProgressResponse progress
+	) {
+	}
+
+	/**
+	 * 任务列表与采样列表共用的分页结构，沿用管理后台从零开始的页码。
+	 *
+	 * @param <T> 当前列表的单条响应类型
+	 */
+	public record PageResponse<T>(
+			/** 当前页的数据，不包含其他页的记录。 */
+			List<T> items,
+			/** 符合本次筛选条件的记录总数，不是当前页条数。 */
+			long total,
+			/** 当前页码，从 0 开始。 */
+			int page,
+			/** 本次请求的每页条数。 */
+			int size
+	) {
+	}
+
+	/**
+	 * 单次独立采样的摘要或回答详情，采样身份由任务、问题、渠道与重复序号确定。
+	 * 列表仅查询摘要字段；回答、引用、模型元数据和起止时间由详情提供，空字段不输出到 JSON。
+	 */
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	public record ResultResponse(
+			/** 单次采样记录 ID，用于查询这一条回答详情。 */
+			Long id,
+			/** 所属诊断任务 ID。 */
+			Long taskId,
+			/** 创建任务时冻结的问题排序号。 */
+			int questionSortOrder,
+			/** 冻结的问题原文，不拼入项目背景或历史回答。 */
+			String questionText,
+			/** 问题原文、来源、意图、品牌范围和语言等冻结资料。 */
+			JSONObject questionSnapshot,
+			/** 本次采样指定的渠道 ID。 */
+			Long channelId,
+			/** 创建任务时冻结的渠道名称。 */
+			String channelName,
+			/** 渠道、策略、模型及生成参数等冻结配置，不包含独立 API Key。 */
+			JSONObject channelSnapshot,
+			/** 同一问题、同一渠道的独立采样序号，从 1 开始；不是重试次数。 */
+			int repeatIndex,
+
+			/** 采样状态：PENDING 待执行、RUNNING 执行中、SUCCEEDED 成功、FAILED 失败。 */
+			String status,
+			/** 模型回答正文，仅详情返回；未成功时为空。 */
+			String answerText,
+			/** 结构化引用 JSON 数组，仅详情返回；成功但无引用时为 []，未成功时为空。 */
+			Object citations,
+			/** 厂商实际返回的模型标识，仅详情返回；未提供时为空，不以配置值补齐。 */
+			String modelName,
+			/** 厂商用量 JSON，可能包含 Token 和工具调用次数；仅详情返回，未提供时为空。 */
+			Object usageInfo,
+			/** 本次采样处理耗时，单位毫秒；尚无处理结果时为空。 */
+			Long durationMs,
+			/** 厂商返回的结束原因或响应状态，仅详情返回；未提供时为空。 */
+			String finishReason,
+			/** 厂商响应的 JSON 字符串，仅详情返回；不在此对象中解析或脱敏。 */
+			String rawResponse,
+			/** 本地分类后的失败原因，不直接回传远程异常原文；未失败时为空。 */
+			String errorMessage,
+
+			/** 单次采样开始时间，仅详情返回；尚未执行时为空。 */
+			LocalDateTime startedAt,
+			/** 单次采样结束时间，仅详情返回；尚未结束时为空。 */
+			LocalDateTime finishedAt
+	) {
+	}
 }

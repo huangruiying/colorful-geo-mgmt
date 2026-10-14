@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.infrastructure.client.publish.browser.eastmoney;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
@@ -67,7 +67,6 @@ public class EastmoneyBrowserClient {
 	private final PlatformBrowserLoginDao loginDao;
 	private final PlaywrightBrowserComponent browserComponent;
 	private final PublicationBrowserProperties properties;
-	private final ObjectMapper objectMapper;
 	private final ReentrantLock browserLock = new ReentrantLock();
 
 	/**
@@ -247,6 +246,7 @@ public class EastmoneyBrowserClient {
 	 */
 	private void captureDraftId(Response response, AtomicReference<String> draftIdRef) {
 		try {
+			// 1. 同时核对网关地址、HTTP 方法与业务 path，仅处理本次保存草稿响应
 			if (!response.url().contains(TRAN_GET_DATA_PATH)
 					|| !"POST".equalsIgnoreCase(response.request().method())) {
 				return;
@@ -256,20 +256,21 @@ public class EastmoneyBrowserClient {
 			if (requestBody == null || !requestBody.contains(SAVE_DRAFT_API_PATH)) {
 				return;
 			}
+			// 2. 解开网关内嵌 JSON，只接受文本型业务结果，不强制转换容器或空值
 			String body = response.text();
-			JsonNode root = objectMapper.readTree(body);
-			JsonNode rdata = root.path("RData");
-			if (rdata.isMissingNode() || !rdata.isTextual()) {
+			JSONObject root = JSON.parseObject(body);
+			if (root == null || !(root.get("RData") instanceof String rdata)) {
 				return;
 			}
-			JsonNode inner = objectMapper.readTree(rdata.asText());
-			JsonNode draftId = inner.path("draft_id");
-			if (draftId.isTextual() && !draftId.asText().isBlank()) {
-				draftIdRef.set(draftId.asText());
-				log.info("东方财富SaveDraft响应返回草稿ID={}", draftId.asText());
+			// 3. 只记录明确的草稿标识，不能把网关 HTTP 成功当作草稿已创建
+			JSONObject inner = JSON.parseObject(rdata);
+			if (inner != null && inner.get("draft_id") instanceof String draftId && !draftId.isBlank()) {
+				draftIdRef.set(draftId);
+				log.info("东方财富SaveDraft响应返回草稿ID={}", draftId);
 			}
 		} catch (Exception exception) {
-			log.warn("解析东方财富SaveDraft响应草稿ID失败: {}", exception.getMessage());
+			// 监听器解析失败不打断页面核验；只记录类型，避免解析异常带出平台响应
+			log.warn("解析东方财富SaveDraft响应草稿ID失败，exceptionType={}", exception.getClass().getSimpleName());
 		}
 	}
 }

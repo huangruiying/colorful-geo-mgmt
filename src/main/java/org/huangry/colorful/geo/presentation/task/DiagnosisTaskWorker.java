@@ -1,5 +1,6 @@
 package org.huangry.colorful.geo.presentation.task;
 
+import com.alibaba.fastjson.JSONObject;
 import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -166,7 +167,7 @@ public class DiagnosisTaskWorker {
 			try {
 				// 3. 按冻结渠道校验当前配置，只发送本条问题，不携带背景或历史回答。
 				var channel = service.prepareChannel(sample);
-				String prompt = snapshots.read(sample.getQuestionSnapshot()).path("text").asText();
+				String prompt = ((JSONObject) snapshots.read(sample.getQuestionSnapshot())).getString("text");
 				response = llmClient.query(new LLMQueryRequest(prompt), channel);
 				// 返回空白正文视为采样失败，不把空回答保存为成功。
 				if (response == null || response.getContent().isBlank()) {

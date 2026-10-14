@@ -1,6 +1,10 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy.template;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+import jakarta.annotation.Nonnull;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMCitation;
@@ -34,7 +38,7 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
      * 提交独立问题并直接读取 JSON，保留回答中的结构化引用注解。
      * @param request 当前问题
      * @param channel 渠道连接配置
-     * @return 正文及接口明确返回的引用，无引用时为空列表
+     * @return 正文、结构化引用及厂商元数据，无引用时为空列表
      */
     @Override
     public final LLMResponse query(LLMQueryRequest request, GeoLlmChannelEntity channel) {
@@ -45,19 +49,19 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
         }
         Map<String, Object> body = buildRequestBody(request, channel);
 
-        // 2. 密钥仅放入请求头，超时与证书策略沿用已有客户端工厂。
+        // 2. 密钥仅放入请求头，超时与证书策略沿用统一 HTTP 客户端。
         String baseUrl = channel.getBaseUrl().replaceAll("/+$", "");
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(channel.getApiKey().strip());
         headers.setContentType(MediaType.APPLICATION_JSON);
-        JsonNode response = llmRestTemplate
-                .postForObject(baseUrl + "/chat/completions", new HttpEntity<>(body, headers), JsonNode.class);
+        String response = llmRestTemplate
+                .postForObject(baseUrl + "/chat/completions", new HttpEntity<>(body, headers), String.class);
 
         // 3. 响应结构不合法明确报错，不能把空响应伪装成成功。
-        if (response == null) {
+        if (response == null || response.isBlank() || "null".equals(response.strip())) {
             throw new LLMClientException("Chat Completions 返回空响应");
         }
-        return parseResponse(response);
+        return parseResponse(JSON.parseObject(response));
     }
 
     /**
@@ -82,17 +86,32 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
     /**
      * 解析首个回答和 OpenAI 标准 annotations，不合并不同候选回答的引用。
      * @param response 原始响应
-     * @return 首个回答及按链接去重的结构化引用
+     * @return 首个回答、按链接去重的引用及实际响应元数据
      */
-    LLMResponse parseResponse(JsonNode response) {
-        // 只采用首个候选的文本，避免把多个回答合成一次采样结果。
-        JsonNode message = response.path("choices").path(0).path("message");
-        if (!message.path("content").isTextual()) {
+    LLMResponse parseResponse(JSONObject response) {
+        // 1. 只采用首个候选的文本，缺失或非文本明确失败，避免合并多个采样结果
+        JSONArray choices = response.get("choices") instanceof JSONArray array ? array : null;
+        JSONObject first = choices == null || choices.isEmpty() || !(choices.get(0) instanceof JSONObject)
+                ? null : choices.getJSONObject(0);
+        JSONObject message = first != null && first.get("message") instanceof JSONObject object ? object : null;
+        if (message == null || !(message.get("content") instanceof String)) {
             throw new LLMClientException("Chat Completions 未返回文本回答");
         }
-        // 引用仅取当前回答的注解，正文 URL 不作为引用来源。
+        // 2. 引用仅取当前回答的注解，正文 URL 不作为引用来源
         Map<String, LLMCitation> citations = new LinkedHashMap<>();
-        LlmCitationParser.collect(message.path("annotations"), citations);
-        return new LLMResponse(message.path("content").asText(), List.copyOf(citations.values()));
+        LlmCitationParser.collect(message.get("annotations"), citations);
+        String reason = first.get("finish_reason") instanceof String value ? value : null;
+        // 3. 元数据保留厂商原始字段及显式空值，结果对象不负责 JSON 解析
+	    return assembleLLMResponse(response, message, citations, reason);
+    }
+
+    @Nonnull
+    private static LLMResponse assembleLLMResponse(JSONObject response, JSONObject message, Map<String, LLMCitation> citations, String reason) {
+        LLMResponse result = new LLMResponse(message.getString("content"), List.copyOf(citations.values()));
+        result.setModelName(response.get("model") instanceof String value ? value : null);
+        result.setUsageInfo(response.get("usage") == null ? null : JSON.toJSONString(response.get("usage"), SerializerFeature.WriteMapNullValue));
+        result.setFinishReason(reason);
+        result.setRawResponse(JSON.toJSONString(response, SerializerFeature.WriteMapNullValue));
+        return result;
     }
 }
