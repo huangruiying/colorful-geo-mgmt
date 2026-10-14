@@ -34,7 +34,7 @@
 
 ## 3. 输出契约
 
-按 `workflow.md` 第 7 节五段输出。**Risks 段必须含严重度**（CRITICAL / HIGH / MEDIUM / LOW），CRITICAL 必须独占一行并标 [BLOCK]。
+按 workflow.md 报告结果、证据和限制。**Risks 段必须含严重度**（CRITICAL / HIGH / MEDIUM / LOW），CRITICAL 必须独占一行并标 [BLOCK]。
 
 ---
 

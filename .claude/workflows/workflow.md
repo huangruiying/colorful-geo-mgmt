@@ -63,168 +63,29 @@
 
 ---
 
-# 场景路由规则（Dispatch）
+# Workflow 索引与加载时机
 
-路由规则以 `CLAUDE.md §3` 场景自动识别表为权威来源（已自动加载），此处不重复维护，避免两处漂移。
+| 流程 | 目标与触发 | 入口 |
+|---|---|---|
+| 公共代码变更 | 生成、修复、重构，注释及架构验收 | [代码变更](code-change-flow.md) |
+| A | 新需求、功能或接口设计；需求确认后进入公共代码变更 | [功能交付](feature-delivery-flow.md) |
+| B | 安全、注入、依赖风险 | [安全审查](security-audit-flow.md) |
+| C | 告警、故障、慢 SQL、配置与链路排障 | [故障响应](incident-response-flow.md) |
+| D | 技债识别、治理规划与实施 | [技债治理](tech-debt-flow.md) |
+| E | 已有改动的重构收尾 | [重构收尾](refactor-finalize-flow.md) |
+| F | 用户要求全量测试、真实接口回归、联调报告 | [运行时回归](runtime-api-test-flow.md) |
 
----
+## 专题角色懒加载
 
-# 标准 Workflow
+- 普通知识问题只读相关代码，必要时读 22；不展开实现流程。
+- 架构设计读 02，取舍读 24/25，表设计读 27，文档生成读 07。
+- 其他 Agent 仅在当前流程实际进入对应职责时读取。
+- 工程规则集中在 rules；角色文件只声明职责、执行动作与结果，不复制规则正文。
+- 编码和评审使用同一份 [注释与架构验收步骤](code-change-flow.md)，不能各自维护不同标准。
+- 多候选主流程选择见 [routing-policy.md](routing-policy.md)，不强制用户选择内部 Agent 编号。
+- 用户未要求创建任务或并行代理时，以当前任务内顺序切换职责完成工作。
 
-> 每条 workflow 的主表只放"短代号 + 链路图"，详细阶段定义、输出契约、严守边界请打开各自的 `<short-code>-flow.md`。多候选 / 自定义编排规则见 `routing-policy.md`。
+## 输出要求
 
-## Workflow A 功能交付链 feature-delivery
-
-详见 `workflows/feature-delivery-flow.md`。
-
-```text
-01 requirements-breakdown
-↓
-03 api-contract-design
-↓
-04 code-generation
-↓
-06 unit-test-gen
-↓
-09 code-review
-↓
-如用户要求全量测试 → 31 runtime-api-test
-↓
-21 pr-summary
-```
-
----
-
-## Workflow B 安全审查链 security-audit
-
-详见 `workflows/security-audit-flow.md`。
-
-```text
-08 vuln-scan
-├─→10 injection-xss
-├─→11 dependency-audit
-└─→09 code-review
-```
-
----
-
-## Workflow C 线上故障链 incident-response
-
-详见 `workflows/incident-response-flow.md`。
-
-```text
-15 alert-triage
-↓
-14 log-rca
-├─→16 slow-sql
-├─→17 config-drift
-├─→28 distributed-troubleshooting
-└─→09 code-review
-↓
-23 oncall-knowledge
-```
-
----
-
-## Workflow D 技债治理链 tech-debt
-
-详见 `workflows/tech-debt-flow.md`。
-
-```text
-20 tech-debt
-├─→05 refactor
-│   ↓
-│  06 unit-test-gen
-│   ↓
-│  09 code-review
-├─→11 dependency-audit
-└─→02 architecture-review
-↓
-21 pr-summary
-```
-
----
-
-## Workflow E 重构收尾链 refactor-finalize
-
-详见 `workflows/refactor-finalize-flow.md`。
-
-```text
-P1 消 IDE 警告
-↓
-P2 抽方法合并
-↓
-P3 横向铺开
-↓
-06 unit-test-gen
-↓
-09 code-review
-```
-
----
-
-## Workflow F 运行时接口回归链 runtime-api-test
-
-详见 `workflows/runtime-api-test-flow.md`。
-
-```text
-31 runtime-api-test
-├─→14 log-rca
-├─→04 code-generation
-├─→05 refactor
-↓
-31 runtime-api-test
-↓
-21 pr-summary
-```
-
----
-
-# Agent 调度原则
-
-简单问题：
-
-单 Agent 处理。
-
-复杂问题：
-
-必须多 Agent 串联。
-
-跨域问题：
-
-优先 Workflow，而不是单 Agent。
-
----
-
-# 输出契约（所有 Agent 统一）
-
-统一输出：
-
-## Selected Agent(s)
-
-选择了哪些 Agent
-
-## Findings
-
-发现
-
-## Risks
-
-风险
-
-格式：
-
-[严重度:CRITICAL/HIGH/MEDIUM/LOW]
-文件:行号
-问题
-修复建议
-
-## Recommended Actions
-
-建议动作
-
-## Next Agent
-
-建议下一跳 Agent
-
----
+按用户任务报告结果、证据和限制；代码变更须给出公共流程要求的验收记录。
+不强制每次输出五个英文栏目或 Next Agent，不在回复中重复路由和规则正文。

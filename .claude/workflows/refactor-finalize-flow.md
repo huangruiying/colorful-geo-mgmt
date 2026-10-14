@@ -1,5 +1,7 @@
 # Workflow E —— 重构收尾五段链（refactor-finalize）
 
+> 代码实现、适用规则加载、逐方法注释审计和架构验收统一执行 [代码变更流程](code-change-flow.md)。本文件只维护本专题的前后阶段，不复制公共验收标准；按当前阶段逐个加载角色，角色链不要求创建多代理。
+
 > 适用场景：单文件 / 小范围已经完成"加注释 + 整结构"的初稿后，要把改动收尾到"可合入"水位。
 >
 > 触发关键词："重构收尾 / refactor-finalize / 这个文件改完后顺手做完它 / 把这套都执行了"
@@ -94,7 +96,7 @@ P6 固化（仅本 workflow 自身首跑时做一次）
 **动作**：
 - 加载 `.claude/agents/guardians/09-code-review.md`
 - 按其第 5 节清单逐项核（可读性 / 命名 / 注释 / 日志 / 异常 / 测试）
-- 按 workflow.md 输出契约出五段：Selected Agent(s) / Findings / Risks / Recommended Actions / Next Agent
+- 按 workflow.md 报告结果、证据和限制，并附代码变更流程的验收记录
 
 **验收**：无 CRITICAL / HIGH 级 Risk；LOW 级风险全部有"修复建议或为什么不修"的明确说明。
 
@@ -116,7 +118,7 @@ P6 固化（仅本 workflow 自身首跑时做一次）
 P{n} {阶段名} ✅ / ❌（含原因）
 ```
 
-最终回复必须包含 workflow.md 第 7 节的五段。
+最终回复必须包含结果、验证和限制；代码验收按 code-change-flow.md 执行。
 
 ---
 

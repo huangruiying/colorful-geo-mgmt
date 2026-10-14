@@ -1,5 +1,7 @@
 # Workflow A —— 功能交付链（feature-delivery）
 
+> 代码实现、适用规则加载、逐方法注释审计和架构验收统一执行 [代码变更流程](code-change-flow.md)。本文件只维护本专题的前后阶段，不复制公共验收标准；按当前阶段逐个加载角色，角色链不要求创建多代理。
+
 > 适用场景：新需求 / Story / 新功能 —— 从需求拆解到 PR 摘要的完整交付链。
 >
 > 触发关键词："加个 X 功能 / 想做 X / 新需求 / 实现 X / 新增接口 / 接口文档"
@@ -44,7 +46,7 @@
 
 ## 3. 输出契约
 
-按 `workflow.md` 第 7 节五段输出：Selected Agent(s) / Findings / Risks / Recommended Actions / Next Agent。
+按 workflow.md 报告结果、证据和限制。
 
 ---
 

@@ -1,7 +1,7 @@
 # 重构规范
 
 > 本文件聚焦重构专有规则（§1-§4 主流程/职责/长度/终止，§11-§12 生命周期/状态机，§16 代码组织，§20-§21 AI 生成优先级与速查 HARD RULES）。
-> 其他规范见专题文件（已自动加载）：命名 → `naming.md` / 注释 → `comment.md` / 日志 → `logging.md` / 异常 → `error-handling.md` / 架构 → `architecture.md` / 范围约束 → `code-scope.md`
+> 其他规范见专题文件（按需读取）：命名 → `naming.md` / 注释 → `comment.md` / 日志 → `logging.md` / 异常 → `error-handling.md` / 架构 → `architecture.md` / 范围约束 → `code-scope.md`
 
 核心原则：
 
@@ -93,25 +93,25 @@
 
 # 7. 注释规范
 
-见 `rules/comment.md`（原则）及 `rules/comments/` 下语言特化示例，已自动加载。
+见 `rules/comment.md`（原则）及 `rules/comments/` 下语言特化示例，按需读取。
 
 ---
 
 # 8. 文件头注释规范
 
-见 `rules/comment.md §3.1` 及 `rules/comments/comment-java.md` / `rules/comments/comment-python.md`，已自动加载。
+见 `rules/comment.md` 的各层说明 及 `rules/comments/comment-java.md` / `rules/comments/comment-python.md`，按需读取。
 
 ---
 
 # 9. 类注释规范
 
-见 `rules/comment.md §3.2` 及 `rules/comments/comment-java.md` / `rules/comments/comment-python.md`，已自动加载。
+见 `rules/comment.md` 的各层说明 及 `rules/comments/comment-java.md` / `rules/comments/comment-python.md`，按需读取。
 
 ---
 
 # 10. 方法注释规范
 
-见 `rules/comment.md §3.3` 及 `rules/comments/comment-java.md` / `rules/comments/comment-python.md`，已自动加载。
+见 `rules/comment.md` 的各层说明 及 `rules/comments/comment-java.md` / `rules/comments/comment-python.md`，按需读取。
 
 ---
 
@@ -129,7 +129,7 @@
 
 # 13. 日志规范
 
-见 `rules/logging.md`（已自动加载），日志级别、必打场景、禁止打印内容以 logging.md 为准。
+见 `rules/logging.md`（按需读取），日志级别、必打场景、禁止打印内容以 logging.md 为准。
 
 ---
 
@@ -153,19 +153,19 @@
 
 # 17. 分层规范
 
-见 `rules/architecture.md`（已自动加载），controller/service/domain/repository 职责分层以 architecture.md 为准。
+见 `rules/architecture.md`（按需读取），controller/service/domain/repository 职责分层以 architecture.md 为准。
 
 ---
 
 # 18. 异常处理规范
 
-见 `rules/error-handling.md`（已自动加载），禁止吞异常、捕获明确类型、保留原始 cause 以 error-handling.md 为准。
+见 `rules/error-handling.md`（按需读取），禁止吞异常、捕获明确类型、保留原始 cause 以 error-handling.md 为准。
 
 ---
 
 # 19. 禁止过度设计
 
-见 `rules/code-scope.md §2.3~§2.4`（已自动加载），禁止为设计模式而设计、过度抽象、过度封装、无意义分层。
+见 `rules/code-scope.md §2.3~§2.4`（按需读取），禁止为设计模式而设计、过度抽象、过度封装、无意义分层。
 
 ---
 

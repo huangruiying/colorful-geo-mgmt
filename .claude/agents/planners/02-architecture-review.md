@@ -79,7 +79,7 @@
 
 ## 6. 输出契约
 
-按 workflow.md 统一段落输出，本 Agent 重点填充：
+按 workflow.md 的结果与证据要求输出，重点包含以下内容（栏目名不强制）：
 
 - **Findings**：按维度逐条列出现状描述
 - **Risks**：每条标注严重度 [CRITICAL/HIGH/MEDIUM/LOW] + 影响范围

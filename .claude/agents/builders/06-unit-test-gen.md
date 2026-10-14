@@ -44,13 +44,13 @@
 
 ## 5. 规范参考
 
-单元测试规范详见 `rules/testing.md`（已自动加载，无需重复 Read）。真实接口回归见 `rules/runtime-api-test.md`，由 31 负责。
+单元测试规范详见 `rules/testing.md`（按需读取，未读正文必须补读）。真实接口回归见 `rules/runtime-api-test.md`，由 31 负责。
 
 ---
 
 ## 6. 输出契约
 
-按 workflow.md 统一段落输出，本 Agent 重点填充：
+按 workflow.md 的结果与证据要求输出，重点包含以下内容（栏目名不强制）：
 
 - **Findings**：新增测试清单 + 用例命名
 - **Risks**：被 mock 掩盖的风险、未覆盖路径
@@ -61,7 +61,7 @@
 
 ## 7. Mock 准则
 
-详见 `rules/testing.md §7`（已自动加载），以 testing.md 为唯一来源。
+详见 `rules/testing.md §7`（按需读取），以 testing.md 为唯一来源。
 
 ---
 

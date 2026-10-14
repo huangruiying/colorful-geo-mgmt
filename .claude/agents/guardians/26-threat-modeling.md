@@ -66,7 +66,7 @@
 
 ## 6. 输出契约
 
-按 workflow.md 统一段落输出，本 Agent 重点填充：
+按 workflow.md 的结果与证据要求输出，重点包含以下内容（栏目名不强制）：
 
 - **Findings**：DFD + STRIDE 威胁清单
 - **Risks**：[严重度]，含触达条件

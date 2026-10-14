@@ -92,7 +92,7 @@
 
 ## 6. 输出契约
 
-按 workflow.md 统一段落输出，本 Agent 重点填充：
+按 workflow.md 的结果与证据要求输出，重点包含以下内容（栏目名不强制）：
 
 - **Findings**：完整接口定义（OpenAPI 或等价表格）；如需交付接口文档，按 `rules/api-doc.md` 输出
 - **Risks**：兼容性风险、字段歧义、错误码冲突

@@ -31,18 +31,18 @@
 参考 workflow.md 与 CLAUDE.md：
 
 - 简单问题：单 Agent
-- 复杂问题：多 Agent 串联
+- 复杂问题：按 Workflow 顺序执行各职责，不强制启动多个代理
 - 跨域问题：Workflow 优先
 - 模糊问题：默认从 01 开始
-- 风险升级追加规则：见 `CLAUDE.md §6`
+- 风险升级追加规则：见 `workflow.md 的专题角色加载说明`
 
 ---
 
 ## 4. 场景识别表
 
-场景识别表以 `CLAUDE.md §3` 为权威来源（已自动加载），30-agent-router 不单独维护独立路由表，避免与 CLAUDE.md 漂移。
+场景识别表以 `CLAUDE.md §3` 为权威来源（按需读取），30-agent-router 不单独维护独立路由表，避免与 CLAUDE.md 漂移。
 
-本 Agent 仅负责：**多 Agent 命中同一阶段时的仲裁**，以及"入口路由选定 workflow 后"的内部调度（见 CLAUDE.md §5.5.6）。
+本 Agent 仅负责：**多 Agent 命中同一阶段时的仲裁**，以及"入口路由选定 workflow 后"的内部调度（见 workflows/routing-policy.md）。
 
 ---
 
@@ -59,7 +59,7 @@
 
 ## 6. 输出契约
 
-按 workflow.md 统一段落输出，本 Agent 重点填充：
+按 workflow.md 的结果与证据要求输出，重点包含以下内容（栏目名不强制）：
 
 - **Selected Agent(s)**：本次选定的 Agent 或 Workflow
 - **Findings**：路由依据（关键词 / 风险评估）
