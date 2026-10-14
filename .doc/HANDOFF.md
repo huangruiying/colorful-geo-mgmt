@@ -4,6 +4,10 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-15 为 Responses query 的 stream 分支补说明：显式开关及 null 安全、SSE 与 JSON 媒体类型、持续读事件的目的与超时边界、execute 两类回调、同步读取和响应/连接生命周期。仅注释，无逻辑改动；完整 query 方法注释复核及限定差异检查通过，不新增或重复执行行为测试。
+
+- 2026-10-15 任务详情布局：重新发起按钮移至标题栏右侧，与关闭并排；重发说明移至概览下，仅 FAILED/PARTIAL_FAILED 时与按钮同步显示，执行中不留空操作区。概览取消顶部多余外边距，窄屏按钮允许换行，CSS/JS 版本统一 20261015-restart2。修改 openDetail/refreshDetail 完整方法复核，仅增加说明显隐联动，无接口行为变化；JS 语法和限定文件差异检查通过，未浏览器视觉验证、未重启或提交。
+
 - 2026-10-15 当前任务重新发起：新增 POST /diagnosis-tasks/{id}/restart，任务详情增加「重新发起」。仅 FAILED/PARTIAL_FAILED 主任务可操作；事务内 FOR UPDATE 锁住主记录，非 SUCCEEDED 明细恢复 PENDING 并显式清空调用结果/原因/耗时/开始结束时间，主任务恢复 PENDING 并清空开始结束时间。保留成功结果、原 ID/创建时间/提交标识和所有冻结配置，不直接调用模型，后台按原领取流程执行；渠道变更仍按冻结校验拒绝。并发重复请求等待主锁后会因活动状态被拒绝。编译、26 项诊断相关独立测试（新增状态保护、SQL 条件、缺失/空重试、HTTP 路由及错误契约）、JS 语法和限定文件 diff 检查通过；未验证真实数据库事务/锁并发、未浏览器联调、未重启、未提交。
 
   注释/架构逐方法复核：GeoDiagnosisTaskService#restart（三段：锁主任务与终态校验→按任务排除成功并清空旧数据→主记录同事务排队，资源/锁生命周期与无模型调用已说明）；DiagnosisTaskBusiness#restart（重排后回读，无新事务）；MgmtDiagnosisTaskController#restart（当前 ID 路由，复用错误映射）；JS refreshDetail/openDetail/重发事件（按钮状态、请求禁重、刷新保护与错误显示）；新增四个测试方法均说明业务边界。全部通过；沿用 presentation→application→domain→DAO，无新表、线程或抽象层。
