@@ -19,6 +19,58 @@ import static org.mockito.Mockito.*;
 
 /** 创建诊断结果与配置冻结测试；事务原子性、状态流转另用真实 MySQL/API 验证。 */
 class GeoDiagnosisTaskServiceTest {
+    /** 非成功明细按任务隔离清空，成功状态排除，主任务同时回到待执行。 */
+    @Test
+    void shouldRestartOnlyNonSuccessfulResultsOfFinishedTask() {
+        var task = new GeoDiagnosisPlanExecRecordEntity();
+        task.setId(27L); task.setStatus("PARTIAL_FAILED");
+        when(tasks.selectOne(any())).thenReturn(task);
+        when(results.update(isNull(), any())).thenAnswer(invocation -> {
+            var update = (com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<?>) invocation.getArgument(1);
+            String where = update.getSqlSegment();
+            assertTrue(where.contains("exec_record_id ="));
+            assertTrue(where.contains("status <>"));
+            assertTrue(update.getParamNameValuePairs().containsValue(27L));
+            assertTrue(update.getParamNameValuePairs().containsValue("SUCCEEDED"));
+            assertTrue(update.getParamNameValuePairs().containsValue("PENDING"));
+            assertTrue(update.getSqlSet().contains("error_message="));
+            assertTrue(update.getSqlSet().contains("raw_response="));
+            assertTrue(update.getSqlSet().contains("finished_at="));
+            assertFalse(update.getSqlSet().contains("channel_snapshot="));
+            return 2;
+        });
+        when(tasks.update(isNull(), any())).thenReturn(1);
+        service.restart(27L);
+        verify(tasks).update(isNull(), any());
+        verify(results).update(isNull(), any());
+    }
+
+    /** 活动任务、成功任务不能重新排队，避免重复调用和覆盖成功结果。 */
+    @Test
+    void shouldRejectRestartOfActiveOrSuccessfulTask() {
+        for (String status : List.of("PENDING", "RUNNING", "SUCCEEDED")) {
+            var task = new GeoDiagnosisPlanExecRecordEntity();
+            task.setId(27L); task.setStatus(status);
+            when(tasks.selectOne(any())).thenReturn(task);
+            assertThrows(IllegalArgumentException.class, () -> service.restart(27L));
+        }
+        verify(results, never()).update(isNull(), any());
+        verify(tasks, never()).update(isNull(), any());
+    }
+
+    /** 缺失任务不写明细，已结束但无可重试结果也不能变成空排队任务。 */
+    @Test
+    void shouldRejectMissingTaskAndEmptyRestart() {
+        when(tasks.selectOne(any())).thenReturn(null);
+        assertThrows(NoSuchElementException.class, () -> service.restart(999L));
+        var task = new GeoDiagnosisPlanExecRecordEntity();
+        task.setId(27L); task.setStatus("FAILED");
+        when(tasks.selectOne(any())).thenReturn(task);
+        when(results.update(isNull(), any())).thenReturn(0);
+        assertThrows(IllegalArgumentException.class, () -> service.restart(27L));
+        verify(tasks, never()).update(isNull(), any());
+    }
+
     private final GeoDiagnosisTaskService service = new GeoDiagnosisTaskService();
     private final GeoDiagnosisPlanExecRecordDao tasks = mock(GeoDiagnosisPlanExecRecordDao.class);
     private final GeoDiagnosisPlanExecRecordResultDao results = mock(GeoDiagnosisPlanExecRecordResultDao.class);

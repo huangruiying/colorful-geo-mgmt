@@ -92,7 +92,7 @@
                 </div>
                 <div class="task-pagination"><button type="button" class="refresh-button" id="task-previous">上一页</button><span id="task-page-info"></span><button type="button" class="refresh-button" id="task-next">下一页</button></div>
             </section>
-            <p class="help">后台按创建顺序逐条执行诊断，关闭页面不影响执行。失败不自动重试；重新发起会执行方案中的全部问题，并保留原任务。</p>
+            <p class="help">后台自动执行待诊断记录，关闭页面不影响执行。失败不自动重试；任务详情中的「重新发起」只重做非成功结果，成功回答保留。</p>
         </main>
     </div>
 </div>
@@ -110,6 +110,7 @@
     <div class="panel-heading"><div><h2 id="task-detail-title">查看诊断任务</h2><p id="detail-refresh-note">执行中的任务每 3 秒刷新。</p></div><button type="button" class="refresh-button" id="close-detail">关闭</button></div>
     <div class="task-dialog-body">
         <div id="detail-error" class="notice error" role="alert" hidden></div>
+        <div class="task-actions"><button type="button" class="primary-button" id="restart-task" hidden>重新发起</button><span class="help">仅重做本任务的非成功结果；原失败原因及耗时会清空，成功回答与冻结配置保留。</span></div>
         <div id="task-overview" class="task-overview"></div>
         <div id="channel-progress" class="task-channel-progress"></div>
         <div class="task-snapshot"><button type="button" class="refresh-button" id="view-snapshot" disabled>查看本轮冻结配置</button><span class="help">只读查看本轮使用的项目、问题与模型配置</span></div>
@@ -130,6 +131,6 @@
     <div class="panel-heading"><div><h2 id="information-title">查看详情</h2><p id="information-note" class="help"></p></div><button type="button" class="refresh-button" id="close-information">返回</button></div>
     <div id="information-content" class="task-dialog-body"></div>
 </dialog>
-<script src="./diagnosis-tasks.js?v=20261014-terms1" defer></script>
+<script src="./diagnosis-tasks.js?v=20261015-restart1" defer></script>
 </body>
 </html>

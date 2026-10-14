@@ -15,6 +15,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** 接口缺失与安全错误响应测试，不把 SQL、认证或远程原文返回给页面。 */
 class MgmtDiagnosisTaskControllerTest {
+    /** 重新发起使用当前任务 ID，活动任务拒绝及缺失任务按既有错误契约返回。 */
+    @Test
+    void shouldExposeRestartForCurrentTask() throws Exception {
+        var business = mock(DiagnosisTaskBusiness.class);
+        var controller = new MgmtDiagnosisTaskController();
+        ReflectionTestUtils.setField(controller, "diagnosisTaskBusiness", business);
+        var mvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mvc.perform(post("/diagnosis-tasks/27/restart")).andExpect(status().isOk());
+        verify(business).restart(27L);
+        when(business.restart(27L)).thenThrow(new IllegalArgumentException("任务执行中"));
+        mvc.perform(post("/diagnosis-tasks/27/restart")).andExpect(status().isBadRequest());
+        when(business.restart(999L)).thenThrow(new NoSuchElementException("诊断任务不存在"));
+        mvc.perform(post("/diagnosis-tasks/999/restart")).andExpect(status().isNotFound());
+    }
+
     /** 缺失任务和诊断结果对应 404，不把失败包装成成功。 */
     @Test
     void shouldReturnNotFoundForMissingTaskAndCrossTaskResult() throws Exception {

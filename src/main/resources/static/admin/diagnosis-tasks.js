@@ -4,6 +4,7 @@
     const createDialog = byId("create-task-dialog"), detailDialog = byId("task-detail-dialog");
     const answerDialog = byId("answer-dialog"), informationDialog = byId("information-dialog");
     let frozenSnapshot = null;
+    let restarting = false;
     const labels = {PENDING:"待执行", RUNNING:"执行中", SUCCEEDED:"成功", PARTIAL_FAILED:"部分失败", FAILED:"失败"};
     let page = 0, resultPage = 0, taskId = null, preview = null, channels = [], creating = false;
     let listRevision = 0, detailRevision = 0, previewRevision = 0, listTimer = null, detailTimer = null;
@@ -153,6 +154,7 @@
         detailRevision++; frozenSnapshot = null; byId("view-snapshot").disabled = true; show("detail-error", "");
         byId("result-status").value = ""; byId("result-channel").replaceChildren(new Option("全部渠道", ""));
         byId("task-detail-title").textContent = "查看诊断任务 #" + id;
+        byId("restart-task").hidden = true;
         byId("task-overview").replaceChildren(); byId("channel-progress").replaceChildren();
         byId("result-list").replaceChildren();
         detailDialog.showModal(); document.body.classList.add("task-dialog-open");
@@ -163,6 +165,8 @@
         const id = taskId, revision = ++detailRevision;
         const task = await request("/diagnosis-tasks/" + id);
         if (!detailDialog.open || taskId !== id || revision !== detailRevision) return;
+        byId("restart-task").hidden = !["FAILED", "PARTIAL_FAILED"].includes(task.status);
+        byId("restart-task").disabled = restarting;
         overview(byId("task-overview"), [["诊断方案", task.planName], ["关联项目", task.projectName], ["任务状态", labels[task.status]],
             ["诊断进度", (task.progress.succeeded + task.progress.failed) + " / " + task.progress.total],
             ["成功 / 失败", task.progress.succeeded + " / " + task.progress.failed], ["创建时间", time(task.createdAt)],
@@ -178,7 +182,7 @@
         }
         byId("result-channel").value = channelValue;
         frozenSnapshot = task.snapshot; byId("view-snapshot").disabled = !frozenSnapshot;
-        byId("detail-refresh-note").textContent = active(task.status) ? "每 3 秒刷新进度，关闭页面不影响后台执行。" : "本轮已结束；失败诊断结果保留原因，不自动重发。";
+        byId("detail-refresh-note").textContent = active(task.status) ? "每 3 秒刷新进度，关闭页面不影响后台执行。" : task.status === "SUCCEEDED" ? "本轮已全部成功。" : "本轮已结束；可点击「重新发起」重做非成功结果，成功回答保留。";
         // 阅读子弹窗期间保留回答列表节点与滚动位置，关闭后继续刷新。
         if (!answerDialog.open && !informationDialog.open) await loadResults(id, revision);
         if (!detailDialog.open || taskId !== id || revision !== detailRevision) return;
@@ -314,6 +318,25 @@
         informationDialog.showModal(); content.scrollTop = 0;
     }
     byId("new-task").addEventListener("click", () => openCreate().catch(fail));
+    byId("restart-task").addEventListener("click", async () => {
+        if (restarting || taskId == null) return;
+        const id = taskId;
+        restarting = true; byId("restart-task").disabled = true; show("detail-error", "");
+        try {
+            await request("/diagnosis-tasks/" + id + "/restart", {method:"POST"});
+            show("task-success", "任务 #" + id + " 的非成功结果已重新排队，成功回答保留。");
+            if (detailDialog.open && taskId === id) {
+                resultPage = 0; byId("result-status").value = "";
+                await refreshDetail();
+            }
+            await loadList();
+        } catch (error) {
+            if (detailDialog.open && taskId === id) show("detail-error", error.message);
+            else fail(error);
+        } finally {
+            restarting = false; byId("restart-task").disabled = false;
+        }
+    });
     byId("create-plan").addEventListener("change", () => loadPreview().catch(error => show("create-error", error.message)));
     byId("create-task-form").addEventListener("submit", createTask);
     byId("close-create").addEventListener("click", () => { if (!creating) createDialog.close(); });
