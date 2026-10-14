@@ -21,6 +21,7 @@ import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMS
 
 /**
  * 生成和读取诊断任务的配置快照。
+ * 创建诊断任务时，冻结相关的配置。
  * <p>
  * 创建任务时冻结项目、方案、问题及渠道配置，供历史展示和执行前的配置比对使用。
  * 显式选择快照字段以排除独立 API Key；地址去除认证、查询串和片段，完整地址仅保留摘要供变化比对。
