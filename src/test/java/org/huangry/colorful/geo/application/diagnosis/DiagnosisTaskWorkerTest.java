@@ -9,6 +9,7 @@ import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordResultEntity;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
+import org.huangry.colorful.geo.presentation.task.DiagnosisTaskWorker;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -20,6 +21,37 @@ import static org.mockito.Mockito.*;
 
 /** 执行故障隔离测试：模型失败继续采样，保存失败停止外部调用。 */
 class DiagnosisTaskWorkerTest {
+    /** 多次启动事件只提交一个轮询，停机不会关闭统一线程池。 */
+    @Test
+    void shouldSubmitPollingOnceToSharedExecutor() {
+        var worker = new DiagnosisTaskWorker();
+        var executor = mock(org.springframework.core.task.TaskExecutor.class);
+        ReflectionTestUtils.setField(worker, "enabled", true);
+        ReflectionTestUtils.setField(worker, "taskExecutor", executor);
+        worker.start();
+        worker.start();
+        worker.close();
+        worker.start();
+        verify(executor, times(1)).execute(any(Runnable.class));
+        verifyNoMoreInteractions(executor);
+    }
+
+    /** 排队期间关闭的任务不执行数据库轮询，避免停机后领取任务。 */
+    @Test
+    void shouldSkipQueuedPollingAfterClose() {
+        var worker = new DiagnosisTaskWorker();
+        var executor = mock(org.springframework.core.task.TaskExecutor.class);
+        var service = mock(GeoDiagnosisTaskService.class);
+        ReflectionTestUtils.setField(worker, "enabled", true);
+        ReflectionTestUtils.setField(worker, "taskExecutor", executor);
+        ReflectionTestUtils.setField(worker, "service", service);
+        worker.start();
+        var runnable = org.mockito.ArgumentCaptor.forClass(Runnable.class);
+        verify(executor).execute(runnable.capture());
+        worker.close();
+        runnable.getValue().run();
+        verifyNoInteractions(service);
+    }
     /** 空白回答不算成功采样，不自动重试，也不落成功响应。 */
     @Test
     void shouldRecordBlankAnswerAsFailureWithoutRetry() throws Exception {
