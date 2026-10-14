@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#10233f">
     <title>诊断任务 · GEO 管理平台</title>
     <link rel="stylesheet" href="./styles.css">
-    <link rel="stylesheet" href="./diagnosis-tasks.css?v=20261013-task2">
+    <link rel="stylesheet" href="./diagnosis-tasks.css?v=20261015-restart2">
 </head>
 <body>
 <div class="app-shell">
@@ -107,11 +107,11 @@
     </form>
 </dialog>
 <dialog id="task-detail-dialog" class="task-dialog" aria-labelledby="task-detail-title">
-    <div class="panel-heading"><div><h2 id="task-detail-title">查看诊断任务</h2><p id="detail-refresh-note">执行中的任务每 3 秒刷新。</p></div><button type="button" class="refresh-button" id="close-detail">关闭</button></div>
+    <div class="panel-heading"><div class="task-detail-heading"><h2 id="task-detail-title">查看诊断任务</h2><p id="detail-refresh-note">执行中的任务每 3 秒刷新。</p></div><div class="task-header-actions"><button type="button" class="primary-button" id="restart-task" hidden>重新发起</button><button type="button" class="refresh-button" id="close-detail">关闭</button></div></div>
     <div class="task-dialog-body">
         <div id="detail-error" class="notice error" role="alert" hidden></div>
-        <div class="task-actions"><button type="button" class="primary-button" id="restart-task" hidden>重新发起</button><span class="help">仅重做本任务的非成功结果；原失败原因及耗时会清空，成功回答与冻结配置保留。</span></div>
         <div id="task-overview" class="task-overview"></div>
+        <p id="restart-note" class="task-restart-note" hidden>重新发起仅重做非成功结果，清空旧失败原因和耗时；成功回答与冻结配置保留。</p>
         <div id="channel-progress" class="task-channel-progress"></div>
         <div class="task-snapshot"><button type="button" class="refresh-button" id="view-snapshot" disabled>查看本轮冻结配置</button><span class="help">只读查看本轮使用的项目、问题与模型配置</span></div>
         <div class="result-heading"><h3>逐次回答</h3><form id="result-filters" class="inline-controls">
@@ -131,6 +131,6 @@
     <div class="panel-heading"><div><h2 id="information-title">查看详情</h2><p id="information-note" class="help"></p></div><button type="button" class="refresh-button" id="close-information">返回</button></div>
     <div id="information-content" class="task-dialog-body"></div>
 </dialog>
-<script src="./diagnosis-tasks.js?v=20261015-restart1" defer></script>
+<script src="./diagnosis-tasks.js?v=20261015-restart2" defer></script>
 </body>
 </html>

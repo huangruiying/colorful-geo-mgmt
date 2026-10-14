@@ -16,6 +16,11 @@
 .task-dialog[open] { display:flex; flex-direction:column; }
 .task-dialog::backdrop { background:#10233f80; }
 .task-dialog > .panel-heading { flex-shrink:0; }
+.task-detail-heading { min-width:0; }
+.task-header-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; flex-shrink:0; }
+.task-restart-note { margin:-8px 0 20px; color:#73849b; font-size:13px; line-height:1.6; }
+#task-detail-dialog .task-dialog-body > .task-overview { margin-top:0; }
+@media(max-width:540px) { #task-detail-dialog > .panel-heading { flex-wrap:wrap; } .task-header-actions { width:100%; } }
 .task-dialog-body { padding:24px; overflow-y:auto; min-height:0; overscroll-behavior:contain; }
 body.task-dialog-open { overflow:hidden; }
 .task-field { display:flex; flex-direction:column; gap:10px; font-weight:600; }

@@ -155,6 +155,7 @@
         byId("result-status").value = ""; byId("result-channel").replaceChildren(new Option("全部渠道", ""));
         byId("task-detail-title").textContent = "查看诊断任务 #" + id;
         byId("restart-task").hidden = true;
+        byId("restart-note").hidden = true;
         byId("task-overview").replaceChildren(); byId("channel-progress").replaceChildren();
         byId("result-list").replaceChildren();
         detailDialog.showModal(); document.body.classList.add("task-dialog-open");
@@ -166,6 +167,7 @@
         const task = await request("/diagnosis-tasks/" + id);
         if (!detailDialog.open || taskId !== id || revision !== detailRevision) return;
         byId("restart-task").hidden = !["FAILED", "PARTIAL_FAILED"].includes(task.status);
+        byId("restart-note").hidden = byId("restart-task").hidden;
         byId("restart-task").disabled = restarting;
         overview(byId("task-overview"), [["诊断方案", task.planName], ["关联项目", task.projectName], ["任务状态", labels[task.status]],
             ["诊断进度", (task.progress.succeeded + task.progress.failed) + " / " + task.progress.total],
