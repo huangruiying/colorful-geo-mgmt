@@ -117,7 +117,7 @@
         overview.replaceChildren();
         if (viewOnly) {
             for (const [label, value] of [["方案名称", detail.name], ["关联项目", detail.projectName || "项目不可用"],
-                ["每题每渠道重复次数", detail.repeatCount + " 次"], ["被测模型渠道", detail.channelIds.map(id =>
+                ["每题每渠道重复执行次数", detail.repeatCount + " 次"], ["被测模型渠道", detail.channelIds.map(id =>
                     channels.find(channel => channel.id === id)?.channelName || "不可用渠道 #" + id).join("、")]]) {
                 const item = document.createElement("div");
                 item.className = "overview-item";
@@ -227,7 +227,7 @@
     function updateCount() {
         const selected = [...byId("test-channels").querySelectorAll("input:checked")].length;
         byId("question-count").textContent = questions.length + " / 200";
-        byId("sample-count").textContent = "预计 " + (questions.length * selected * (Number(form.elements.repeatCount.value) || 0)) + " 次采样";
+        byId("sample-count").textContent = "预计 " + (questions.length * selected * (Number(form.elements.repeatCount.value) || 0)) + " 次诊断";
     }
     byId("generate").addEventListener("click", async () => {
         if (generating || saving) return;
@@ -291,7 +291,7 @@
             planId = saved.id; questions = saved.questions; dirty = false; revision++;
             byId("discard-prompt").hidden = true;
             editor.close();
-            message("plan-success", "方案已保存，ID：" + planId + "。尚未执行诊断采样。")
+            message("plan-success", "方案已保存，ID：" + planId + "。尚未执行诊断。")
                 .scrollIntoView({behavior:"smooth", block:"center"});
             try { await loadList(); }
             catch (exception) { error("方案已保存，但列表刷新失败：" + exception.message); }

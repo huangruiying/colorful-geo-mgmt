@@ -9,12 +9,12 @@ import java.util.List;
 import java.util.Map;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordResultEntity;
 
-/** geo_diagnosis_plan_exec_record_result 持久化入口，提供 BaseMapper 增删改查；采样唯一性由数据库约束，事务由调用方负责。 */
+/** geo_diagnosis_plan_exec_record_result 持久化入口，提供 BaseMapper 增删改查；诊断结果唯一性由数据库约束，事务由调用方负责。 */
 @Mapper
 public interface GeoDiagnosisPlanExecRecordResultDao extends BaseMapper<GeoDiagnosisPlanExecRecordResultEntity> {
     /**
-     * 分批初始化待执行采样，避免最多四万次单条数据库往返。
-     * @param items 同一创建事务内的一批采样，状态由调用方通过采样状态枚举初始化
+     * 分批初始化待执行诊断，避免最多四万次单条数据库往返。
+     * @param items 同一创建事务内的一批诊断结果，状态由调用方通过诊断结果状态枚举初始化
      * @return 插入数量
      */
     @Insert({"<script>",

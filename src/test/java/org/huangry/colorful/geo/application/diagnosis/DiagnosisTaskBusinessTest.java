@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** 验证整轮任务与单条采样分别校验状态，并保持接口和数据损坏处理语义。 */
+/** 验证整轮任务与单条诊断结果分别校验状态，并保持接口和数据损坏处理语义。 */
 class DiagnosisTaskBusinessTest {
     private final DiagnosisTaskBusiness business = new DiagnosisTaskBusiness();
     private final GeoDiagnosisPlanExecRecordDao tasks = mock(GeoDiagnosisPlanExecRecordDao.class);
@@ -32,7 +32,7 @@ class DiagnosisTaskBusinessTest {
         ReflectionTestUtils.setField(business, "snapshots", new DiagnosisTaskSnapshots());
     }
 
-    /** 部分失败只允许筛选整轮任务，不能作为单条采样筛选值。 */
+    /** 部分失败只允许筛选整轮任务，不能作为单条诊断结果筛选值。 */
     @Test
     void shouldAllowPartialFailureOnlyForTaskFilter() {
         when(tasks.selectCount(any())).thenReturn(0L);
@@ -56,7 +56,7 @@ class DiagnosisTaskBusinessTest {
         }
     }
 
-    /** 采样聚合按枚举分类，接口继续输出既有字符串状态和各状态计数。 */
+    /** 诊断结果聚合按枚举分类，接口继续输出既有字符串状态和各状态计数。 */
     @Test
     void shouldAggregateResultStatusesAndKeepResponseStatusString() {
         when(tasks.selectById(1L)).thenReturn(task());
@@ -74,7 +74,7 @@ class DiagnosisTaskBusinessTest {
         assertEquals(4L, response.progress().failed());
     }
 
-    /** 数据库未知采样状态仍按状态损坏失败，不误报为请求参数错误。 */
+    /** 数据库未知诊断结果状态仍按状态损坏失败，不误报为请求参数错误。 */
     @Test
     void shouldRejectUnknownPersistedResultStatusAsCorruption() {
         when(tasks.selectById(1L)).thenReturn(task());

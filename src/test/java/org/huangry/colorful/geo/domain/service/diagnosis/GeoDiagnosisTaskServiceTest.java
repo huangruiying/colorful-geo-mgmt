@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** 创建采样与配置冻结测试；事务原子性、状态流转另用真实 MySQL/API 验证。 */
+/** 创建诊断结果与配置冻结测试；事务原子性、状态流转另用真实 MySQL/API 验证。 */
 class GeoDiagnosisTaskServiceTest {
     private final GeoDiagnosisTaskService service = new GeoDiagnosisTaskService();
     private final GeoDiagnosisPlanExecRecordDao tasks = mock(GeoDiagnosisPlanExecRecordDao.class);
@@ -33,7 +33,7 @@ class GeoDiagnosisTaskServiceTest {
     private final List<Integer> batchSizes = new ArrayList<>();
     private final AtomicReference<GeoDiagnosisPlanExecRecordEntity> saved = new AtomicReference<>();
 
-    /** 注入真实快照转换与模拟数据库，采样批次按调用时复制避免列表清空影响断言。 */
+    /** 注入真实快照转换与模拟数据库，诊断结果批次按调用时复制避免列表清空影响断言。 */
     @BeforeEach
     void setup() {
         var assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "diagnosis-task-test");
@@ -64,7 +64,7 @@ class GeoDiagnosisTaskServiceTest {
         });
     }
 
-    /** 采样数量、问题输入和凭据隔离共同验证，不仅检查方法调用次数。 */
+    /** 诊断结果数量、问题输入和凭据隔离共同验证，不仅检查方法调用次数。 */
     @Test
     void shouldFreezeAllIndependentSamplesWithoutCredentials() throws Exception {
         configure(2, 2, 3);
@@ -85,7 +85,7 @@ class GeoDiagnosisTaskServiceTest {
         assertEquals("项目背景", JSON.parseObject(task.getPlanSnapshot()).getJSONObject("project").getString("coreFeatures"));
     }
 
-    /** 最大采样规模保持固定批次，不退化成四万次单条插入。 */
+    /** 最大诊断结果规模保持固定批次，不退化成四万次单条插入。 */
     @Test
     void shouldInitializeMaximumScaleInBoundedBatches() {
         configure(200, 20, 10);
@@ -95,7 +95,7 @@ class GeoDiagnosisTaskServiceTest {
         assertTrue(batchSizes.stream().allMatch(size -> size == 250));
     }
 
-    /** 已创建提交不再次生成采样，配置修改不改变原任务。 */
+    /** 已创建提交不再次生成诊断结果，配置修改不改变原任务。 */
     @Test
     void shouldReuseCreatedSubmissionAndRejectDifferentPlan() {
         configure(2, 2, 2);
@@ -118,7 +118,7 @@ class GeoDiagnosisTaskServiceTest {
         verifyNoInteractions(tasks, results, plans);
     }
 
-    /** 密钥轮换允许继续，但改变生成参数必须拒绝，避免混用采样条件。 */
+    /** 密钥轮换允许继续，但改变生成参数必须拒绝，避免混用诊断结果条件。 */
     @Test
     void shouldAllowCredentialRotationButRejectChangedConfiguration() {
         var channel = channel(1L);
@@ -190,7 +190,7 @@ class GeoDiagnosisTaskServiceTest {
         }
     }
 
-    /** 仍有未完成采样时不能因为更换状态表达方式而提前结束整轮任务。 */
+    /** 仍有未完成的诊断时不能因为更换状态表达方式而提前结束整轮任务。 */
     @Test
     void shouldRejectFinishingTaskWithPendingOrRunningSamples() {
         for (String status : List.of("PENDING", "RUNNING")) {
@@ -221,7 +221,7 @@ class GeoDiagnosisTaskServiceTest {
      * 生成规模明确的输入，渠道读取按保存顺序返回。
      * @param questionCount 问题数量
      * @param channelCount 渠道数量
-     * @param repeat 重复次数
+     * @param repeat 重复执行次数
      */
     private void configure(int questionCount, int channelCount, int repeat) {
         var plan = new GeoDiagnosisPlanEntity(); plan.setId(1L); plan.setProjectId(2L); plan.setName("方案"); plan.setRepeatCount(repeat);

@@ -89,7 +89,7 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
      * @return 首个回答、按链接去重的引用及实际响应元数据
      */
     LLMResponse parseResponse(JSONObject response) {
-        // 1. 只采用首个候选的文本，缺失或非文本明确失败，避免合并多个采样结果
+        // 1. 只采用首个候选的文本，缺失或非文本明确失败，避免合并多个诊断结果
         JSONArray choices = response.get("choices") instanceof JSONArray array ? array : null;
         JSONObject first = choices == null || choices.isEmpty() || !(choices.get(0) instanceof JSONObject)
                 ? null : choices.getJSONObject(0);

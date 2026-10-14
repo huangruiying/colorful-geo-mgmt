@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * 诊断方案管理入口；候选生成与保存分离，不调用被测渠道执行采样。
+ * 诊断方案管理入口；候选生成与保存分离，不调用被测渠道执行诊断。
  */
 @RestController
 @RequestMapping("/diagnosis-plans")

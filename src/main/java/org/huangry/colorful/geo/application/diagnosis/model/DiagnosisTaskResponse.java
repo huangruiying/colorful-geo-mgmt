@@ -25,9 +25,9 @@ public record DiagnosisTaskResponse(
 
 		/** 任务状态：PENDING 待执行、RUNNING 执行中、SUCCEEDED 全部成功、PARTIAL_FAILED 部分失败、FAILED 失败。 */
 		String status,
-		/** 整轮任务的实时采样统计。 */
+		/** 整轮任务的实时诊断结果统计。 */
 		ProgressResponse progress,
-		/** 按冻结渠道分别统计的采样进度，列表与详情均返回。 */
+		/** 按冻结渠道分别统计的诊断进度，列表与详情均返回。 */
 		List<ChannelProgressResponse> channels,
 		/** 项目、方案、问题与渠道的完整冻结配置；创建和详情返回，任务列表省略。 */
 		JSONObject snapshot,
@@ -40,19 +40,19 @@ public record DiagnosisTaskResponse(
 		LocalDateTime finishedAt
 ) {
 	/**
-	 * 从采样结果实时聚合的数量统计，可用于整轮任务或单个渠道。
-	 * 已结束数量为 succeeded + failed，总数为四种采样状态数量之和。
+	 * 从诊断结果实时聚合的数量统计，可用于整轮任务或单个渠道。
+	 * 已结束数量为 succeeded + failed，总数为四种诊断结果状态数量之和。
 	 */
 	public record ProgressResponse(
-			/** 当前统计范围内的采样总数，不是问题数或渠道数。 */
+			/** 当前统计范围内的诊断总次数，包含待执行与已结束的诊断。 */
 			long total,
-			/** 尚未领取执行的采样数。 */
+			/** 尚未开始执行的诊断次数。 */
 			long pending,
-			/** 已领取且尚未保存最终结果的采样数。 */
+			/** 正在执行且尚未保存最终结果的诊断次数。 */
 			long running,
-			/** 已成功保存有效回答的采样数。 */
+			/** 已成功保存有效回答的诊断结果数。 */
 			long succeeded,
-			/** 已记录失败结果的采样数。 */
+			/** 已记录失败结果的诊断结果数。 */
 			long failed
 	) {
 	}
@@ -65,13 +65,13 @@ public record DiagnosisTaskResponse(
 			Long channelId,
 			/** 创建任务时冻结的渠道名称。 */
 			String channelName,
-			/** 仅统计本渠道在当前任务中的采样。 */
+			/** 仅统计本渠道在当前任务中的诊断结果。 */
 			ProgressResponse progress
 	) {
 	}
 
 	/**
-	 * 任务列表与采样列表共用的分页结构，沿用管理后台从零开始的页码。
+	 * 任务列表与诊断结果列表共用的分页结构，沿用管理后台从零开始的页码。
 	 *
 	 * @param <T> 当前列表的单条响应类型
 	 */
@@ -88,12 +88,12 @@ public record DiagnosisTaskResponse(
 	}
 
 	/**
-	 * 单次独立采样的摘要或回答详情，采样身份由任务、问题、渠道与重复序号确定。
+	 * 单次独立诊断的摘要或回答详情，单次诊断标识由任务、问题、渠道与重复序号确定。
 	 * 列表仅查询摘要字段；回答、引用、模型元数据和起止时间由详情提供，空字段不输出到 JSON。
 	 */
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public record ResultResponse(
-			/** 单次采样记录 ID，用于查询这一条回答详情。 */
+			/** 单次诊断记录 ID，用于查询这一条回答详情。 */
 			Long id,
 			/** 所属诊断任务 ID。 */
 			Long taskId,
@@ -103,16 +103,16 @@ public record DiagnosisTaskResponse(
 			String questionText,
 			/** 问题原文、来源、意图、品牌范围和语言等冻结资料。 */
 			JSONObject questionSnapshot,
-			/** 本次采样指定的渠道 ID。 */
+			/** 本次诊断指定的渠道 ID。 */
 			Long channelId,
 			/** 创建任务时冻结的渠道名称。 */
 			String channelName,
 			/** 渠道、策略、模型及生成参数等冻结配置，不包含独立 API Key。 */
 			JSONObject channelSnapshot,
-			/** 同一问题、同一渠道的独立采样序号，从 1 开始；不是重试次数。 */
+			/** 同一问题、同一渠道的独立诊断序号，从 1 开始；不是重试次数。 */
 			int repeatIndex,
 
-			/** 采样状态：PENDING 待执行、RUNNING 执行中、SUCCEEDED 成功、FAILED 失败。 */
+			/** 诊断结果状态：PENDING 待执行、RUNNING 执行中、SUCCEEDED 成功、FAILED 失败。 */
 			String status,
 			/** 模型回答正文，仅详情返回；未成功时为空。 */
 			String answerText,
@@ -122,7 +122,7 @@ public record DiagnosisTaskResponse(
 			String modelName,
 			/** 厂商用量 JSON，可能包含 Token 和工具调用次数；仅详情返回，未提供时为空。 */
 			Object usageInfo,
-			/** 本次采样处理耗时，单位毫秒；尚无处理结果时为空。 */
+			/** 本次诊断处理耗时，单位毫秒；尚无处理结果时为空。 */
 			Long durationMs,
 			/** 厂商返回的结束原因或响应状态，仅详情返回；未提供时为空。 */
 			String finishReason,
@@ -131,9 +131,9 @@ public record DiagnosisTaskResponse(
 			/** 本地分类后的失败原因，不直接回传远程异常原文；未失败时为空。 */
 			String errorMessage,
 
-			/** 单次采样开始时间，仅详情返回；尚未执行时为空。 */
+			/** 单次诊断开始时间，仅详情返回；尚未执行时为空。 */
 			LocalDateTime startedAt,
-			/** 单次采样结束时间，仅详情返回；尚未结束时为空。 */
+			/** 单次诊断结束时间，仅详情返回；尚未结束时为空。 */
 			LocalDateTime finishedAt
 	) {
 	}

@@ -57,13 +57,13 @@ public class MgmtDiagnosisTaskController {
     }
 
     /**
-     * 分页查看采样摘要。
+     * 分页查看诊断结果摘要。
      * @param id 任务 ID
-     * @param status 采样状态
+     * @param status 诊断结果状态
      * @param channelId 渠道 ID
      * @param page 页码
      * @param size 每页数量
-     * @return 采样摘要页
+     * @return 诊断结果摘要页
      */
     @GetMapping("/{id}/results")
     public DiagnosisTaskResponse.PageResponse<DiagnosisTaskResponse.ResultResponse> results(@PathVariable("id") long id,
@@ -77,7 +77,7 @@ public class MgmtDiagnosisTaskController {
     /**
      * 查看一条完整回答，不允许跨任务读取。
      * @param id 任务 ID
-     * @param resultId 采样 ID
+     * @param resultId 诊断结果 ID
      * @return 回答详情
      */
     @GetMapping("/{id}/results/{resultId}")

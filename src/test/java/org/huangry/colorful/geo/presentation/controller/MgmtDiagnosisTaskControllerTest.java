@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** 接口缺失与安全错误响应测试，不把 SQL、认证或远程原文返回给页面。 */
 class MgmtDiagnosisTaskControllerTest {
-    /** 缺失任务和采样对应 404，不把失败包装成成功。 */
+    /** 缺失任务和诊断结果对应 404，不把失败包装成成功。 */
     @Test
     void shouldReturnNotFoundForMissingTaskAndCrossTaskResult() throws Exception {
         var business = mock(DiagnosisTaskBusiness.class);

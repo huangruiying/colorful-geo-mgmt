@@ -46,7 +46,7 @@ public class LLMStrategyRouter {
     /**
      * 按任务已校验的精确渠道调用，不再次按优先级选择其他渠道。
      * @param request 独立问题
-     * @param channel 本次采样选定的渠道及当前凭据
+     * @param channel 本次诊断选定的渠道及当前凭据
      * @return 模型响应
      */
     public LLMResponse query(LLMQueryRequest request, GeoLlmChannelEntity channel) {
@@ -87,7 +87,7 @@ public class LLMStrategyRouter {
      * @return 优先级最高的已启用渠道，同分时取最小 ID
      */
     private GeoLlmChannelEntity selectChannel(LLMQueryRequest request) {
-        // 清理选择条件；不处理问题原文，以保留采样输入。
+        // 清理选择条件；不处理问题原文，以保留诊断输入。
         String code = normalize(request.channelCode());
         String model = normalize(request.modelName());
         LambdaQueryWrapper<GeoLlmChannelEntity> query = new LambdaQueryWrapper<GeoLlmChannelEntity>()

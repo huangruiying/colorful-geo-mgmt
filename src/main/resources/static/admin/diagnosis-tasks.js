@@ -113,7 +113,7 @@
         preview = detail;
         const count = detail.questions.length * detail.channelIds.length * detail.repeatCount;
         overview(byId("create-preview"), [["关联项目", detail.projectName], ["问题数量", detail.questions.length + " 个"],
-            ["重复次数", detail.repeatCount + " 次"], ["被测渠道", detail.channelIds.map(channelId =>
+            ["重复执行次数", detail.repeatCount + " 次"], ["被测渠道", detail.channelIds.map(channelId =>
                 channels.find(channel => channel.id === channelId)?.channelName || "不可用渠道 #" + channelId).join("、"), true],
             ["预计调用次数", count + " 次", true]]);
         byId("create-submit").disabled = count === 0;
@@ -142,7 +142,7 @@
             memorySubmission = null;
             try { sessionStorage.removeItem(pendingKey); } catch { /* 创建成功不受浏览器存储权限影响。 */ }
             createDialog.close(); page = 0;
-            show("task-success", "任务 #" + task.id + " 已创建，共 " + task.progress.total + " 次采样，后台将按顺序执行。");
+            show("task-success", "任务 #" + task.id + " 已创建，共 " + task.progress.total + " 次诊断，后台将按顺序执行。");
             try { await loadList(); await openDetail(task.id); }
             catch (error) { show("task-error", "任务已创建，页面刷新失败：" + error.message); }
         } catch (error) { show("create-error", error.message); }
@@ -164,7 +164,7 @@
         const task = await request("/diagnosis-tasks/" + id);
         if (!detailDialog.open || taskId !== id || revision !== detailRevision) return;
         overview(byId("task-overview"), [["诊断方案", task.planName], ["关联项目", task.projectName], ["任务状态", labels[task.status]],
-            ["采样进度", (task.progress.succeeded + task.progress.failed) + " / " + task.progress.total],
+            ["诊断进度", (task.progress.succeeded + task.progress.failed) + " / " + task.progress.total],
             ["成功 / 失败", task.progress.succeeded + " / " + task.progress.failed], ["创建时间", time(task.createdAt)],
             ["开始 / 结束", time(task.startedAt) + " / " + time(task.finishedAt), true]]);
         const channelValue = byId("result-channel").value;
@@ -178,7 +178,7 @@
         }
         byId("result-channel").value = channelValue;
         frozenSnapshot = task.snapshot; byId("view-snapshot").disabled = !frozenSnapshot;
-        byId("detail-refresh-note").textContent = active(task.status) ? "每 3 秒刷新进度，关闭页面不影响后台执行。" : "本轮已结束；失败采样保留原因，不自动重发。";
+        byId("detail-refresh-note").textContent = active(task.status) ? "每 3 秒刷新进度，关闭页面不影响后台执行。" : "本轮已结束；失败诊断结果保留原因，不自动重发。";
         // 阅读子弹窗期间保留回答列表节点与滚动位置，关闭后继续刷新。
         if (!answerDialog.open && !informationDialog.open) await loadResults(id, revision);
         if (!detailDialog.open || taskId !== id || revision !== detailRevision) return;
@@ -196,7 +196,7 @@
         const result = await request("/diagnosis-tasks/" + id + "/results?" + query);
         if (!detailDialog.open || taskId !== id || revision !== detailRevision) return;
         const rows = byId("result-list"); rows.replaceChildren();
-        if (!result.items.length) emptyRow(rows, 5, "当前筛选条件下暂无采样。");
+        if (!result.items.length) emptyRow(rows, 5, "当前筛选条件下暂无诊断结果。");
         for (const sample of result.items) {
             const row = rows.insertRow(); row.insertCell().textContent = (sample.questionSortOrder + 1) + ". " + sample.questionText;
             row.insertCell().textContent = sample.channelName + " · 第 " + sample.repeatIndex + " 次";
@@ -204,7 +204,7 @@
             row.insertCell().textContent = sample.durationMs == null ? "—" : sample.durationMs + " ms";
             row.insertCell().append(button("查看回答", () => loadAnswer(sample.id, true).catch(fail)));
         }
-        byId("result-page-info").textContent = "第 " + (resultPage + 1) + " 页 · 共 " + result.total + " 次采样";
+        byId("result-page-info").textContent = "第 " + (resultPage + 1) + " 页 · 共 " + result.total + " 条诊断结果";
         byId("result-previous").disabled = resultPage === 0;
         byId("result-next").disabled = (resultPage + 1) * 20 >= result.total;
     }
@@ -226,7 +226,7 @@
         const question = document.createElement("p"); question.textContent = result.questionText;
         const state = document.createElement("p"); state.append(statusBadge(result.status));
         const body = document.createElement("div"); body.className = "answer-body";
-        body.textContent = result.status === "FAILED" ? result.errorMessage || "本次采样失败" : result.answerText || "本次采样尚未返回回答。";
+        body.textContent = result.status === "FAILED" ? result.errorMessage || "本次诊断失败" : result.answerText || "本次诊断尚未返回回答。";
         content.append(question, state, body);
         const info = document.createElement("p"); info.className = "help";
         info.textContent = "实际模型：" + (result.modelName || "接口未提供") + " · 耗时：" + (result.durationMs == null ? "—" : result.durationMs + " ms") + " · 结束原因：" + (result.finishReason || "接口未提供");
@@ -278,7 +278,7 @@
     // 快照展示实际冻结值；零值保留，不用当前可变配置替代历史配置。
     function renderSnapshot(content, snapshot) {
         const project = snapshot.project || {};
-        content.append(detailTable("本轮概览", ["配置项", "冻结值"], [["诊断方案", snapshot.planName], ["每个问题重复次数", snapshot.repeatCount],
+        content.append(detailTable("本轮概览", ["配置项", "冻结值"], [["诊断方案", snapshot.planName], ["每个问题重复执行次数", snapshot.repeatCount],
             ["问题数量", snapshot.questions?.length ?? 0], ["模型渠道数量", snapshot.channels?.length ?? 0]]));
         const projectFields = {name:"项目名称",websiteUrl:"官网",industry:"行业",coreFeatures:"核心功能",targetAudience:"目标用户",targetMarket:"目标市场",targetLanguage:"目标语言",sellingPoints:"主要卖点",pricing:"价格信息",aliases:"品牌别名",competitors:"竞争对手",keywords:"关键词"};
         content.append(detailTable("项目资料", ["资料项", "冻结值"], Object.entries(projectFields).map(([key, label]) => [label, project[key]])));

@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** 执行故障隔离测试：模型失败继续采样，保存失败停止外部调用。 */
+/** 执行故障隔离测试：模型失败继续执行诊断，保存失败停止外部调用。 */
 class DiagnosisTaskWorkerTest {
     /** 多次启动事件只提交一个轮询，停机不会关闭统一线程池。 */
     @Test
@@ -52,7 +52,7 @@ class DiagnosisTaskWorkerTest {
         runnable.getValue().run();
         verifyNoInteractions(service);
     }
-    /** 空白回答不算成功采样，不自动重试，也不落成功响应。 */
+    /** 空白回答不算成功的诊断结果，不自动重试，也不落成功响应。 */
     @Test
     void shouldRecordBlankAnswerAsFailureWithoutRetry() throws Exception {
         var service = mock(GeoDiagnosisTaskService.class);
@@ -91,7 +91,7 @@ class DiagnosisTaskWorkerTest {
         verify(service).finish(5L);
     }
 
-    /** 模型已返回但落库失败时，不再次发出请求，也不领取后续采样。 */
+    /** 模型已返回但落库失败时，不再次发出请求，也不领取后续诊断。 */
     @Test
     void shouldStopCallingModelsAfterPersistenceFailure() throws Exception {
         var service = mock(GeoDiagnosisTaskService.class);
@@ -131,9 +131,9 @@ class DiagnosisTaskWorkerTest {
 
     /**
      * 构造仅包含独立问题的冻结输入。
-     * @param id 采样 ID
+     * @param id 诊断结果 ID
      * @param text 问题原文
-     * @return 采样
+     * @return 诊断结果
      */
     private GeoDiagnosisPlanExecRecordResultEntity sample(long id, String text) {
         var sample = new GeoDiagnosisPlanExecRecordResultEntity();

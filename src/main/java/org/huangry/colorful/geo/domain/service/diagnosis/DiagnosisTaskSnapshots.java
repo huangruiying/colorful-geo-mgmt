@@ -34,7 +34,7 @@ public class DiagnosisTaskSnapshots {
 
 	/**
 	 * 创建诊断任务时，冻结计划快照
-	 * 冻结项目、方案及完整采样配置，项目资料仅用于历史展示和后续分析。
+	 * 冻结项目、方案及完整诊断结果配置，项目资料仅用于历史展示和后续分析。
 	 *
 	 * @param plan      来源方案
 	 * @param project   项目资料
@@ -44,7 +44,7 @@ public class DiagnosisTaskSnapshots {
 	 */
 	public JSONObject plan(GeoDiagnosisPlanEntity plan, GeoProjectInfoEntity project,
 	                       List<GeoDiagnosisPlanQuestionEntity> questions, List<GeoLlmChannelEntity> channels) {
-		// 1. 固定快照版本与方案采样次数，保留本轮任务创建时的方案信息
+		// 1. 固定快照版本与方案诊断次数，保留本轮任务创建时的方案信息
 		JSONObject root = new JSONObject(true);
 		root.fluentPut("version", 1).fluentPut("planId", plan.getId()).fluentPut("planName", plan.getName())
 				.fluentPut("repeatCount", plan.getRepeatCount());

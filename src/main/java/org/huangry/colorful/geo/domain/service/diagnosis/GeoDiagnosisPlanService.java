@@ -70,7 +70,7 @@ public class GeoDiagnosisPlanService extends ServiceImpl<GeoDiagnosisPlanDao, Ge
 			throw new IllegalArgumentException("方案名称必填，最多 200 字符");
 		plan.setName(plan.getName().strip());
 		if (plan.getRepeatCount() == null || plan.getRepeatCount() < 1 || plan.getRepeatCount() > 10)
-			throw new IllegalArgumentException("每题重复次数必须为 1 到 10");
+			throw new IllegalArgumentException("每题重复执行次数必须为 1 到 10");
 		GeoProjectInfoEntity project = plan.getProjectId() == null ? null : projectDao.selectById(plan.getProjectId());
 		if (project == null) throw new IllegalArgumentException("请选择有效项目");
 		validateQuestions(project, questions);
@@ -127,7 +127,7 @@ public class GeoDiagnosisPlanService extends ServiceImpl<GeoDiagnosisPlanDao, Ge
 	}
 
 	/**
-	 * 忽略大小写、全半角与空白差异，阻止同一问题重复计入采样量。
+	 * 忽略大小写、全半角与空白差异，阻止同一问题重复计入诊断执行量。
 	 */
 	private String normalizeText(String text) {
 		return Normalizer.normalize(text, Normalizer.Form.NFKC).toLowerCase(Locale.ROOT).replaceAll("\\s+", "");

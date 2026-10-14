@@ -78,13 +78,13 @@ public class DiagnosisTaskBusiness {
     }
 
     /**
-     * 按状态和渠道分页采样，正文与原始响应不进入列表查询。
+     * 按状态和渠道分页查询诊断结果，正文与原始响应不进入列表查询。
      * @param taskId 任务 ID
-     * @param status 可选采样状态
+     * @param status 可选诊断结果状态
      * @param channelId 可选渠道
      * @param page 页码
      * @param size 每页数量
-     * @return 采样摘要页
+     * @return 诊断结果摘要页
      */
     public DiagnosisTaskResponse.PageResponse<DiagnosisTaskResponse.ResultResponse> results(long taskId, String status, Long channelId, int page, int size) {
         requireTask(taskId);
@@ -111,7 +111,7 @@ public class DiagnosisTaskBusiness {
     /**
      * 回答必须属于 URL 指定任务，防止串读其他任务结果。
      * @param taskId 任务 ID
-     * @param resultId 采样 ID
+     * @param resultId 诊断结果 ID
      * @return 独立回答详情
      */
     public DiagnosisTaskResponse.ResultResponse result(long taskId, long resultId) {
@@ -145,7 +145,7 @@ public class DiagnosisTaskBusiness {
      * @return 安全响应
      */
     private DiagnosisTaskResponse response(GeoDiagnosisPlanExecRecordEntity task, boolean detail) {
-        // 1. 回读冻结配置并汇总采样状态，未知状态明确失败
+        // 1. 回读冻结配置并汇总诊断结果状态，未知状态明确失败
         JSONObject snapshot = (JSONObject) snapshots.read(task.getPlanSnapshot());
         Map<Long, long[]> counts = new LinkedHashMap<>();
         long[] total = new long[5];
@@ -187,11 +187,11 @@ public class DiagnosisTaskBusiness {
 
     /**
      * 显式转换结果，JSON 空值保留为空，不伪造引用或用量。
-     * @param row 采样实体或摘要查询结果
+     * @param row 诊断结果实体或摘要查询结果
      * @return 安全结果响应
      */
     private DiagnosisTaskResponse.ResultResponse resultResponse(GeoDiagnosisPlanExecRecordResultEntity row) {
-        // 回读问题和渠道对象，保留本次采样创建时的内容
+        // 回读问题和渠道对象，保留本次诊断创建时的内容
         JSONObject question = (JSONObject) snapshots.read(row.getQuestionSnapshot());
         JSONObject channel = (JSONObject) snapshots.read(row.getChannelSnapshot());
         // 引用和用量保留原 JSON 结构，缺失时不构造默认数据
@@ -224,7 +224,7 @@ public class DiagnosisTaskBusiness {
     }
 
     /**
-     * 任务与采样状态分别校验，不接受未知筛选条件。
+     * 任务与诊断结果状态分别校验，不接受未知筛选条件。
      * @param status 可选状态
      * @param task 是否任务状态
      */
@@ -233,7 +233,7 @@ public class DiagnosisTaskBusiness {
         if (status == null || status.isBlank()) {
             return;
         }
-        // 按对应枚举校验，整轮的部分失败不能作为单条采样状态
+        // 按对应枚举校验，整轮的部分失败不能作为单条诊断结果状态
         boolean valid = task
                 ? Arrays.stream(DiagnosisTaskStatus.values()).anyMatch(value -> value.name().equals(status))
                 : Arrays.stream(DiagnosisTaskResultStatus.values()).anyMatch(value -> value.name().equals(status));

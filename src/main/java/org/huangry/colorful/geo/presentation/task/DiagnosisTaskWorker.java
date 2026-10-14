@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 诊断任务离线 Job：从数据库领取任务，逐条调用模型并保存回答。
- * <p>start 向统一线程池提交单个轮询，tick 领取整轮任务，execute 执行采样，close 通知退出。
+ * <p>start 向统一线程池提交单个轮询，tick 领取整轮任务，execute 执行诊断，close 通知退出。
  * 数据库会话锁限定同一库唯一执行者；不负责页面查询，不自动重试模型调用，不管理共享线程池。</p>
  */
 @Component
@@ -62,11 +62,11 @@ public class DiagnosisTaskWorker {
 	 */
 	private boolean recovered;
 	/**
-	 * 停机后禁止领取新任务和新采样。
+	 * 停机后禁止领取新任务和新的单次诊断。
 	 */
 	private volatile boolean stopped;
 	/**
-	 * 执行未正常结束的任务，数据库恢复后先终止其剩余采样。
+	 * 执行未正常结束的任务，数据库恢复后先终止其剩余待执行诊断。
 	 */
 	private Long interruptedTaskId;
 	/**
@@ -126,8 +126,8 @@ public class DiagnosisTaskWorker {
 				recovered = true;
 			}
 			if (interruptedTaskId != null) {
-				// 4. 上轮执行或落库异常时，先终止剩余采样，再领取新任务。
-				service.interrupt(interruptedTaskId, "执行或结果保存中断，未完成样本不自动重发；可重新发起整轮诊断");
+				// 4. 上轮执行或落库异常时，先终止剩余待执行诊断，再领取新任务。
+				service.interrupt(interruptedTaskId, "执行或结果保存中断，未完成的诊断不自动重发；可重新发起整轮诊断");
 				interruptedTaskId = null;
 			}
 			// 5. 领取一轮任务，正常执行完成后清除中断标识。
@@ -156,7 +156,7 @@ public class DiagnosisTaskWorker {
 			if (lease == null || ! lease.isValid(2)) {
 				throw new IllegalStateException("诊断执行锁连接已失效");
 			}
-			// 2. 领取一条采样；没有剩余采样时汇总整轮终态。
+			// 2. 领取一条诊断结果；没有剩余待执行诊断时汇总整轮终态。
 			GeoDiagnosisPlanExecRecordResultEntity sample = service.claimSample(taskId);
 			if (sample == null) {
 				service.finish(taskId);
@@ -169,20 +169,20 @@ public class DiagnosisTaskWorker {
 				var channel = service.prepareChannel(sample);
 				String prompt = ((JSONObject) snapshots.read(sample.getQuestionSnapshot())).getString("text");
 				response = llmClient.query(new LLMQueryRequest(prompt), channel);
-				// 返回空白正文视为采样失败，不把空回答保存为成功。
+				// 返回空白正文视为本次诊断失败，不把空回答保存为成功。
 				if (response == null || response.getContent().isBlank()) {
 					throw new LLMClientException("模型未返回有效回答");
 				}
 			} catch (LLMClientException exception) {
-				// 模型失败仅记录本条原因，继续其他采样，不自动重试或切换渠道。
+				// 模型失败仅记录本条原因，继续其他诊断，不自动重试或切换渠道。
 				service.fail(sample, failureReason(exception), elapsed(started));
 				continue;
 			} catch (IllegalArgumentException exception) {
-				// 配置或问题校验失败同样终止本条采样，历史快照不按当前配置重写。
+				// 配置或问题校验失败同样终止本次诊断，历史快照不按当前配置重写。
 				service.fail(sample, "渠道配置已变化或问题无效，请重新创建诊断任务", elapsed(started));
 				continue;
 			}
-			// 4. 保存成功回答；落库失败向外抛出，由 tick 终止剩余采样，不重复调用模型。
+			// 4. 保存成功回答；落库失败向外抛出，由 tick 终止剩余待执行诊断，不重复调用模型。
 			service.succeed(sample, response, elapsed(started));
 		}
 		throw new IllegalStateException("诊断执行服务正在停止");
