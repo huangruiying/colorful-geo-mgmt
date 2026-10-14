@@ -1,4 +1,4 @@
-package org.huangry.colorful.geo.infrastructure.client.llm.strategy.template;
+package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -6,7 +6,8 @@ import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMCitation;
 import java.util.Map;
 
 /**
- * 两种协议共用的引用解析工具，collect 将 url_citation 收集到 URL 索引。
+ * 收集模型回答中的结构化网页引用。
+ * 各策略通过 collect 将 url_citation 收集到 URL 索引。
  * <p>兼容扁平和嵌套注解，不猜测正文链接或检索来源，不核验网页内容。</p>
  */
 final class LlmCitationParser {

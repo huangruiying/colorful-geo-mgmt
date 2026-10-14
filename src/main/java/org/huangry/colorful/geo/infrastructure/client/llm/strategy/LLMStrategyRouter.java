@@ -66,7 +66,7 @@ public class LLMStrategyRouter {
     }
 
     /**
-     * 校验实际 Bean 与远程密钥，接口地址等协议条件仍由模板校验。
+     * 校验实际 Bean 与远程密钥，接口地址等协议条件仍由具体策略校验。
      * @param channel 已选定渠道
      * @return 已注册策略
      */

@@ -1,4 +1,7 @@
-package org.huangry.colorful.geo.infrastructure.client.llm.strategy.template;
+package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
+
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMStrategy;
+import org.springframework.stereotype.Component;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
@@ -22,17 +25,21 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Chat Completions 协议模板，query 负责组装独立问题、调用接口和解析首个回答。
- * <p>子策略通过 buildRequestBody 补充厂商参数；模板只接受接口明确返回的引用，
- * 不选择渠道、不主动声明搜索工具，也不抓取引用网页。</p>
+ * OpenAI Chat Completions 问答策略。
+ * 独立处理请求、HTTP 调用和回答引用解析；仅为已适配的 gpt-5-search-api 添加搜索选项。
+ * 渠道选择由路由器负责，HTTP 超时及连接资源由共用客户端管理。
  */
-public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy {
+@Component
+public class ChatCompletionsApiOpenAiStrategy implements LLMStrategy {
     /** 提前注册的模型 HTTP 客户端，超时及证书策略统一配置。 */
     @Resource(name = "llmRestTemplateWithTimeout")
     private RestTemplate llmRestTemplate;
-    /** 声明父类实际处理的交互格式，子类不重复维护。 */
+    /**
+     * 声明本策略的实际交互格式，不据此推断联网能力。
+     * @return 本策略使用的接口协议
+     */
     @Override
-    public final LLMProtocolType protocolType() { return LLMProtocolType.OPENAI_CHAT_COMPLETIONS; }
+    public LLMProtocolType protocolType() { return LLMProtocolType.OPENAI_CHAT_COMPLETIONS; }
 
     /**
      * 提交独立问题并直接读取 JSON，保留回答中的结构化引用注解。
@@ -41,7 +48,7 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
      * @return 正文、结构化引用及厂商元数据，无引用时为空列表
      */
     @Override
-    public final LLMResponse query(LLMQueryRequest request, GeoLlmChannelEntity channel) {
+    public LLMResponse query(LLMQueryRequest request, GeoLlmChannelEntity channel) {
         // 1. 校验必需配置，按渠道保留生成参数。
         if (channel.getBaseUrl() == null || channel.getBaseUrl().isBlank()
                 || channel.getModelName() == null || channel.getModelName().isBlank()) {
@@ -65,12 +72,13 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
     }
 
     /**
-     * 组装普通 Chat Completions 请求，子策略可添加搜索参数。
+     * 组装 OpenAI Chat 请求，为已适配的搜索模型添加搜索选项。
      * @param request 当前问题
      * @param channel 渠道配置
-     * @return 协议基础请求体
+     * @return 当前策略的请求体
      */
-    protected Map<String, Object> buildRequestBody(LLMQueryRequest request, GeoLlmChannelEntity channel) {
+    Map<String, Object> buildRequestBody(LLMQueryRequest request, GeoLlmChannelEntity channel) {
+        // 组装独立问题，生成参数仅在用户填写时发送
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", channel.getModelName());
         body.put("messages", List.of(Map.of("role", "user", "content", request.prompt())));
@@ -79,6 +87,12 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
         }
         if (channel.getMaxTokens() != null) {
             body.put("max_tokens", channel.getMaxTokens());
+        }
+        // 搜索专用模型沿用原适配：不发送普通生成参数，不按前缀扩大适用范围
+        if ("gpt-5-search-api".equals(channel.getModelName())) {
+            body.remove("temperature");
+            body.remove("max_tokens");
+            body.put("web_search_options", Map.of());
         }
         return body;
     }
@@ -102,9 +116,17 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
         LlmCitationParser.collect(message.get("annotations"), citations);
         String reason = first.get("finish_reason") instanceof String value ? value : null;
         // 3. 元数据保留厂商原始字段及显式空值，结果对象不负责 JSON 解析
-	    return assembleLLMResponse(response, message, citations, reason);
+        return assembleLLMResponse(response, message, citations, reason);
     }
 
+    /**
+     * 将本次有效回答及厂商元数据组装为统一结果，保留原始 JSON 的显式空值。
+     * @param response 厂商原始响应对象
+     * @param message 首个候选的消息对象
+     * @param citations 按 URL 去重的结构化引用
+     * @param reason 厂商结束原因或状态，未提供时为空
+     * @return 正文、引用及实际响应元数据
+     */
     @Nonnull
     private static LLMResponse assembleLLMResponse(JSONObject response, JSONObject message, Map<String, LLMCitation> citations, String reason) {
         LLMResponse result = new LLMResponse(message.getString("content"), List.copyOf(citations.values()));

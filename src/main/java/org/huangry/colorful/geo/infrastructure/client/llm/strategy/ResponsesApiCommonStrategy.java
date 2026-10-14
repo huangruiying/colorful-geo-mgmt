@@ -1,4 +1,7 @@
-package org.huangry.colorful.geo.infrastructure.client.llm.strategy.template;
+package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
+
+import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMStrategy;
+import org.springframework.stereotype.Component;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
@@ -22,34 +25,35 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Responses 协议模板，query 负责独立问题请求、HTTP 调用和回答引用解析。
- *
- * <p>基础请求不声明搜索工具，厂商搜索参数由子策略补充。
- * 从返回的 url_citation 注解提取来源信息；没有引用时返回空列表，不从正文猜测来源，也不负责核验来源正确性。</p>
- *
- * @author huangry
+ * 通用 Responses 文本问答策略。
+ * 直接组装请求、调用兼容接口并解析最终文本及结构化引用；不主动声明搜索或其他扩展工具。
+ * 渠道选择由路由器负责，HTTP 超时及连接资源由共用客户端管理。
  */
-public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
+@Component
+public class ResponsesApiCommonStrategy implements LLMStrategy {
     /** 提前注册的模型 HTTP 客户端，超时及证书策略统一配置。 */
     @Resource(name = "llmRestTemplateWithTimeout")
     private RestTemplate llmRestTemplate;
-    /** 声明父类实际处理的交互格式，子类不重复维护。 */
+    /**
+     * 声明本策略的实际交互格式，不据此推断联网能力。
+     * @return 本策略使用的接口协议
+     */
     @Override
-    public final LLMProtocolType protocolType() { return LLMProtocolType.OPENAI_RESPONSES; }
+    public LLMProtocolType protocolType() { return LLMProtocolType.OPENAI_RESPONSES; }
 
     /**
-     * 调用 Responses API，按适配能力声明工具并解析回答及来源引用。
+     * 调用兼容 Responses 接口完成基础文本问答，不声明工具。
      *
      * @param request 通用查询请求
      * @param channel 已选中的渠道配置，可来自官方接口或兼容网关
      * @return 正文、结构化引用及实际响应元数据；未返回引用时列表为空
      */
     @Override
-    public final LLMResponse query(LLMQueryRequest request, GeoLlmChannelEntity channel) {
+    public LLMResponse query(LLMQueryRequest request, GeoLlmChannelEntity channel) {
         // 1. 校验接口必需配置，缺失时不发起远程调用
         validateProvider(channel);
 
-        // 2. 搜索请求参数按供应商处理，不从接口协议推导联网能力。
+        // 2. 组装独立问题及可选生成参数，不声明搜索或其他扩展工具。
         Map<String, Object> requestBody = buildRequestBody(request, channel);
 
         // 3. 密钥放在请求头，读取原始响应文本后用 Fastjson 解析，不修改共用 HTTP 转换器。
@@ -68,14 +72,14 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
     }
 
     /**
-     * 组装单轮 input，并请求不保存会话，厂商工具参数由子策略添加。
+     * 组装单轮 input，并请求不保存会话，工具参数由本策略显式决定。
      * <p>输出上限使用 max_output_tokens，包含接口计入的推理 token；
      * 随机性仅在用户填写时发送，由实际模型校验是否接受。</p>
      * @param request 本次独立问题
      * @param channel 已选中的渠道配置
      * @return Responses 基础请求体
      */
-    protected Map<String, Object> buildRequestBody(LLMQueryRequest request, GeoLlmChannelEntity channel) {
+    Map<String, Object> buildRequestBody(LLMQueryRequest request, GeoLlmChannelEntity channel) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", channel.getModelName());
         body.put("input", List.of(Map.of(
@@ -134,9 +138,17 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
         }
         String reason = responseBody.get("status") instanceof String value ? value : null;
         // 直接填充网络响应字段，结果对象不负责 JSON 解析。
-	    return assembleLLMResponse(responseBody, content, citationByUrl, reason);
+        return assembleLLMResponse(responseBody, content, citationByUrl, reason);
     }
 
+    /**
+     * 将本次有效回答及厂商元数据组装为统一结果，保留原始 JSON 的显式空值。
+     * @param responseBody 厂商原始响应对象
+     * @param content 已拼接的最终文本
+     * @param citationByUrl 按 URL 去重的结构化引用
+     * @param reason 厂商结束原因或状态，未提供时为空
+     * @return 正文、引用及实际响应元数据
+     */
     @Nonnull
     private static LLMResponse assembleLLMResponse(JSONObject responseBody, StringBuilder content, Map<String, LLMCitation> citationByUrl, String reason) {
         LLMResponse result = new LLMResponse(content.toString(), List.copyOf(citationByUrl.values()));
