@@ -47,7 +47,7 @@ public class TestController {
 		log.info("测试大模型查询 request questionLength={}", text.length());
 		LLMResponse result = llmClient.query(text);
 		log.info("测试大模型查询 response answerLength={} citationCount={}",
-				result.content().length(), result.citations().size());
+				result.getContent().length(), result.getCitations().size());
 		return result;
 	}
 
