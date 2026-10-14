@@ -1,4 +1,4 @@
-package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
+package org.huangry.colorful.geo.infrastructure.client.llm;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;

@@ -4,7 +4,6 @@ import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
-import org.huangry.colorful.geo.infrastructure.client.llm.strategy.LLMStrategyRouter;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
