@@ -1,6 +1,7 @@
 package org.huangry.colorful.geo.infrastructure.config;
 
 import com.sun.net.httpserver.HttpServer;
+import com.alibaba.fastjson.JSON;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.CompatibleChatCompletionsApiStrategy;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.DoubaoResponsesApiStrategy;
@@ -121,30 +122,30 @@ class RestTemplateConfigTest {
             assertEquals("https://source.example", responses.getCitations().get(0).url());
             assertTrue(payload.get().contains("web_search"));
             assertTrue(payload.get().contains("required"));
-            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            var body = mapper.readTree(payload.get());
-            assertEquals(300, body.path("max_output_tokens").asInt());
-            assertEquals(0.2, body.path("temperature").asDouble());
-            assertFalse(body.has("max_tokens"));
+
+            var body = JSON.parseObject(payload.get());
+            assertEquals(300, body.getIntValue("max_output_tokens"));
+            assertEquals(0.2, body.getDoubleValue("temperature"));
+            assertFalse(body.containsKey("max_tokens"));
             // 模型名称不决定参数是否发送，用户填写则原值传递。
             channel.setModelName("gpt-4.1");
             context.getBean(OpenAiResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
-            assertEquals(0.2, mapper.readTree(payload.get()).path("temperature").asDouble());
+            assertEquals(0.2, JSON.parseObject(payload.get()).getDoubleValue("temperature"));
             channel.setModelName("gpt-5-mini");
             context.getBean(OpenAiResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
-            body = mapper.readTree(payload.get());
-            assertEquals(0.2, body.path("temperature").asDouble());
-            assertEquals(300, body.path("max_output_tokens").asInt());
+            body = JSON.parseObject(payload.get());
+            assertEquals(0.2, body.getDoubleValue("temperature"));
+            assertEquals(300, body.getIntValue("max_output_tokens"));
             // 兼容网关不借用 OpenAI 模型名称的限制，不声明厂商搜索工具。
             context.getBean(CompatibleResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
-            body = mapper.readTree(payload.get());
-            assertEquals(0.2, body.path("temperature").asDouble());
-            assertEquals(300, body.path("max_output_tokens").asInt());
-            assertFalse(body.has("tools"));
+            body = JSON.parseObject(payload.get());
+            assertEquals(0.2, body.getDoubleValue("temperature"));
+            assertEquals(300, body.getIntValue("max_output_tokens"));
+            assertFalse(body.containsKey("tools"));
             // 显式留空时所有 Responses 策略均不发送随机性。
             channel.setTemperature(null);
             context.getBean(OpenAiResponsesApiStrategy.class).query(new LLMQueryRequest("问题"), channel);
-            assertFalse(mapper.readTree(payload.get()).has("temperature"));
+            assertFalse(JSON.parseObject(payload.get()).containsKey("temperature"));
         } finally { server.stop(0); }
     }
 

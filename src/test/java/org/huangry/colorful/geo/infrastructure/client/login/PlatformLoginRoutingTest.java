@@ -2,7 +2,7 @@ package org.huangry.colorful.geo.infrastructure.client.login;
 
 import org.huangry.colorful.geo.infrastructure.client.playwright.PlaywrightBrowserComponent;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson.JSON;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformScanLoginMethod;
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformType;
@@ -17,8 +17,7 @@ class PlatformLoginRoutingTest {
 
     @Test
     void zhihuAppIsNativeQrWhileSocialMethodsAreNot() {
-        QrPlatformPlaywrightLoginClient qrClient = new QrPlatformPlaywrightLoginClient(
-                new ObjectMapper(), new PlaywrightBrowserComponent());
+        QrPlatformPlaywrightLoginClient qrClient = new QrPlatformPlaywrightLoginClient();
 
         assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.ZHIHU));
         assertTrue(qrClient.handlesScanMethod(PublicationPlatformType.ZHIHU, PlatformScanLoginMethod.PLATFORM_APP));
@@ -32,12 +31,12 @@ class PlatformLoginRoutingTest {
 
     @Test
     void zhihuAccountRequiresIdAndName() throws Exception {
-        var mapper = new ObjectMapper();
+
         var browser = new PlaywrightBrowserComponent();
-        var qrClient = new QrPlatformPlaywrightLoginClient(mapper, browser);
-        var formClient = new FormPlatformPlaywrightLoginClient(mapper, browser);
-        var missingId = mapper.readTree("{\"name\":\"见微\"}");
-        var validAccount = mapper.readTree("{\"id\":\"123\",\"name\":\"见微\"}");
+        var qrClient = new QrPlatformPlaywrightLoginClient();
+        var formClient = new FormPlatformPlaywrightLoginClient();
+        var missingId = JSON.parseObject("{\"name\":\"见微\"}");
+        var validAccount = JSON.parseObject("{\"id\":\"123\",\"name\":\"见微\"}");
 
         assertEquals(PlatformBrowserLoginStatus.UNKNOWN,
                 qrClient.parseAccountResponse(PublicationPlatformType.ZHIHU, missingId).status());

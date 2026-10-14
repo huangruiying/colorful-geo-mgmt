@@ -1,6 +1,6 @@
 package org.huangry.colorful.geo.domain.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson.JSON;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisPlanService;
 import org.huangry.colorful.geo.infrastructure.client.llm.LLMClient;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.*;
@@ -25,7 +25,7 @@ class QuestionGenerateServiceTest {
         client = mock(LLMClient.class);
         plans = spy(new GeoDiagnosisPlanService());
         ReflectionTestUtils.setField(service, "llmClient", client);
-        ReflectionTestUtils.setField(service, "objectMapper", new ObjectMapper());
+
         ReflectionTestUtils.setField(service, "planService", plans);
         project = new GeoProjectInfoEntity();
         project.setName("WeKnora");

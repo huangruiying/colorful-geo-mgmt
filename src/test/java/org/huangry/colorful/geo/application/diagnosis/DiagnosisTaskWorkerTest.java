@@ -1,6 +1,6 @@
 package org.huangry.colorful.geo.application.diagnosis;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson.JSON;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskService;
 import org.huangry.colorful.geo.infrastructure.client.llm.LLMClient;
@@ -120,7 +120,7 @@ class DiagnosisTaskWorkerTest {
     private DiagnosisTaskWorker worker(GeoDiagnosisTaskService service, LLMClient client) throws Exception {
         var worker = new DiagnosisTaskWorker();
         var snapshots = new DiagnosisTaskSnapshots();
-        ReflectionTestUtils.setField(snapshots, "mapper", new ObjectMapper());
+
         ReflectionTestUtils.setField(worker, "service", service);
         ReflectionTestUtils.setField(worker, "llmClient", client);
         ReflectionTestUtils.setField(worker, "snapshots", snapshots);

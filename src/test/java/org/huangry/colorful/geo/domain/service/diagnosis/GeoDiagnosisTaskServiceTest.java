@@ -2,7 +2,7 @@ package org.huangry.colorful.geo.domain.service.diagnosis;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson.JSON;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.huangry.colorful.geo.application.diagnosis.model.CreateDiagnosisTaskRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.LLMStrategyRouter;
@@ -28,7 +28,7 @@ class GeoDiagnosisTaskServiceTest {
     private final GeoDiagnosisPlanService planService = mock(GeoDiagnosisPlanService.class);
     private final LLMStrategyRouter router = mock(LLMStrategyRouter.class);
     private final DiagnosisTaskSnapshots snapshots = new DiagnosisTaskSnapshots();
-    private final ObjectMapper mapper = new ObjectMapper();
+
     private final List<GeoDiagnosisPlanExecRecordResultEntity> inserted = new ArrayList<>();
     private final List<Integer> batchSizes = new ArrayList<>();
     private final AtomicReference<GeoDiagnosisPlanExecRecordEntity> saved = new AtomicReference<>();
@@ -41,7 +41,7 @@ class GeoDiagnosisTaskServiceTest {
                 GeoDiagnosisPlanExecRecordResultEntity.class, GeoProjectInfoEntity.class, GeoLlmChannelEntity.class)) {
             TableInfoHelper.initTableInfo(assistant, type);
         }
-        ReflectionTestUtils.setField(snapshots, "mapper", mapper);
+
         ReflectionTestUtils.setField(snapshots, "strategies", Map.of("mockLlmStrategy",
                 new org.huangry.colorful.geo.infrastructure.client.llm.strategy.MockLlmStrategy()));
         ReflectionTestUtils.setField(service, "taskDao", tasks);
@@ -52,7 +52,7 @@ class GeoDiagnosisTaskServiceTest {
         ReflectionTestUtils.setField(service, "planService", planService);
         ReflectionTestUtils.setField(service, "router", router);
         ReflectionTestUtils.setField(service, "snapshots", snapshots);
-        ReflectionTestUtils.setField(service, "mapper", mapper);
+
         when(tasks.insert(any(GeoDiagnosisPlanExecRecordEntity.class))).thenAnswer(call -> {
             var task = call.<GeoDiagnosisPlanExecRecordEntity>getArgument(0);
             task.setId(55L); saved.set(task); return 1;
@@ -77,10 +77,10 @@ class GeoDiagnosisTaskServiceTest {
         assertFalse(task.getPlanSnapshot().contains("qa-secret"));
         assertFalse(task.getPlanSnapshot().contains("private-query"));
         assertFalse(task.getPlanSnapshot().contains("apiKey"));
-        assertEquals("https://example.invalid/v1", mapper.readTree(task.getPlanSnapshot()).path("channels").path(0).path("baseUrl").asText());
-        assertEquals("MOCK", mapper.readTree(task.getPlanSnapshot()).path("channels").path(0).path("protocolType").asText());
-        assertEquals(2, mapper.readTree(task.getPlanSnapshot()).path("questions").size());
-        assertEquals("项目背景", mapper.readTree(task.getPlanSnapshot()).path("project").path("coreFeatures").asText());
+        assertEquals("https://example.invalid/v1", JSON.parseObject(task.getPlanSnapshot()).getJSONArray("channels").getJSONObject(0).getString("baseUrl"));
+        assertEquals("MOCK", JSON.parseObject(task.getPlanSnapshot()).getJSONArray("channels").getJSONObject(0).getString("protocolType"));
+        assertEquals(2, JSON.parseObject(task.getPlanSnapshot()).getJSONArray("questions").size());
+        assertEquals("项目背景", JSON.parseObject(task.getPlanSnapshot()).getJSONObject("project").getString("coreFeatures"));
     }
 
     /** 最大采样规模保持固定批次，不退化成四万次单条插入。 */
@@ -121,13 +121,48 @@ class GeoDiagnosisTaskServiceTest {
     void shouldAllowCredentialRotationButRejectChangedConfiguration() {
         var channel = channel(1L);
         var sample = new GeoDiagnosisPlanExecRecordResultEntity();
-        sample.setChannelId(1L); sample.setChannelSnapshot(snapshots.channel(channel).toString());
+        sample.setChannelId(1L); sample.setChannelSnapshot(JSON.toJSONString(snapshots.channel(channel),
+                com.alibaba.fastjson.serializer.SerializerFeature.WriteMapNullValue));
         when(channels.selectById(1L)).thenReturn(channel);
         channel.setApiKey("rotated-secret");
         assertSame(channel, service.prepareChannel(sample));
         channel.setMaxTokens(999);
         assertThrows(IllegalArgumentException.class, () -> service.prepareChannel(sample));
         verifyNoInteractions(results);
+    }
+
+    /** 历史快照含显式空值且小数位数不同时，不应因 JSON 实现变化阻断同一渠道。 */
+    @Test
+    void shouldReadHistoricalSnapshotWithNullsAndEquivalentDecimals() {
+        var channel = channel(1L);
+        channel.setTemperature(0.3);
+        var frozen = JSON.toJSONString(snapshots.channel(channel),
+                com.alibaba.fastjson.serializer.SerializerFeature.WriteMapNullValue).replace("0.3", "0.30");
+        var sample = new GeoDiagnosisPlanExecRecordResultEntity();
+        sample.setChannelId(1L);
+        sample.setChannelSnapshot(frozen);
+        when(channels.selectById(1L)).thenReturn(channel);
+        assertSame(channel, service.prepareChannel(sample));
+        channel.setTemperature(null);
+        assertThrows(IllegalArgumentException.class, () -> service.prepareChannel(sample));
+    }
+
+    /** 引用是 Java record，落库后必须仍含链接和缺失位置，不能退化为空对象。 */
+    @Test
+    void shouldPersistCitationRecordFieldsAndNullPositions() {
+        var citation = new org.huangry.colorful.geo.infrastructure.client.llm.model.LLMCitation(
+                "来源", "https://example.invalid/source", null, null, "摘要");
+        var response = new org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse("回答", List.of(citation));
+        var sample = new GeoDiagnosisPlanExecRecordResultEntity();
+        sample.setId(9L);
+        when(results.update(any(), any())).thenReturn(1);
+        service.succeed(sample, response, 20);
+        var savedCitation = JSON.parseArray(sample.getCitations()).getJSONObject(0);
+        assertEquals(citation.url(), savedCitation.getString("url"));
+        assertEquals(citation.title(), savedCitation.getString("title"));
+        assertEquals(citation.snippet(), savedCitation.getString("snippet"));
+        assertTrue(savedCitation.containsKey("startIndex"));
+        assertNull(savedCitation.get("startIndex"));
     }
 
     /**
