@@ -11,7 +11,7 @@ import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskResultS
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.application.diagnosis.model.CreateDiagnosisTaskRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
-import org.huangry.colorful.geo.infrastructure.client.llm.strategy.LLMStrategyRouter;
+import org.huangry.colorful.geo.infrastructure.client.llm.LLMStrategyRouter;
 import org.huangry.colorful.geo.infrastructure.repository.*;
 import org.huangry.colorful.geo.infrastructure.repository.entity.*;
 import org.springframework.stereotype.Service;

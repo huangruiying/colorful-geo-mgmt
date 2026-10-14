@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.alibaba.fastjson.JSON;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.huangry.colorful.geo.application.diagnosis.model.CreateDiagnosisTaskRequest;
-import org.huangry.colorful.geo.infrastructure.client.llm.strategy.LLMStrategyRouter;
+import org.huangry.colorful.geo.infrastructure.client.llm.LLMStrategyRouter;
 import org.huangry.colorful.geo.infrastructure.repository.*;
 import org.huangry.colorful.geo.infrastructure.repository.entity.*;
 import org.junit.jupiter.api.BeforeEach;
