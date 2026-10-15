@@ -137,7 +137,7 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
         if (result == null) {
             throw new LLMClientException("Responses 流在完整回答返回前中断");
         }
-        log.info("模型请求完成，响应结果: {}",JSON.toJSONString(result));
+        log.info("模型流接完成，响应结果: {}",JSON.toJSONString(result));
         return result;
     }
 
@@ -147,6 +147,7 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
      * @return 完整回答；进度事件返回 null
      */
     private LLMResponse parseStreamEvent(String data) {
+        log.info("AbstractResponsesApiStrategy parseStreamEvent data {}",data);
         if (data.isBlank()) {
             return null;
         }
