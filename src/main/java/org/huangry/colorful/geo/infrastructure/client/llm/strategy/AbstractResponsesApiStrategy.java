@@ -132,6 +132,7 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
                 data.append(value.startsWith(" ") ? value.substring(1) : value);
             }
         }
+        log.info("AbstractResponsesApiStrategy parseStreamEvent data {}",data);
         // 3. EOF 前最后一帧可以没有空行；没有完成事件则拒绝保存部分回答。
         LLMResponse result = parseStreamEvent(data.toString());
         if (result == null) {
@@ -147,7 +148,6 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
      * @return 完整回答；进度事件返回 null
      */
     private LLMResponse parseStreamEvent(String data) {
-        log.info("AbstractResponsesApiStrategy parseStreamEvent data {}",data);
         if (data.isBlank()) {
             return null;
         }
