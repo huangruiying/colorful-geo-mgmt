@@ -24,7 +24,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * 负责：
  * - 从 platform_browser_login 恢复小红书 Playwright 会话
- * - 进入创作中心 → 发布笔记 → 写长文 → 新的创作，打开长文编辑器
+ * - 直接进入「写长文」发布页 →「新的创作」，打开长文编辑器
  * - 在标题 textarea 与正文 ProseMirror 写入内容，点击「暂存离开」存草稿
  * - 离开编辑器前在页内回读标题与正文，确认输入被保留
  *
@@ -34,8 +34,17 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * 说明：小红书「上传图文」要求配图、无纯文本图文，「写长文」是唯一纯文本形态，
  * 故本项目按写长文接入长文草稿。以下选择器依据真实已登录会话探索获得
- * （见 .doc/平台发文入口与选择器.md）。长文草稿 id 是否进入编辑页 URL 待真实联调确认，
- * 无法可靠提取时不伪造草稿标识（remoteContentId 为 null），以草稿箱核对为准。
+ * （见 .doc/平台发文入口与选择器.md）。
+ *
+ * 重要约束（真实联调结论）：
+ * - 小红书创作后台是纯 SPA，长文草稿没有可寻址的单篇深链：编辑器 URL 不含草稿 id，
+ *   页面无 {@code <a href>} 指向草稿，草稿 id 也无法在 headless 下通过接口响应可靠获取。
+ *   因此 createDraft 返回的 {@code remoteContentId} 为 null，{@code draftUrl} 指向创作者中心首页
+ *   （{@code CREATOR_HOME_URL}，其「草稿箱」卡片可进入草稿），"打开草稿"只能带到草稿箱入口，
+ *   不能精确打开某一篇。
+ * - 本方法仅校验「编辑器内仍显示刚输入的内容」，无法确认草稿已真正落库到服务端。
+ *   实测在 headless 下点击「暂存离开」并未发出保存草稿的网络请求，存在伪成功风险；
+ *   草稿是否真正进入草稿箱须以用户在真实浏览器中核对为准。
  * 失败一律按不确定结果处理，绝不自动重试或伪造草稿标识。
  * </pre>
  */
@@ -44,7 +53,23 @@ import java.util.concurrent.locks.ReentrantLock;
 @RequiredArgsConstructor
 public class XiaohongshuBrowserClient {
 
-	private static final String CREATOR_URL = "https://creator.xiaohongshu.com/";
+	/**
+	 * 「写长文」发布页入口。
+	 *
+	 * <p>新版创作中心首页（{@code /new/home}）的「发布笔记」已渲染为 div（非 {@code <button>}），
+	 * 且发布页默认落在视频 tab（{@code target=video}），必须再切「写长文」tab 才出现「新的创作」。
+	 * 多步点击既脆弱又易被遮挡，故直接深链到「写长文」tab，减少对首页/切 tab 的依赖。</p>
+	 */
+	private static final String ARTICLE_PUBLISH_URL =
+			"https://creator.xiaohongshu.com/publish/publish?from=menu&target=article";
+	/**
+	 * 「打开草稿」的落点：小红书是纯 SPA，长文草稿没有可寻址的单篇深链（无 {@code <a href>}、
+	 * 保存接口的草稿 id 也无法在 headless 下可靠获取），因此「打开草稿」只能带到创作者中心的
+	 * 草稿箱入口，由用户在其中点开具体草稿。这里指向创作者中心首页（其「草稿箱」卡片可进入草稿）。
+	 * 注意：{@code new/note-manager}（笔记管理）只含「已发布/审核中/未通过」，没有草稿 tab，
+	 * 草稿不在笔记管理里，故不能指向那里。
+	 */
+	private static final String CREATOR_HOME_URL = "https://creator.xiaohongshu.com/new/home";
 	private static final String TITLE_SELECTOR = "textarea[placeholder=\"输入标题\"]";
 	private static final String BODY_SELECTOR = "div.tiptap.ProseMirror";
 
@@ -104,12 +129,10 @@ public class XiaohongshuBrowserClient {
 				new Browser.NewContextOptions().setStorageState(storageState))) {
 			Page page = session.newPage();
 			page.setDefaultTimeout(properties.getTimeoutMillis());
-			// 1. 打开小红书创作中心首页，进入发布笔记面板。
-			page.navigate(CREATOR_URL, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
-			// 2. 点击「发布笔记」打开创作面板，再切到「写长文」tab 新建长文。
-			page.locator("button:has-text('发布笔记')").first().click();
-			page.locator(".creator-tab:has-text('写长文')").click();
-			page.locator("button.new-btn").click();
+			// 1. 直接进入「写长文」发布页（新版入口，见 ARTICLE_PUBLISH_URL 注释）。
+			page.navigate(ARTICLE_PUBLISH_URL, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+			// 2. 点击「新的创作」打开长文编辑器（新版按钮仍为 button.new-btn）。
+			page.locator("button.new-btn").first().click();
 			// 3. 等待长文编辑器就绪：标题 textarea 与正文 ProseMirror。
 			Locator titleLocator = page.locator(TITLE_SELECTOR);
 			Locator bodyLocator = page.locator(BODY_SELECTOR).first();
@@ -122,13 +145,15 @@ public class XiaohongshuBrowserClient {
 			bodyLocator.click();
 			page.keyboard().insertText(content);
 			// 5. 离开编辑器前在页内回读，确认输入被编辑器保留（暂存离开会导航离开）。
-			String editorUrl = page.url();
 			verifySavedDraft(page, title, content);
 			// 6. 显式暂存离开，触发平台保存并退出编辑器。
 			page.locator("button:has-text('暂存离开')").click();
 			page.waitForTimeout(1500);
-			log.info("小红书长文草稿已创建，draftUrl={}", editorUrl);
-			return new DraftCreated(null, editorUrl);
+			log.info("小红书长文草稿已创建，draftUrl={}", CREATOR_HOME_URL);
+			// 小红书无单篇草稿深链，draftUrl 指向创作者中心草稿箱入口，remoteContentId 保持 null。
+			// 注意：本方法仅校验「编辑器内仍显示刚输入的内容」，无法确认草稿已真正落库到服务端
+			// （详见类注释）。若需强一致性，应以草稿箱实际出现该草稿为准。
+			return new DraftCreated(null, CREATOR_HOME_URL);
 		} catch (PlaywrightException exception) {
 			// 写入开始后页面可能已提交草稿，结果不确定，不能自动重试。
 			if (draftMayExist) {

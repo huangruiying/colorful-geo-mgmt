@@ -1,9 +1,12 @@
 package org.huangry.colorful.geo.infrastructure.client.publish.browser.toutiao;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.PlaywrightException;
+import com.microsoft.playwright.Response;
 import com.microsoft.playwright.options.WaitUntilState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,8 +19,8 @@ import org.huangry.colorful.geo.infrastructure.repository.PlatformBrowserLoginDa
 import org.huangry.colorful.geo.infrastructure.repository.entity.PlatformBrowserLoginEntity;
 import org.springframework.stereotype.Component;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -33,9 +36,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * - 公开发布（execPublish 由策略层另行接入）
  * - 管理登录或账号凭据（凭据只来自数据库会话）
  *
- * 说明：今日头条正文为 ProseMirror 富文本。以下选择器依据真实已登录会话探索获得
- * （见 .doc/平台发文入口与选择器.md）。草稿为自动保存，URL 是否带 article_id 待真实联调
- * 确认，故草稿 ID 可能为空；回读采用页内软校验，最终以草稿箱核对为准。
+ * 说明：正文通过 ProseMirror 原生粘贴事件写入；自动保存接口返回有效 pgc_id 后，
+ * 重新打开该草稿核验标题和正文。编辑器额外显示的段落间距不作为正文差异。
  * 失败一律按不确定结果处理，绝不自动重试或伪造草稿标识。
  * </pre>
  */
@@ -45,7 +47,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class ToutiaoBrowserClient {
 
 	private static final String EDITOR_URL = "https://mp.toutiao.com/profile_v4/graphic/publish";
-	private static final Pattern DRAFT_ID = Pattern.compile("[?&](?:article_id|id)=(\\d+)");
+	private static final String SAVE_URL = "https://mp.toutiao.com/mp/agw/article/publish";
 
 	private static final String TITLE_SELECTOR =
 			"textarea[placeholder=\"请输入文章标题（2～30个字）\"]";
@@ -93,8 +95,7 @@ public class ToutiaoBrowserClient {
 	/**
 	 * 在今日头条编辑器写入内容，等待自动保存，最后回读核验。
 	 *
-	 * <p>草稿为自动保存，URL 是否带 id 待真实联调确认，无法可靠按 URL 重新打开同一篇草稿，
-	 * 此处做页内回读作为软校验，最终以草稿箱核对为准。</p>
+	 * <p>保存响应、有效草稿标识、重开回读必须同时满足；仅页面出现正文不代表保存成功。</p>
 	 *
 	 * @param storageState 数据库浏览器状态
 	 * @param title 草稿标题
@@ -117,15 +118,32 @@ public class ToutiaoBrowserClient {
 			// 默认视口 1280×720 下编辑页会弹出「头条创作助手」抽屉＋全屏遮罩 byte-drawer-mask，
 			// 遮罩拦截正文 click（fill 不受影响），须先关闭再操作，否则正文点击会超时误报。
 			dismissAssistantDrawer(page);
-			// 2. 标题为 textarea 可直接 fill；正文为 ProseMirror，需聚焦后用键盘输入。
+			// 2. 在写入前监听自动保存；粘贴走编辑器原生事务，保留段落并触发保存。
 			draftMayExist = true;
-			titleLocator.fill(title);
-			bodyLocator.click();
-			page.keyboard().insertText(content);
-			// 3. 头条号自动保存；等待保存落库（待真实联调：以“草稿已保存”提示为准）。
-			page.waitForTimeout(2000);
-			String draftUrl = page.url();
-			String draftId = readDraftId(draftUrl);
+			Response saved = page.waitForResponse(response -> response.url().split("\\?")[0].equals(SAVE_URL)
+					&& "POST".equals(response.request().method()),
+					new Page.WaitForResponseOptions().setTimeout(properties.getTimeoutMillis()), () -> {
+						titleLocator.fill(title);
+						bodyLocator.evaluate("""
+							(editor, text) => {
+							  editor.focus();
+							  const range = document.createRange();
+							  range.selectNodeContents(editor);
+							  const selection = window.getSelection();
+							  selection.removeAllRanges(); selection.addRange(range);
+							  const clipboard = new DataTransfer(); clipboard.setData('text/plain', text);
+							  editor.dispatchEvent(new ClipboardEvent('paste', {
+							    clipboardData: clipboard, bubbles: true, cancelable: true
+							  }));
+							}
+							""", content);
+					});
+			// 3. 平台明确确认保存后才使用其标识；不伪造 ID 或把 HTTP 200 等同于业务成功。
+			String draftId = requireSavedDraftId(saved.status(), saved.text());
+			String draftUrl = EDITOR_URL + "?pgc_id=" + draftId;
+			page.navigate(draftUrl, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+			page.waitForFunction("selector => document.querySelector(selector)?.value === "
+					+ JSON.toJSONString(title), TITLE_SELECTOR);
 			verifySavedDraft(page, title, content);
 			log.info("今日头条草稿已创建，remoteContentId={}", draftId);
 			return new DraftCreated(draftId, draftUrl);
@@ -139,21 +157,27 @@ public class ToutiaoBrowserClient {
 	}
 
 	/**
-	 * 从编辑页链接提取数字标识；无法确认时不伪造草稿 ID（可能为 null）。
+	 * 从草稿保存响应读取字符串标识；平台失败时保留待核对，不误报预发布成功。
 	 *
-	 * @param draftUrl 当前编辑页链接
-	 * @return 草稿标识（可能为 null）
+	 * @param httpStatus HTTP 状态码
+	 * @param responseBody 平台响应
+	 * @return 已确认的草稿标识
 	 */
-	private String readDraftId(String draftUrl) {
-		Matcher match = DRAFT_ID.matcher(draftUrl);
-		return match.find() ? match.group(1) : null;
+	static String requireSavedDraftId(int httpStatus, String responseBody) {
+		JSONObject result = JSON.parseObject(responseBody);
+		JSONObject data = result == null ? null : result.getJSONObject("data");
+		String id = data == null ? null : data.getString("pgc_id");
+		if (httpStatus != 200 || result == null || !Integer.valueOf(0).equals(result.getInteger("code"))
+				|| id == null || !id.matches("[1-9]\\d*")) {
+			String code = result == null ? "未知" : result.getString("code");
+			throw new PublicationOutcomeUnknownException("今日头条草稿保存未确认（平台返回码 " + code
+					+ "），请核对草稿箱，勿直接重试");
+		}
+		return id;
 	}
 
 	/**
-	 * 页内回读标题与正文，防止把编辑器的本地乐观状态误报为保存成功。
-	 *
-	 * <p>今日头条草稿 URL 形态待真实联调确认，此处仅在当前页面校验输入是否被保留，
-	 * 最终是否真正落库以草稿箱核对为准。</p>
+	 * 重开平台已保存的草稿后回读标题与正文，防止把本地编辑状态误报为落库成功。
 	 *
 	 * @param page 当前浏览器页面
 	 * @param title 预期标题
@@ -163,9 +187,20 @@ public class ToutiaoBrowserClient {
 		String savedTitle = page.locator(TITLE_SELECTOR).inputValue();
 		String savedBody = page.locator(BODY_SELECTOR).first().innerText().strip();
 		// 标题或正文未回读到原文时结果不确定，不能把草稿记录为成功。
-		if (!title.equals(savedTitle) || !content.strip().equals(savedBody)) {
+		if (!title.equals(savedTitle) || !normalizeParagraphs(content).equals(normalizeParagraphs(savedBody))) {
 			throw new PublicationOutcomeUnknownException("今日头条草稿内容未完整回读，请核对草稿箱，勿直接重试");
 		}
+	}
+
+	/**
+	 * 按非空文本行比较富文本段落；只忽略展示空行，不忽略文字、顺序或行内空格。
+	 *
+	 * @param text 输入或回读正文
+	 * @return 保留文本行边界的正文
+	 */
+	static String normalizeParagraphs(String text) {
+		return Arrays.stream(text.replace("\r\n", "\n").replace('\r', '\n').strip().split("\n", -1))
+				.filter(line -> !line.isBlank()).collect(Collectors.joining("\n"));
 	}
 
 	/**
