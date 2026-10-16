@@ -57,7 +57,7 @@ public class ContentOptimizationRecordService extends ServiceImpl<ContentOptimiz
     }
 
     /**
-     * 统计内容记录总数，供页面分页。
+     * 统计内容优化记录总数，供列表分页。
      *
      * @return 内容记录总数
      */

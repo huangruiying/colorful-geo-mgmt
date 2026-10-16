@@ -2,11 +2,12 @@ package org.huangry.colorful.geo.application.content;
 
 import lombok.RequiredArgsConstructor;
 import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordDetail;
-import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordPage;
+import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordPageItem;
 import org.huangry.colorful.geo.application.content.model.OptimizeContentCommand;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRequest;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationResult;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.content.ContentPublishRecordService;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
 import org.huangry.colorful.geo.domain.service.optimization.ContentOptimizationService;
@@ -64,7 +65,7 @@ public class ContentOptimizationBusiness {
      * @param size 每页条数，上限 100
      * @return 当前页及总数
      */
-    public ContentOptimizationRecordPage listContentOptimizationRecords(int page, int size) {
+    public PageResponse<ContentOptimizationRecordPageItem> listContentOptimizationRecords(int page, int size) {
         // 分页参数越界直接拒绝，避免一次查询过多记录
         if (page < 0 || size < 1 || size > 100) {
             throw new IllegalArgumentException("分页参数不合法：page 不小于 0，size 范围为 1～100");
@@ -72,7 +73,7 @@ public class ContentOptimizationBusiness {
 
         // 查询当前页记录和总数
         long offset = (long) page * size;
-        return new ContentOptimizationRecordPage(optimizationRecordService.listPageItems(size, offset),
+        return new PageResponse<>(optimizationRecordService.listPageItems(size, offset),
                 optimizationRecordService.countAll(), page, size);
     }
 

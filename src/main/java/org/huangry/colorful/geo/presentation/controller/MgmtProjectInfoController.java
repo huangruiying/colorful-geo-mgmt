@@ -4,7 +4,8 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.application.project.ProjectBusiness;
 import org.huangry.colorful.geo.application.project.model.CreateProjectRequest;
-import org.huangry.colorful.geo.application.project.model.ProjectInfoPage;
+import org.huangry.colorful.geo.application.project.model.ProjectInfoResponse;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.application.project.model.ProjectInfoResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -27,9 +28,16 @@ public class MgmtProjectInfoController {
         return project;
     }
 
-    /** 按名称关键词查询项目，默认第一页、每页 20 条。 */
+    /**
+     * 项目列表分页查询，可按名称筛选。
+     *
+     * @param keyword 项目名称关键词，可为空
+     * @param page 从零开始的页码，默认 0
+     * @param size 每页条数，默认 20
+     * @return 当前页项目及总数
+     */
     @GetMapping
-    public ProjectInfoPage listProjects(@RequestParam(value = "keyword", required = false) String keyword,
+    public PageResponse<ProjectInfoResponse> listProjects(@RequestParam(value = "keyword", required = false) String keyword,
                                         @RequestParam(value = "page", defaultValue = "0") int page,
                                         @RequestParam(value = "size", defaultValue = "20") int size) {
         return projectBusiness.listProjects(keyword, page, size);

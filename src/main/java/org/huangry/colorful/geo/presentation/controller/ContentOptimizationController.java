@@ -4,7 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.application.content.ContentOptimizationBusiness;
 import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordDetail;
-import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordPage;
+import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordPageItem;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.application.content.model.OptimizeContentCommand;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
 import org.springframework.http.HttpStatus;
@@ -50,17 +51,17 @@ public class ContentOptimizationController {
     }
 
     /**
-     * 优化记录列表。
+     * 内容优化记录列表分页查询。
      *
      * @param page 从零开始的页码
      * @param size 每页条数
-     * @return 内容摘要分页
+     * @return 当前页记录及总数
      */
     @GetMapping("list")
-    public ContentOptimizationRecordPage list(@RequestParam(value = "page", defaultValue = "0") int page,
+    public PageResponse<ContentOptimizationRecordPageItem> list(@RequestParam(value = "page", defaultValue = "0") int page,
                                   @RequestParam(value = "size", defaultValue = "20") int size) {
         log.info("查询内容优化记录列表 request page={} size={}", page, size);
-        ContentOptimizationRecordPage records = optimizationBusiness.listContentOptimizationRecords(page, size);
+        PageResponse<ContentOptimizationRecordPageItem> records = optimizationBusiness.listContentOptimizationRecords(page, size);
         log.info("查询内容优化记录列表 response total={} itemCount={}", records.total(), records.items().size());
         return records;
     }

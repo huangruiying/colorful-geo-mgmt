@@ -71,25 +71,8 @@ public record DiagnosisTaskResponse(
 	}
 
 	/**
-	 * 任务列表与诊断结果列表共用的分页结构，沿用管理后台从零开始的页码。
-	 *
-	 * @param <T> 当前列表的单条响应类型
-	 */
-	public record PageResponse<T>(
-			/** 当前页的数据，不包含其他页的记录。 */
-			List<T> items,
-			/** 符合本次筛选条件的记录总数，不是当前页条数。 */
-			long total,
-			/** 当前页码，从 0 开始。 */
-			int page,
-			/** 本次请求的每页条数。 */
-			int size
-	) {
-	}
-
-	/**
-	 * 单次独立诊断的摘要或回答详情，单次诊断标识由任务、问题、渠道与重复序号确定。
-	 * 列表仅查询摘要字段；回答、引用、模型元数据和起止时间由详情提供，空字段不输出到 JSON。
+	 * 单次独立诊断的列表行或回答详情，单次诊断标识由任务、问题、渠道与重复序号确定。
+	 * 列表只查询基础字段；回答、引用、模型元数据和起止时间由详情提供，空字段不输出到 JSON。
 	 */
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public record ResultResponse(

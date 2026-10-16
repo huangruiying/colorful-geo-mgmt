@@ -4,7 +4,8 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.application.content.ContentPublishBusiness;
 import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
-import org.huangry.colorful.geo.application.content.model.ContentPublishRecordPage;
+import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
 import org.huangry.colorful.geo.presentation.controller.model.PrePublishContentRequest;
 import org.springframework.http.HttpStatus;
@@ -60,18 +61,18 @@ public class ContentPublishMgmtController {
     }
 
     /**
-     * 读取发布记录分页，状态以本地发布表为准。
+     * 发布记录列表分页查询，状态以本地发布表为准。
      *
      * @param page 从零开始的页码
      * @param size 每页条数
-     * @return 发布记录分页
+     * @return 当前页记录及总数
      */
     @GetMapping("list")
-    public ContentPublishRecordPage listContentPublishRecords(
+    public PageResponse<ContentPublishRecord> listContentPublishRecords(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size) {
         log.info("查询内容发布记录列表 request page={} size={}", page, size);
-        ContentPublishRecordPage records = publishBusiness.listContentPublishRecords(page, size);
+        PageResponse<ContentPublishRecord> records = publishBusiness.listContentPublishRecords(page, size);
         log.info("查询内容发布记录列表 response total={} itemCount={}", records.total(), records.items().size());
         return records;
     }

@@ -106,14 +106,34 @@ public class LLMStrategyRouter {
     }
 
     /**
+     * 按默认规则选出已启用渠道中分数最高者，供需要在多次调用中固定同一渠道的流程使用，例如诊断报告判定。
+     * @return 优先级最高的已启用渠道，同分时取最小 ID
+     * @throws LLMClientException 没有已启用的渠道
+     */
+    public GeoLlmChannelEntity selectDefaultChannel() {
+        return selectChannel(null, null);
+    }
+
+    /**
      * 查询唯一候选；指定条件不匹配时不回退到其他渠道。
      * @param request 渠道与模型筛选条件
      * @return 优先级最高的已启用渠道，同分时取最小 ID
      */
     private GeoLlmChannelEntity selectChannel(LLMQueryRequest request) {
+        return selectChannel(request.channelCode(), request.modelName());
+    }
+
+    /**
+     * 按可选的渠道编码与模型筛选已启用渠道，再按优先级取唯一候选。
+     * @param channelCode 渠道编码，空值表示不限定
+     * @param modelName 模型标识，空值表示不限定
+     * @return 优先级最高的已启用渠道，同分时取最小 ID
+     * @throws LLMClientException 没有符合条件的已启用渠道
+     */
+    private GeoLlmChannelEntity selectChannel(String channelCode, String modelName) {
         // 清理选择条件；不处理问题原文，以保留诊断输入。
-        String code = normalize(request.channelCode());
-        String model = normalize(request.modelName());
+        String code = normalize(channelCode);
+        String model = normalize(modelName);
         LambdaQueryWrapper<GeoLlmChannelEntity> query = new LambdaQueryWrapper<GeoLlmChannelEntity>()
             .eq(GeoLlmChannelEntity::getEnabled, true)
             .eq(!code.isEmpty(), GeoLlmChannelEntity::getChannelCode, code)

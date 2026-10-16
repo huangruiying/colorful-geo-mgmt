@@ -24,7 +24,7 @@ import java.util.NoSuchElementException;
 public class ContentPublishRecordService extends ServiceImpl<ContentPublishRecordDao, ContentPublishRecordEntity> {
 
     /**
-     * 按记录 ID 倒序读取发布表；分页参数由应用层校验，不截取平台上的正文。
+     * 发布记录列表查询，最新的在前。
      *
      * @param size 每页条数
      * @param offset 起始偏移

@@ -26,7 +26,14 @@ public class GeoProjectInfoService extends ServiceImpl<GeoProjectInfoDao, GeoPro
         return getById(project.getId());
     }
 
-    /** 根据名称关键词分页查询，最新创建项目排在前面。 */
+    /**
+     * 项目列表查询，可按名称筛选，最新创建的在前。
+     *
+     * @param keyword 项目名称关键词，可为空
+     * @param size 每页条数
+     * @param offset 起始偏移
+     * @return 当前页项目
+     */
     public List<GeoProjectInfoEntity> listProjects(String keyword, int size, long offset) {
         return list(buildProjectQuery(keyword).orderByDesc(GeoProjectInfoEntity::getId)
                 .last("LIMIT " + size + " OFFSET " + offset));

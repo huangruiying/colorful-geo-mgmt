@@ -54,7 +54,14 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
         return getById(channel.getId());
     }
 
-    /** 按名称或编码查询，按默认优先级排序。 */
+    /**
+     * 模型列表查询，可按名称或编码筛选，按优先级排序。
+     *
+     * @param keyword 名称或编码关键词，可为空
+     * @param size 每页条数
+     * @param offset 起始偏移
+     * @return 当前页模型
+     */
     public List<GeoLlmChannelEntity> listChannels(String keyword, int size, long offset) {
         return list(query(keyword).orderByDesc(GeoLlmChannelEntity::getScore).orderByAsc(GeoLlmChannelEntity::getId)
             .last("LIMIT " + size + " OFFSET " + offset));

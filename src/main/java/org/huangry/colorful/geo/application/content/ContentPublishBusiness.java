@@ -4,8 +4,8 @@ import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.PublicationPlatformStrategy;
 import java.util.Comparator;
-import org.huangry.colorful.geo.application.content.model.ContentPublishRecordPage;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
 import org.huangry.colorful.geo.domain.service.content.ContentPublishRecordService;
 import org.huangry.colorful.geo.domain.service.publish.ContentPublicationService;
@@ -45,18 +45,21 @@ public class ContentPublishBusiness {
     }
 
     /**
-     * 分页读取逐平台发布记录，供独立发布列表查看状态和平台结果。
+     * 发布记录列表分页查询。
      *
      * @param page 从零开始的页码
      * @param size 每页条数，上限 100
-     * @return 发布记录分页
+     * @return 当前页及总数
      */
-    public ContentPublishRecordPage listContentPublishRecords(int page, int size) {
+    public PageResponse<ContentPublishRecord> listContentPublishRecords(int page, int size) {
+        // 分页参数越界直接拒绝，避免一次查询过多记录
         if (page < 0 || size < 1 || size > 100) {
             throw new IllegalArgumentException("分页参数不合法：page 不小于 0，size 范围为 1～100");
         }
+
+        // 查询当前页记录和总数
         long offset = (long) page * size;
-        return new ContentPublishRecordPage(publishRecordService.listContentPublishRecords(size, offset),
+        return new PageResponse<>(publishRecordService.listContentPublishRecords(size, offset),
                 publishRecordService.countContentPublishRecords(), page, size);
     }
 

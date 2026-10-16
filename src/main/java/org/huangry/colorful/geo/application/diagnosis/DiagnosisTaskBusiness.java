@@ -7,6 +7,7 @@ import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskResultStatus;
 import org.huangry.colorful.geo.application.diagnosis.model.CreateDiagnosisTaskRequest;
 import org.huangry.colorful.geo.application.diagnosis.model.DiagnosisTaskResponse;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskService;
 import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisPlanExecRecordDao;
@@ -59,23 +60,26 @@ public class DiagnosisTaskBusiness {
     }
 
     /**
-     * 按来源方案与任务状态分页，页码从零开始。
+     * 诊断任务列表分页查询，可按方案和状态筛选。
      * @param planId 可选方案
      * @param status 可选任务状态
-     * @param page 页码
+     * @param page 从零开始的页码
      * @param size 每页数量
-     * @return 摘要页
+     * @return 当前页任务及总数
      */
-    public DiagnosisTaskResponse.PageResponse<DiagnosisTaskResponse> list(Long planId, String status, int page, int size) {
+    public PageResponse<DiagnosisTaskResponse> list(Long planId, String status, int page, int size) {
+        // 分页参数和状态不合法直接拒绝
         validatePage(page, size);
         validateStatus(status, true);
+
+        // 按筛选条件查询总数和当前页任务，最新的在前
         LambdaQueryWrapper<GeoDiagnosisPlanExecRecordEntity> query = new LambdaQueryWrapper<GeoDiagnosisPlanExecRecordEntity>()
                 .eq(planId != null, GeoDiagnosisPlanExecRecordEntity::getPlanId, planId)
                 .eq(status != null && !status.isBlank(), GeoDiagnosisPlanExecRecordEntity::getStatus, status);
         long total = taskDao.selectCount(query);
         query.orderByDesc(GeoDiagnosisPlanExecRecordEntity::getId).last("LIMIT " + size + " OFFSET " + (long) page * size);
         var items = taskDao.selectList(query).stream().map(task -> response(task, false)).toList();
-        return new DiagnosisTaskResponse.PageResponse<>(items, total, page, size);
+        return new PageResponse<>(items, total, page, size);
     }
 
     /**
@@ -88,18 +92,21 @@ public class DiagnosisTaskBusiness {
     }
 
     /**
-     * 按状态和渠道分页查询诊断结果，正文与原始响应不进入列表查询。
+     * 诊断结果列表分页查询，可按状态和渠道筛选；不查询回答正文和原始响应。
      * @param taskId 任务 ID
      * @param status 可选诊断结果状态
      * @param channelId 可选渠道
-     * @param page 页码
+     * @param page 从零开始的页码
      * @param size 每页数量
-     * @return 诊断结果摘要页
+     * @return 当前页诊断结果及总数
      */
-    public DiagnosisTaskResponse.PageResponse<DiagnosisTaskResponse.ResultResponse> results(long taskId, String status, Long channelId, int page, int size) {
+    public PageResponse<DiagnosisTaskResponse.ResultResponse> results(long taskId, String status, Long channelId, int page, int size) {
+        // 任务不存在或参数不合法直接拒绝
         requireTask(taskId);
         validatePage(page, size);
         validateStatus(status, false);
+
+        // 查询总数和当前页结果，只取列表字段
         LambdaQueryWrapper<GeoDiagnosisPlanExecRecordResultEntity> query = new LambdaQueryWrapper<GeoDiagnosisPlanExecRecordResultEntity>()
                 .eq(GeoDiagnosisPlanExecRecordResultEntity::getExecRecordId, taskId)
                 .eq(status != null && !status.isBlank(), GeoDiagnosisPlanExecRecordResultEntity::getStatus, status)
@@ -115,7 +122,7 @@ public class DiagnosisTaskBusiness {
                 .orderByAsc(GeoDiagnosisPlanExecRecordResultEntity::getRepeatIndex)
                 .last("LIMIT " + size + " OFFSET " + (long) page * size);
         var items = resultDao.selectList(query).stream().map(this::resultResponse).toList();
-        return new DiagnosisTaskResponse.PageResponse<>(items, total, page, size);
+        return new PageResponse<>(items, total, page, size);
     }
 
     /**
@@ -189,7 +196,7 @@ public class DiagnosisTaskBusiness {
             channels.add(new DiagnosisTaskResponse.ChannelProgressResponse(id, channel.getString("channelName"),
                     progress(counts.getOrDefault(id, new long[5]))));
         }
-        // 3. 详情附带完整快照，列表仅返回摘要
+        // 3. 详情附带完整快照，列表不返回快照
         return new DiagnosisTaskResponse(task.getId(), task.getPlanId(), snapshot.getString("planName"),
                 task.getProjectId(), snapshot.getJSONObject("project").getString("name"), task.getStatus(), progress(total),
                 channels, detail ? snapshot : null, task.getCreatedAt(), task.getStartedAt(), task.getFinishedAt());
@@ -197,7 +204,7 @@ public class DiagnosisTaskBusiness {
 
     /**
      * 显式转换结果，JSON 空值保留为空，不伪造引用或用量。
-     * @param row 诊断结果实体或摘要查询结果
+     * @param row 诊断结果实体或列表查询结果
      * @return 安全结果响应
      */
     private DiagnosisTaskResponse.ResultResponse resultResponse(GeoDiagnosisPlanExecRecordResultEntity row) {

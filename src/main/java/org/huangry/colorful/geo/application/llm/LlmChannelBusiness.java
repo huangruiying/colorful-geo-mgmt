@@ -4,6 +4,7 @@ import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMStrategy;
 import java.util.Map;
 import org.huangry.colorful.geo.application.llm.model.*;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.domain.service.llm.GeoLlmChannelService;
 import org.springframework.stereotype.Service;
@@ -45,18 +46,27 @@ public class LlmChannelBusiness {
         return toResponse(channel);
     }
 
-    /** 分页查询模型列表，限制单次查询规模。 */
-    public LlmChannelPage listChannels(String keyword, int page, int size) {
-        // 校验分页和关键词，再使用同一条件查询列表及总数。
+    /**
+     * 模型列表分页查询，可按名称或编码筛选。
+     *
+     * @param keyword 名称或编码关键词，可为空
+     * @param page 从零开始的页码
+     * @param size 每页条数，上限 100
+     * @return 当前页模型及总数
+     */
+    public PageResponse<LlmChannelResponse> listChannels(String keyword, int page, int size) {
+        // 分页参数和关键词越界直接拒绝，避免一次查询过多记录
         if (page < 0 || size < 1 || size > 100) throw new IllegalArgumentException("页码不能小于零，每页条数必须在 1 到 100 之间");
         if (keyword != null && keyword.length() > 200) throw new IllegalArgumentException("查询关键词最多 200 字符");
+
+        // 列表和总数使用同一关键词条件
         String key = keyword == null ? null : keyword.strip();
         long offset = (long) page * size;
         var items = service.listChannels(key, size, offset).stream()
             .map(this::toResponse)
             .toList();
         long total = service.countChannels(key);
-        return new LlmChannelPage(items, total, page, size);
+        return new PageResponse<>(items, total, page, size);
     }
 
     /** 启用或停用已有渠道。 */

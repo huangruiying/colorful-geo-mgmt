@@ -4,6 +4,7 @@ import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.application.diagnosis.DiagnosisTaskBusiness;
 import org.huangry.colorful.geo.application.diagnosis.model.CreateDiagnosisTaskRequest;
 import org.huangry.colorful.geo.application.diagnosis.model.DiagnosisTaskResponse;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -40,15 +41,15 @@ public class MgmtDiagnosisTaskController {
     }
 
     /**
-     * 查询任务列表，支持方案与状态筛选。
+     * 诊断任务列表分页查询，可按方案和状态筛选。
      * @param planId 方案 ID
      * @param status 状态
      * @param page 页码
      * @param size 每页数量
-     * @return 任务摘要页
+     * @return 当前页任务及总数
      */
     @GetMapping
-    public DiagnosisTaskResponse.PageResponse<DiagnosisTaskResponse> list(
+    public PageResponse<DiagnosisTaskResponse> list(
             @RequestParam(value = "planId", required = false) Long planId,
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -67,16 +68,16 @@ public class MgmtDiagnosisTaskController {
     }
 
     /**
-     * 分页查看诊断结果摘要。
+     * 诊断结果列表分页查询，可按状态和渠道筛选。
      * @param id 任务 ID
      * @param status 诊断结果状态
      * @param channelId 渠道 ID
      * @param page 页码
      * @param size 每页数量
-     * @return 诊断结果摘要页
+     * @return 当前页诊断结果及总数
      */
     @GetMapping("/{id}/results")
-    public DiagnosisTaskResponse.PageResponse<DiagnosisTaskResponse.ResultResponse> results(@PathVariable("id") long id,
+    public PageResponse<DiagnosisTaskResponse.ResultResponse> results(@PathVariable("id") long id,
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "channelId", required = false) Long channelId,
             @RequestParam(value = "page", defaultValue = "0") int page,

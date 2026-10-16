@@ -5,6 +5,7 @@ import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMS
 import java.util.Map;
 import org.huangry.colorful.geo.application.llm.LlmChannelBusiness;
 import org.huangry.colorful.geo.application.llm.model.*;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -48,9 +49,16 @@ public class MgmtLlmChannelController {
     @GetMapping("/{id}")
     public LlmChannelResponse get(@PathVariable("id") long id) { return business.getChannel(id); }
 
-    /** 按名称或编码分页查询，返回优先级顺序。 */
+    /**
+     * 模型列表分页查询，可按名称或编码筛选。
+     *
+     * @param keyword 名称或编码关键词，可为空
+     * @param page 从零开始的页码
+     * @param size 每页条数
+     * @return 当前页模型及总数
+     */
     @GetMapping
-    public LlmChannelPage list(@RequestParam(value="keyword", required=false) String keyword,
+    public PageResponse<LlmChannelResponse> list(@RequestParam(value="keyword", required=false) String keyword,
         @RequestParam(value="page", defaultValue="0") int page, @RequestParam(value="size", defaultValue="20") int size) {
         return business.listChannels(keyword, page, size);
     }

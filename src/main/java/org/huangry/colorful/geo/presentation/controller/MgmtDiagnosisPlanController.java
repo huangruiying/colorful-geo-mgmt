@@ -3,6 +3,7 @@ package org.huangry.colorful.geo.presentation.controller;
 import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.application.diagnosis.DiagnosisPlanBusiness;
 import org.huangry.colorful.geo.application.diagnosis.model.*;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -45,10 +46,15 @@ public class MgmtDiagnosisPlanController {
 	}
 
 	/**
-	 * 按名称分页查询方案。
+	 * 诊断方案列表分页查询，可按名称筛选。
+	 *
+	 * @param keyword 方案名称关键词，可为空
+	 * @param page 从零开始的页码
+	 * @param size 每页条数
+	 * @return 当前页方案及总数
 	 */
 	@GetMapping
-	public DiagnosisPlanBusiness.PlanPage list(@RequestParam(value = "keyword", required = false) String keyword,
+	public PageResponse<DiagnosisPlanBusiness.PlanPageItem> list(@RequestParam(value = "keyword", required = false) String keyword,
 	                                           @RequestParam(value = "page", defaultValue = "0") int page, @RequestParam(value = "size", defaultValue = "20") int size) {
 		return business.list(keyword, page, size);
 	}
