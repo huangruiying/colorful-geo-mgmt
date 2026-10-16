@@ -9,8 +9,6 @@ let currentPage = 0;
 let currentDetail = null;
 let selectedRecordId = null;
 let checkedRecordId = null;
-let platformOptionsPromise = null;
-const platformDisplayNames = new Map();
 
 const recordRows = document.querySelector("#record-rows");
 const pageNotice = document.querySelector("#page-notice");
@@ -144,10 +142,7 @@ async function submitOptimization(event) {
 /** 读取原文、优化稿及各平台发布结果；最终稿仅在预发布弹窗中确认。 */
 async function openContentDetail(recordId) {
     try {
-        const [detail] = await Promise.all([
-            requestJson(`/content-optimize/detail/${recordId}`), loadPlatformOptions()
-        ]);
-        currentDetail = detail;
+        currentDetail = await requestJson(`/content-optimize/detail/${recordId}`);
         const record = currentDetail.record;
         document.querySelector("#detail-title").textContent = record.title;
         document.querySelector("#original-content").textContent = record.originalContent;
@@ -167,7 +162,7 @@ async function openPlatformSelection(recordId) {
     hideMessage(errorNode);
     try {
         const [detail, platforms] = await Promise.all([
-            requestJson(`/content-optimize/detail/${recordId}`), loadPlatformOptions()
+            requestJson(`/content-optimize/detail/${recordId}`), requestJson("/content-publish/platforms")
         ]);
         selectedRecordId = recordId;
         document.querySelector("#platform-dialog-title").textContent = `${detail.record.title} · 选择一个或多个平台创建草稿`;
@@ -238,20 +233,6 @@ function createPlatformOption(platform, publishRecord) {
     return label;
 }
 
-/** 平台展示名只读取一次；请求失败后允许再次加载。 */
-async function loadPlatformOptions() {
-    if (!platformOptionsPromise) {
-        platformOptionsPromise = requestJson("/content-publish/platforms").then(platforms => {
-            platforms.forEach(platform => platformDisplayNames.set(platform.platformType, platform.displayName));
-            return platforms;
-        }).catch(error => {
-            platformOptionsPromise = null;
-            throw error;
-        });
-    }
-    return platformOptionsPromise;
-}
-
 function togglePlatformSelection(checked) {
     document.querySelectorAll("#platform-options input:not(:disabled)").forEach(input => { input.checked = checked; });
 }
@@ -262,7 +243,7 @@ function renderPublishRecords(records) {
         const item = document.createElement("div");
         item.className = "publish-record-item";
         const name = document.createElement("strong");
-        name.textContent = platformDisplayNames.get(record.platformType) || record.platformType;
+        name.textContent = record.platformDisplayName;
         const status = document.createElement("span");
         status.textContent = publishStatusLabels[record.publishStatus] || record.publishStatus;
         item.append(name, status);

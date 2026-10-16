@@ -1,6 +1,7 @@
 package org.huangry.colorful.geo.presentation.controller;
 
 import org.huangry.colorful.geo.application.content.ContentPublishBusiness;
+import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
 import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
@@ -73,6 +74,19 @@ class ContentPublishMgmtControllerTest {
                 .andExpect(status().isOk());
 
         verify(publishBusiness).listContentPublishRecords(0, 20);
+    }
+
+    /** 发布记录返回由平台枚举推导的中文名，页面不再自行映射。 */
+    @Test
+    void 发布记录返回平台中文名() throws Exception {
+        var record = ContentPublishRecord.builder().id(1L).platformType(PublicationPlatformType.ZHIHU).build();
+        when(publishBusiness.listContentPublishRecords(0, 20))
+                .thenReturn(new PageResponse<>(List.of(record), 1, 0, 20));
+
+        mockMvc.perform(get("/content-publish/list"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].platformType").value("ZHIHU"))
+                .andExpect(jsonPath("$.items[0].platformDisplayName").value("知乎"));
     }
 
     /** 删除只针对本地发布记录，并返回无正文的成功状态。 */

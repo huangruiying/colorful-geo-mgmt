@@ -56,7 +56,7 @@ function createRecordRow(record) {
 
     const title = document.createElement("td");
     title.className = "publication-title";
-    title.textContent = record.platformType || "未知平台";
+    title.textContent = record.platformDisplayName;
     const titleText = document.createElement("small");
     titleText.textContent = record.publicationTitle || "未命名";
     title.append(titleText);
@@ -102,7 +102,7 @@ function createRecordRow(record) {
 async function deleteContentPublishRecord(record) {
     const warning = record.publishStatus === "PUBLISHED" || record.publishStatus === "PRE_PUBLISHED"
         ? "平台上的草稿或文章仍会保留；删除后可能再次提交同一内容。" : "";
-    if (!window.confirm(`确定删除本地发布记录 #${record.id}（${record.platformType}）吗？\n${warning}此操作不会删除平台上的内容。`)) return;
+    if (!window.confirm(`确定删除本地发布记录 #${record.id}（${record.platformDisplayName}）吗？\n${warning}此操作不会删除平台上的内容。`)) return;
     try {
         await requestJson(`/content-publish/detail/${record.id}`, {method: "DELETE"});
         await loadContentPublishRecords(currentPage);
@@ -120,7 +120,7 @@ function openRecordDetail(record) {
     meta.replaceChildren();
     [
         `优化记录 ID：${record.contentOptimizationRecordId}`,
-        `平台：${record.platformType}`,
+        `平台：${record.platformDisplayName}`,
         `状态：${publishStatusLabels[record.publishStatus] || record.publishStatus}`,
         `最终发布标题：${record.publicationTitle || "—"}`,
         `平台内容 ID：${record.remoteContentId || "—"}`,

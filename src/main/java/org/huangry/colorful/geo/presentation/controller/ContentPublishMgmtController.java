@@ -34,7 +34,12 @@ public class ContentPublishMgmtController {
     @Resource
     private ContentPublishBusiness publishBusiness;
 
-    /** 查询已接入发布策略的平台选项，不检测登录状态。 */
+    /**
+     * 查询已接入发布策略的平台选项，供「内容优化记录」页面的预发布弹窗使用。
+     * 只返回代码已实现发布的平台，不检测登录状态，弹窗里的平台预发布时仍可能因未登录失败。
+     *
+     * @return 平台类型及中文名，按枚举顺序排列
+     */
     @GetMapping("/platforms")
     public List<PublicationPlatformOption> listConfiguredPlatforms() {
         return publishBusiness.listConfiguredPlatforms();
