@@ -23,6 +23,14 @@ public interface LLMStrategy {
     LLMProtocolType protocolType();
 
     /**
+     * 声明厂商获取 API Key 的控制台页面，供配置页面引导填写密钥；不参与调用或路由。
+     * @return 控制台地址；通用协议策略和本地模拟没有固定厂商，返回 null
+     */
+    default String apiKeyConsoleUrl() {
+        return null;
+    }
+
+    /**
      * 调用已匹配的模型通道。
      *
      * @param request 通用查询请求

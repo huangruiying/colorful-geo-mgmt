@@ -85,14 +85,18 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
             log.info("Accept SSE Request URL: {}", requestURL);
             return llmRestTemplate.execute(requestURL, HttpMethod.POST,
                     outgoing -> {
-                        // 请求回调：携带认证和媒体类型，以 UTF-8 JSON 字节写入当前策略的完整请求体。
+                        // 请求回调：携带认证和媒体类型，以 UTF-8 JSON 字节写入当前策略的完整请求体；
+                        // 显式设置 Content-Length，避免连接池客户端分块发送被部分厂商拒绝。
+                        byte[] payload = JSON.toJSONBytes(requestBody);
                         outgoing.getHeaders().putAll(headers);
-                        outgoing.getBody().write(JSON.toJSONBytes(requestBody));
+                        outgoing.getHeaders().setContentLength(payload.length);
+                        outgoing.getBody().write(payload);
                         // 响应回调：逐帧读取，只有完成事件中的完整回答可返回；失败或断流继续抛错。
                     }, this::readStreamResponse);
         }
+        // 先序列化为字节以携带 Content-Length，避免分块发送被部分厂商拒绝。
         String responseBody = llmRestTemplate
-                .postForObject(requestURL, new HttpEntity<>(requestBody, headers), String.class);
+                .postForObject(requestURL, new HttpEntity<>(JSON.toJSONBytes(requestBody), headers), String.class);
         if (responseBody == null || responseBody.isBlank() || "null".equals(responseBody.strip())) {
             throw new LLMClientException("OpenAI Responses API 返回空响应");
         }
@@ -156,8 +160,10 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
         }
         JSONObject event = JSON.parseObject(data);
         String type = event.getString("type");
-        if ("response.failed".equals(type) || "response.incomplete".equals(type) || "error".equals(type)) {
-            throw new LLMClientException("Responses 流返回失败或不完整回答");
+        // 失败事件带上厂商报错，供诊断定位原因；千问 SSE 的 error 事件数据不含 type，以 code 与 message 识别
+        boolean untypedError = type == null && event.get("code") instanceof String && event.get("message") instanceof String;
+        if ("response.failed".equals(type) || "response.incomplete".equals(type) || "error".equals(type) || untypedError) {
+            throw new LLMClientException("Responses 流返回失败或不完整回答：" + describeStreamFailure(event));
         }
         if (!"response.completed".equals(type)) {
             return null;
@@ -167,6 +173,26 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
             throw new LLMClientException("Responses 完成事件缺少有效响应");
         }
         return parseResponse(completed);
+    }
+
+    /**
+     * 提取失败事件中的厂商报错；按 response.error、response.incomplete_details、事件自身 error 及 code/message 依次查找。
+     * @param event 失败或不完整事件
+     * @return 厂商错误码与说明，均未提供时返回事件类型
+     */
+    private static String describeStreamFailure(JSONObject event) {
+        JSONObject response = event.get("response") instanceof JSONObject value ? value : null;
+        JSONObject error = response != null && response.get("error") instanceof JSONObject value ? value
+                : event.get("error") instanceof JSONObject value ? value : event;
+        String code = error.get("code") instanceof String value ? value : null;
+        String message = error.get("message") instanceof String value ? value : null;
+        if (message == null && response != null && response.get("incomplete_details") instanceof JSONObject details) {
+            message = details.getString("reason");
+        }
+        if (code == null && message == null) {
+            return String.valueOf(event.getString("type"));
+        }
+        return (code == null ? "" : code + " ") + (message == null ? "" : message);
     }
 
     /**

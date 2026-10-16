@@ -6,6 +6,3 @@
 .model-table th, .model-table td { padding-left: 16px; padding-right: 16px; white-space: nowrap; }
 .model-table td:nth-child(2) { min-width: 200px; max-width: 280px; white-space: normal; overflow-wrap: anywhere; }
 .model-table td:last-child { min-width: 110px; }
-.notice-success { background: #eaf8ef; color: #247348; }
-.test-result-list { margin: 6px 0 0; padding-left: 18px; }
-.test-result-answer { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }

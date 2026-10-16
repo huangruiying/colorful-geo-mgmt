@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261016-test2", error = document.getElementById("model-error");
+    const version = "20261017-keyurl2", error = document.getElementById("model-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
     async function request(path, options = {}) {
         const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
@@ -66,8 +66,9 @@
                 form.elements.channelCode.readOnly = true;
                 syncStrategy(); button.disabled = false;
             }).catch(failure => showError(failure.message));
-        // 保存与测试连接提交同一份表单配置
-        const readChannel = () => {
+        form.addEventListener("submit", async event => {
+            event.preventDefault(); if (button.disabled) return;
+            button.disabled = true; button.textContent = "正在保存…"; showError("");
             const channel = Object.fromEntries(new FormData(form));
             // 禁用字段不在 FormData 中，不把缺失值转换为 NaN 或 null。
             for (const key of ["score", "maxTokens"]) {
@@ -76,39 +77,6 @@
             channel.temperature = "temperature" in channel && channel.temperature.trim() !== ""
                 ? Number(channel.temperature) : null;
             channel.enabled = form.elements.enabled.checked;
-            return channel;
-        };
-        const testButton = document.getElementById("test-model"), testResult = document.getElementById("test-result");
-        // 测试结果用文本节点渲染，厂商报错原文不作为 HTML 解析
-        const showTestResult = (success, title, lines, answer) => {
-            const list = document.createElement("ul"); list.className = "test-result-list";
-            for (const line of lines) { const item = document.createElement("li"); item.textContent = line; list.append(item); }
-            const heading = document.createElement("strong"); heading.textContent = title;
-            testResult.replaceChildren(heading, list);
-            if (answer) { const text = document.createElement("p"); text.className = "test-result-answer"; text.textContent = "回答摘要：" + answer; testResult.append(text); }
-            testResult.className = "notice " + (success ? "notice-success" : "notice-error"); testResult.hidden = false;
-        };
-        testButton.addEventListener("click", async () => {
-            if (!form.reportValidity()) return;
-            testButton.disabled = true; testButton.textContent = "测试中…"; showError("");
-            testResult.className = "notice notice-loading"; testResult.textContent = "正在调用模型，联网模型可能需要 30 到 70 秒…"; testResult.hidden = false;
-            try {
-                const result = await request("/llm-channels/test" + (id ? "?id=" + id : ""), {method: "POST", body: JSON.stringify(readChannel())});
-                const seconds = (result.costMs / 1000).toFixed(1) + " 秒";
-                if (result.success) {
-                    showTestResult(true, "连接成功", ["耗时：" + seconds, "实际模型：" + (result.modelName || "接口未返回"),
-                        "引用来源：" + (result.citationCount > 0 ? result.citationCount + " 条" : "0 条（本次未返回联网来源）")], result.answerPreview);
-                } else {
-                    showTestResult(false, "连接失败" + (result.httpStatus ? " · HTTP " + result.httpStatus : ""),
-                        ["耗时：" + seconds, "报错：" + (result.errorMessage || "无")]);
-                }
-            } catch (failure) { testResult.hidden = true; showError(failure.message); }
-            finally { testButton.disabled = false; testButton.textContent = "测试连接"; }
-        });
-        form.addEventListener("submit", async event => {
-            event.preventDefault(); if (button.disabled) return;
-            button.disabled = true; button.textContent = "正在保存…"; showError("");
-            const channel = readChannel();
             try {
                 const saved = await request(id ? "/llm-channels/" + id : "/llm-channels",
                     {method: id ? "PUT" : "POST", body: JSON.stringify(channel)});

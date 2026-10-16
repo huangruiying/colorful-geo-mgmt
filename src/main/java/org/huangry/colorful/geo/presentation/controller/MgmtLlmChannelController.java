@@ -44,17 +44,6 @@ public class MgmtLlmChannelController {
         return business.saveChannel(id, request);
     }
 
-    /**
-     * 用页面当前填写的配置测试一次调用，不保存；调用失败以结果返回，配置不合法仍为 400。
-     * @param id 编辑中的渠道 ID，新建时不传
-     * @param request 页面当前填写的配置
-     * @return 测试结果
-     */
-    @PostMapping("/test")
-    public LlmChannelTestResponse test(@RequestParam(value = "id", required = false) Long id, @RequestBody SaveLlmChannelRequest request) {
-        return business.testChannel(id, request);
-    }
-
     /** 查询指定渠道，供配置页编辑。 */
     @GetMapping("/{id}")
     public LlmChannelResponse get(@PathVariable("id") long id) { return business.getChannel(id); }

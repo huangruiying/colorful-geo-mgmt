@@ -4,6 +4,8 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-17 按用户要求移除「测试连接」功能，以本条为准替代 2026-10-16 测试连接相关各条：删除 `POST /llm-channels/test`、`LlmChannelTestResponse`、`GeoLlmChannelService.prepareTestChannel`、页面按钮/结果区/脚本/样式及项目约定中的对应条目；`LlmChannelBusiness` 及三个测试文件恢复到加入前版本（0ce1e8f、6be745e、941f187）。保留：API Key 控制台链接、默认输出上限 60000（页面提示改为「需按模型调低」）、请求体字节发送带 Content-Length、流式失败带厂商报错、Chat finish_reason=length 判失败。models.js 版本 20261017-keyurl2，models.css 恢复 20261013-bean3。验证：compile、JS 语法通过，相关独立 JUnit 56 项 55 通过（既有失败同前），源码与约定无测试连接残留。注意：分类器/枚举/测试响应在暂存区为 AD，测试文件 LLMCallFailureClassifierTest 为已提交后删除，提交前需同步暂存删除。未重启，未提交。
+
 - 2026-10-16 按用户要求精简测试连接：删除 `LLMCallFailureClassifier`、`LLMCallFailureType` 及其测试（共 268 行），失败改为直接返回 HTTP 状态码与截断 300 字的厂商原文（HTTP 错误取响应体，其余取异常说明）；`LlmChannelTestResponse` 由 10 字段减为 7 个，Business 内联耗时与截断；页面失败显示「连接失败 · HTTP 状态」与原文，models.js 版本 20261016-test2；项目约定同步。保留：prepareTestChannel、流式失败原因、Content-Length 修复、Chat 截断判失败。上一条中分类器描述以本条为准。验证：compile、JS 语法通过，相关 JUnit 60 项 59 通过（既有失败同前）。未重启，未提交。
 
 - 2026-10-16 输出上限：按用户决定新建渠道默认 60000（配置页初始值与提示、`GeoLlmChannelService.DEFAULT_MAX_TOKENS`、001/007 建表默认值、服务测试断言），原 1400 偏小——库内 122 条成功结果输出均值 1347、P99 5009、最大 5502，37 条超过 1400。Chat 父类遇 `finish_reason=length` 判为失败（与 Responses incomplete 一致），新增测试；历史结果 131、177（能链 claude，上限 1400）已以截断正文成功入库，未处理。渠道 49/50/51 经 API 改为 60000（实测千问、glm-5、ernie-5.0 均接受 60000/65536）；ernie-4.5-turbo 上限 12288 会拒绝 60000。实测发现 DeepSeek 账户 `Insufficient Balance`，渠道 48 需充值。渠道 6（能链 claude，1400）、46、48 未改。验证：compile 通过，相关独立 JUnit 63 项 62 通过（既有失败同前）。服务未重启，未提交。

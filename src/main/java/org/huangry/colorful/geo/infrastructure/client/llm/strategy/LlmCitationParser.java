@@ -3,12 +3,14 @@ package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMCitation;
+import java.util.List;
 import java.util.Map;
 
 /**
  * 收集模型回答中的结构化网页引用。
- * 各策略通过 collect 将 url_citation 收集到 URL 索引。
- * <p>兼容扁平和嵌套注解，不猜测正文链接或检索来源，不核验网页内容。</p>
+ * 各策略通过 collect 将 url_citation 收集到 URL 索引；不返回 url_citation 的厂商策略
+ * 通过 collectSearchSources 采用接口结构化返回的搜索来源。
+ * <p>兼容扁平和嵌套注解，不从正文链接猜测引用，不核验网页内容。</p>
  */
 final class LlmCitationParser {
     /** 仅提供静态解析方法，不创建工具实例。 */
@@ -43,6 +45,29 @@ final class LlmCitationParser {
                             || citation.get("end_index") instanceof java.math.BigInteger ? citation.getIntValue("end_index") : null,
                     citation.get("summary") instanceof String summary ? summary
                             : citation.get("text") instanceof String text ? text : ""));
+        }
+    }
+
+    /**
+     * 收集 Responses 搜索调用中的来源网址，供不返回 url_citation 的厂商（千问、智谱）作为引用。
+     * <p>来源只有网址，标题、摘要和位置留空；已存在的同一网址保留原资料。</p>
+     * @param output Responses 的 output 数组，接口未返回时为 null
+     * @param citations 已收集的引用，按 URL 去重
+     */
+    static void collectSearchSources(JSONArray output, Map<String, LLMCitation> citations) {
+        for (Object value : output == null ? List.of() : output) {
+            if (!(value instanceof JSONObject outputItem) || !"web_search_call".equals(outputItem.getString("type"))
+                    || !(outputItem.get("action") instanceof JSONObject action)
+                    || !(action.get("sources") instanceof JSONArray sources)) {
+                continue;
+            }
+            // 只取明确为网址类型的来源，跳过空地址；同一网页被多次搜索到只记一次
+            for (Object sourceValue : sources) {
+                if (sourceValue instanceof JSONObject source && "url".equals(source.getString("type"))
+                        && source.get("url") instanceof String url && !url.isBlank()) {
+                    citations.putIfAbsent(url.strip(), new LLMCitation("", url.strip(), null, null, ""));
+                }
+            }
         }
     }
 }

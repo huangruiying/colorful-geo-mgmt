@@ -65,7 +65,6 @@ infrastructure/client：外部协议、平台及浏览器适配
 - 不返回 url_citation 的厂商由子策略重写 `collectStrategyCitations`，把接口结构化返回的来源网址补为引用：DeepSeek 取 `web_search_call` 的 `open_page`（去掉 `ws_call_id` 标识），千问、智谱取 `web_search_call.action.sources` 中 `type=url` 的网址（共用 `LlmCitationParser.collectSearchSources`）；文心（千帆智能搜索 Chat）取响应顶层 `references` 中 `type=web` 的网址与标题，正文 `^[n]^` 角标不解析。Chat 与 Responses 父类各提供同名默认空实现的补充入口。标题、摘要、位置留空且不抓取补全；检索词不作为引用；文本注解已有同一网址时保留注解资料。标准 url_citation（豆包、OpenAI）留在父类统一解析，不下沉到子策略。
 - `LLMQueryRequest` 仅含 `prompt`、`channelCode`、`modelName`，每次独立调用，无角色枚举、消息列表或历史上下文。重复采样通过多次独立调用完成。
 - 密钥仅供服务端使用，响应只返回 `keyConfigured`；编辑空密钥保留原值，输入新值才替换。
-- 配置页测试连接（`POST /llm-channels/test`）用表单当前配置经路由器真实调用一次，不写库；校验与密钥保留规则复用保存逻辑。失败以结果返回 HTTP 状态码与截断后的厂商报错原文，不做关键词分类或翻译；原文只返回给配置页，不进日志。
 
 ## 修改后的检查
 

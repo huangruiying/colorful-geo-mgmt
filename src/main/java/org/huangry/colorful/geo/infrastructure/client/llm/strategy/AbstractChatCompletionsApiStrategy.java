@@ -66,8 +66,9 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(channel.getApiKey().strip());
         headers.setContentType(MediaType.APPLICATION_JSON);
+        // 先序列化为字节以携带 Content-Length：连接池客户端不缓冲 Map 请求体时会分块发送，千帆等厂商拒绝分块请求（411）。
         String response = llmRestTemplate
-                .postForObject(baseUrl + "/chat/completions", new HttpEntity<>(body, headers), String.class);
+                .postForObject(baseUrl + "/chat/completions", new HttpEntity<>(JSON.toJSONBytes(body), headers), String.class);
 
         // 3. 响应结构不合法明确报错，不能把空响应伪装成成功。
         if (response == null || response.isBlank() || "null".equals(response.strip())) {
@@ -97,7 +98,8 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
     }
 
     /**
-     * 解析首个回答和 OpenAI 标准 annotations，不合并不同候选回答的引用。
+     * 解析首个回答和 OpenAI 标准 annotations，不合并不同候选回答的引用；子策略可补充厂商结构化来源。
+     * <p>回答因输出上限截断（finish_reason=length）时判为失败，不返回不完整回答。</p>
      * @param response 原始响应
      * @return 首个回答、按链接去重的引用及实际响应元数据
      */
@@ -110,12 +112,25 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
         if (message == null || !(message.get("content") instanceof String)) {
             throw new LLMClientException("Chat Completions 未返回文本回答");
         }
-        // 2. 引用仅取当前回答的注解，正文 URL 不作为引用来源
+        // 输出达到上限时回答不完整，与 Responses 的 incomplete 一致判为失败，避免半截回答作为诊断结果入库
+        if ("length".equals(first.getString("finish_reason"))) {
+            throw new LLMClientException("Chat Completions 回答因输出上限被截断（finish_reason=length），请调大输出 token 上限");
+        }
+        // 2. 引用先取当前回答的注解，厂商以顶层结构化字段返回来源时由子策略补充；正文 URL 不作为引用来源
         Map<String, LLMCitation> citations = new LinkedHashMap<>();
         LlmCitationParser.collect(message.get("annotations"), citations);
+        collectStrategyCitations(response, citations);
         String reason = first.get("finish_reason") instanceof String value ? value : null;
         // 3. 元数据保留厂商原始字段及显式空值，结果对象不负责 JSON 解析
         return assembleLLMResponse(response, message, citations, reason);
+    }
+
+    /**
+     * 补充厂商在 annotations 之外以响应结构化字段返回的来源；默认不补充，避免把检索召回当作引用。
+     * @param response 厂商原始响应对象
+     * @param citations 已从回答注解收集的引用，按 URL 去重；子策略只追加不覆盖
+     */
+    protected void collectStrategyCitations(JSONObject response, Map<String, LLMCitation> citations) {
     }
 
     /**
