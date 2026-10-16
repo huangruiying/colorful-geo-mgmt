@@ -22,7 +22,8 @@ class ProjectControllerTest {
     private MockMvc createMvc() {
         var controller = new MgmtProjectInfoController();
         ReflectionTestUtils.setField(controller, "projectBusiness", business);
-        return MockMvcBuilders.standaloneSetup(controller).build();
+        return MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
     /** 成功创建返回可用于任务关联的项目 ID。 */

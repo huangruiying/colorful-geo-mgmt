@@ -1,5 +1,6 @@
 package org.huangry.colorful.geo.application.content;
 
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
@@ -69,14 +70,14 @@ class ContentPublishBusinessTest {
     @Test
     void 应分页读取发布记录() {
         ContentPublishRecord record = ContentPublishRecord.builder().id(11L).build();
-        when(publishRecordService.listContentPublishRecords(20, 20L)).thenReturn(List.of(record));
+        when(publishRecordService.listContentPublishRecords(new PageQuery(1, 20))).thenReturn(List.of(record));
         when(publishRecordService.countContentPublishRecords()).thenReturn(21L);
 
         var page = service.listContentPublishRecords(1, 20);
 
         assertEquals(List.of(record), page.items());
         assertEquals(21L, page.total());
-        verify(publishRecordService).listContentPublishRecords(20, 20L);
+        verify(publishRecordService).listContentPublishRecords(new PageQuery(1, 20));
     }
 
     /** 删除发布记录应委托本地持久化服务，不触碰平台接口。 */

@@ -1,6 +1,7 @@
 package org.huangry.colorful.geo.application.llm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.application.llm.model.SaveLlmChannelRequest;
 import org.huangry.colorful.geo.domain.service.llm.GeoLlmChannelService;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
@@ -27,7 +28,7 @@ class LlmChannelBusinessTest {
         entity.setStrategyBeanName("responsesApiOpenAiStrategy");
         when(service.getById(1L)).thenReturn(entity);
         when(service.saveChannel(isNull(), any())).thenReturn(entity);
-        when(service.listChannels(null, 20, 0)).thenReturn(List.of(entity));
+        when(service.listChannels(new PageQuery(0, 20))).thenReturn(List.of(entity));
         when(service.changeEnabled(1, true)).thenReturn(entity);
         var results = List.of(business.saveChannel(null, new SaveLlmChannelRequest()),
             business.getChannel(1), business.listChannels(null, 0, 20).items().get(0),

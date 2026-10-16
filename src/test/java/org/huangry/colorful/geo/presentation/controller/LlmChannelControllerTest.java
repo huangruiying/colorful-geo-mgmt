@@ -26,7 +26,8 @@ class LlmChannelControllerTest {
         ReflectionTestUtils.setField(controller, "strategies", java.util.Map.of(
                 "responsesApiDoubaoStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiDoubaoStrategy(),
                 "responsesApiCommonStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiCommonStrategy()));
-        return MockMvcBuilders.standaloneSetup(controller).build();
+        return MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
     /** 页面选项来自实际注册集合，厂商策略带密钥获取页，通用策略没有固定厂商时为空。 */

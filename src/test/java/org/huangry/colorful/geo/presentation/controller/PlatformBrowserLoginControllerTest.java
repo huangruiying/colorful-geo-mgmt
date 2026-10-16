@@ -163,9 +163,9 @@ class PlatformBrowserLoginControllerTest {
         PlatformBrowserLoginService service = mock(PlatformBrowserLoginService.class);
         var exception = new PlatformBrowserLoginException("小红书加载二维码失败，请检查网络后重试");
 
-        var response = new MgmtPlatformLoginController(service).handleLoginError(exception);
+        var problem = new MgmtPlatformLoginController(service).handleLoginError(exception);
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals(exception.getMessage(), response.getBody().get("message"));
+        assertEquals(400, problem.getStatus());
+        assertEquals(exception.getMessage(), problem.getDetail());
     }
 }

@@ -31,7 +31,8 @@ class ContentOptimizationControllerTest {
     @BeforeEach
     void setUp() {
         optimizationBusiness = mock(ContentOptimizationBusiness.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new ContentOptimizationController(optimizationBusiness)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new ContentOptimizationController(optimizationBusiness))
+                .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
     /** 新建优化使用当前优化路径。 */

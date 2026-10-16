@@ -51,6 +51,7 @@ class DiagnosisReportControllerTest {
     private MockMvc createMvc() {
         var controller = new MgmtDiagnosisReportController();
         ReflectionTestUtils.setField(controller, "diagnosisReportBusiness", business);
-        return MockMvcBuilders.standaloneSetup(controller).build();
+        return MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 }

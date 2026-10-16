@@ -1,5 +1,6 @@
 package org.huangry.colorful.geo.application.project;
 
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.domain.service.project.GeoProjectInfoService;
 import org.huangry.colorful.geo.application.project.model.CreateProjectRequest;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoProjectInfoEntity;
@@ -23,7 +24,7 @@ class ProjectBusinessTest {
         saved.setKeywords(List.of("企业知识库"));
         saved.setCreatedAt(LocalDateTime.of(2026, 10, 11, 12, 0));
         when(service.createProject(any())).thenReturn(saved);
-        when(service.listProjects(null, 20, 0)).thenReturn(List.of(saved));
+        when(service.listProjects(new PageQuery(0, 20))).thenReturn(List.of(saved));
         when(service.countProjects(null)).thenReturn(1L);
         var created = business.createProject(new CreateProjectRequest());
         var listed = business.listProjects(null, 0, 20).items().get(0);
@@ -56,11 +57,11 @@ class ProjectBusinessTest {
     @Test
     void shouldQueryConsistentFilterAndOffset() {
         GeoProjectInfoService service = mock(GeoProjectInfoService.class);
-        when(service.listProjects("产品", 20, 40L)).thenReturn(List.of());
+        when(service.listProjects(new PageQuery(2, 20, "产品"))).thenReturn(List.of());
         when(service.countProjects("产品")).thenReturn(45L);
         var result = createBusiness(service).listProjects(" 产品 ", 2, 20);
         assertEquals(45L, result.total()); assertEquals(2, result.page());
-        verify(service).listProjects("产品", 20, 40L);
+        verify(service).listProjects(new PageQuery(2, 20, "产品"));
         verify(service).countProjects("产品");
     }
 }

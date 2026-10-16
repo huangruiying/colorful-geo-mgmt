@@ -21,7 +21,8 @@ class MgmtDiagnosisTaskControllerTest {
         var business = mock(DiagnosisTaskBusiness.class);
         var controller = new MgmtDiagnosisTaskController();
         ReflectionTestUtils.setField(controller, "diagnosisTaskBusiness", business);
-        var mvc = MockMvcBuilders.standaloneSetup(controller).build();
+        var mvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler()).build();
         mvc.perform(post("/diagnosis-tasks/27/restart")).andExpect(status().isOk());
         verify(business).restart(27L);
         when(business.restart(27L)).thenThrow(new IllegalArgumentException("任务执行中"));
@@ -38,7 +39,8 @@ class MgmtDiagnosisTaskControllerTest {
         ReflectionTestUtils.setField(controller, "diagnosisTaskBusiness", business);
         when(business.detail(999L)).thenThrow(new NoSuchElementException("诊断任务不存在"));
         when(business.result(1L, 2L)).thenThrow(new NoSuchElementException("诊断回答不存在或不属于该任务"));
-        MockMvc mvc = MockMvcBuilders.standaloneSetup(controller).build();
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler()).build();
         mvc.perform(get("/diagnosis-tasks/999")).andExpect(status().isNotFound());
         mvc.perform(get("/diagnosis-tasks/1/results/2")).andExpect(status().isNotFound());
     }

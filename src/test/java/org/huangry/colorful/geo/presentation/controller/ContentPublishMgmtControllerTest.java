@@ -35,7 +35,8 @@ class ContentPublishMgmtControllerTest {
         publishBusiness = mock(ContentPublishBusiness.class);
         var controller = new ContentPublishMgmtController();
         ReflectionTestUtils.setField(controller, "publishBusiness", publishBusiness);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
     /** 平台列表并入发布管理，响应字段保持不变。 */
