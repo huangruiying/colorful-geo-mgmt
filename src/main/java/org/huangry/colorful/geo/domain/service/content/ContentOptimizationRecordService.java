@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.domain.service.content;
 
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
-import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordSummary;
+import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordPageItem;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
 import org.huangry.colorful.geo.infrastructure.repository.ContentOptimizationRecordDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.ContentOptimizationRecordEntity;
@@ -46,14 +46,14 @@ public class ContentOptimizationRecordService extends ServiceImpl<ContentOptimiz
     }
 
     /**
-     * 查询页面摘要和各平台草稿数量，不加载长正文。
+     * 内容优化记录列表查询，不加载正文。
      *
      * @param size 每页条数
      * @param offset 起始偏移
-     * @return 当前页内容摘要
+     * @return 当前页记录
      */
-    public List<ContentOptimizationRecordSummary> listSummaries(int size, long offset) {
-        return baseMapper.listSummaries(size, offset);
+    public List<ContentOptimizationRecordPageItem> listPageItems(int size, long offset) {
+        return baseMapper.listPageItems(size, offset);
     }
 
     /**

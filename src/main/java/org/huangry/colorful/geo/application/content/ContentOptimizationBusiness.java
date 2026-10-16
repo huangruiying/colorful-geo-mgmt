@@ -58,18 +58,21 @@ public class ContentOptimizationBusiness {
     }
 
     /**
-     * 读取内容摘要分页，避免列表请求加载每篇长正文。
+     * 内容优化记录列表分页查询。
      *
      * @param page 从零开始的页码
      * @param size 每页条数，上限 100
      * @return 当前页及总数
      */
     public ContentOptimizationRecordPage listContentOptimizationRecords(int page, int size) {
+        // 分页参数越界直接拒绝，避免一次查询过多记录
         if (page < 0 || size < 1 || size > 100) {
             throw new IllegalArgumentException("分页参数不合法：page 不小于 0，size 范围为 1～100");
         }
+
+        // 查询当前页记录和总数
         long offset = (long) page * size;
-        return new ContentOptimizationRecordPage(optimizationRecordService.listSummaries(size, offset),
+        return new ContentOptimizationRecordPage(optimizationRecordService.listPageItems(size, offset),
                 optimizationRecordService.countAll(), page, size);
     }
 
