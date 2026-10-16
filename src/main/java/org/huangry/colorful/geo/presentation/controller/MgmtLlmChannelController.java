@@ -22,15 +22,16 @@ public class MgmtLlmChannelController {
     @Resource
     private Map<String, LLMStrategy> strategies;
 
-    /** 页面只展示 Spring 实际注册的策略，协议由策略推导。 */
+    /** 页面只展示 Spring 实际注册的策略，协议和密钥获取页由策略声明。 */
     @GetMapping("/strategies")
     public List<StrategyOption> strategies() {
         return strategies.entrySet().stream().sorted(Map.Entry.comparingByKey())
-            .map(entry -> new StrategyOption(entry.getKey(), entry.getValue().protocolType())).toList();
+            .map(entry -> new StrategyOption(entry.getKey(), entry.getValue().protocolType(),
+                    entry.getValue().apiKeyConsoleUrl())).toList();
     }
 
-    /** 实际 Bean 和协议，不携带连接或凭据。 */
-    public record StrategyOption(String beanName, LLMProtocolType protocolType) {}
+    /** 实际 Bean、协议及厂商 API Key 控制台地址（通用策略为 null），不携带连接或凭据。 */
+    public record StrategyOption(String beanName, LLMProtocolType protocolType, String apiKeyConsoleUrl) {}
 
     /** 创建共享渠道，返回数据库生成标识。 */
     @PostMapping
@@ -41,6 +42,17 @@ public class MgmtLlmChannelController {
     @PutMapping("/{id}")
     public LlmChannelResponse update(@PathVariable("id") long id, @RequestBody SaveLlmChannelRequest request) {
         return business.saveChannel(id, request);
+    }
+
+    /**
+     * 用页面当前填写的配置测试一次调用，不保存；调用失败以结果返回，配置不合法仍为 400。
+     * @param id 编辑中的渠道 ID，新建时不传
+     * @param request 页面当前填写的配置
+     * @return 测试结果
+     */
+    @PostMapping("/test")
+    public LlmChannelTestResponse test(@RequestParam(value = "id", required = false) Long id, @RequestBody SaveLlmChannelRequest request) {
+        return business.testChannel(id, request);
     }
 
     /** 查询指定渠道，供配置页编辑。 */
