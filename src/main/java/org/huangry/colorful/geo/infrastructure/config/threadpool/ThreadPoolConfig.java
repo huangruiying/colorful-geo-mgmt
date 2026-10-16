@@ -43,7 +43,7 @@ public class ThreadPoolConfig {
 		executor.setMaxPoolSize(maximumPoolSize);
 		executor.setKeepAliveSeconds((int) (keepAliveTime / 1000));
 		executor.setQueueCapacity(500);
-		executor.setThreadNamePrefix("StandbyReceivePaymentQuota-");
+		executor.setThreadNamePrefix("诊断线程-");
 		executor.setRejectedExecutionHandler(new OverflowRecordPolicy());
 		executor.initialize();
 		return executor;
