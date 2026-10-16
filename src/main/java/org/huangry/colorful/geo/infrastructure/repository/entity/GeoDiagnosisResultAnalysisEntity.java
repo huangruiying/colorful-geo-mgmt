@@ -7,16 +7,16 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 映射 geo_diagnosis_answer_analysis，保存一次报告中单条有效回答的分析结果；通过 DAO 持久化，不负责判定。
+ * 映射 geo_diagnosis_result_analysis，保存一次报告中单条有效回答的分析结果；通过 DAO 持久化，不负责判定。
  * <p>问题分组、引用口径、是否有来源、是否实际联网可由诊断结果快照、引用与原始响应推导，不在此重复保存。</p>
  */
 @Data
-@TableName("geo_diagnosis_answer_analysis")
-public class GeoDiagnosisAnswerAnalysisEntity {
+@TableName("geo_diagnosis_result_analysis")
+public class GeoDiagnosisResultAnalysisEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
-    /** 所属诊断报告 ID，与诊断结果 ID 组成唯一键。 */
-    private Long reportId;
+    /** 所属诊断报告（geo_diagnosis_result_output）ID，与诊断结果 ID 组成唯一键。 */
+    private Long outputId;
     /** 被分析的诊断结果 ID，只包含成功且未因输出上限截断的结果。 */
     private Long resultId;
     /** 判定状态，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisAnswerAnalysisStatus} 的枚举名称。 */

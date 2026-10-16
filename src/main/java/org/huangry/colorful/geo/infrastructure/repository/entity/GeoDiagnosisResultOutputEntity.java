@@ -6,10 +6,10 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.time.LocalDateTime;
 
-/** 映射 geo_diagnosis_report，保存一次手动生成的诊断报告状态与冻结结果；通过 DAO 持久化，不负责判定与汇总。 */
+/** 映射 geo_diagnosis_result_output，保存一次手动生成的诊断报告状态与冻结结果；通过 DAO 持久化，不负责判定与汇总。 */
 @Data
-@TableName("geo_diagnosis_report")
-public class GeoDiagnosisReportEntity {
+@TableName("geo_diagnosis_result_output")
+public class GeoDiagnosisResultOutputEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
     /** 所属诊断任务 ID；同一任务可多次生成报告，旧报告保留。 */
