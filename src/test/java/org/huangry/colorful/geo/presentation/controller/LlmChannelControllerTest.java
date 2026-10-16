@@ -41,6 +41,23 @@ class LlmChannelControllerTest {
                 .andExpect(jsonPath("$[1].name").doesNotExist());
     }
 
+    /** 测试连接透传编辑 ID，调用失败以结果返回而非 HTTP 错误，配置不合法仍为 400。 */
+    @Test
+    void shouldTestChannelWithOptionalId() throws Exception {
+        when(business.testChannel(eq(7L), any())).thenReturn(new org.huangry.colorful.geo.application.llm.model.LlmChannelTestResponse(
+                false, 120, null, null, 0, null, "INVALID_KEY", "密钥无效或无权限，请检查 API Key 及其产品权限", 401, "令牌已过期或验证不正确"));
+        mvc.perform(post("/llm-channels/test").param("id", "7").contentType("application/json").content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.failureType").value("INVALID_KEY"))
+                .andExpect(jsonPath("$.httpStatus").value(401))
+                .andExpect(jsonPath("$.apiKey").doesNotExist());
+        when(business.testChannel(isNull(), any())).thenThrow(new IllegalArgumentException("请填写 API 密钥后再测试"));
+        mvc.perform(post("/llm-channels/test").contentType("application/json").content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("请填写 API 密钥后再测试"));
+    }
+
     /** 创建返回标识，列表采用有限分页，输入不能携带密钥字段。 */
     @Test
     void shouldCreateAndListWithoutCredentials() throws Exception {

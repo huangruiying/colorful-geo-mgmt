@@ -109,6 +109,34 @@ class GeoLlmChannelServiceTest {
     }
 
     /** 模拟 Spring 注册与字段注入，校验走实际策略注册表。 */
+    /** 测试连接时密钥留空沿用已保存密钥，填写则用新值，均不写库；远程无密钥拒绝测试。 */
+    @Test
+    void shouldPrepareTestChannelWithoutPersistence() {
+        GeoLlmChannelService service = spy(configuredService());
+        var existing = channel();
+        existing.setApiKey("existing-test-key");
+        doReturn(existing).when(service).getById(1L);
+
+        var reused = channel();
+        reused.setApiKey("  ");
+        service.prepareTestChannel(1L, reused);
+        assertEquals("existing-test-key", reused.getApiKey());
+        assertEquals(1400, reused.getMaxTokens());
+
+        var replaced = channel();
+        replaced.setApiKey(" new-test-key ");
+        service.prepareTestChannel(1L, replaced);
+        assertEquals("new-test-key", replaced.getApiKey());
+
+        assertThrows(IllegalArgumentException.class, () -> service.prepareTestChannel(null, channel()));
+        var mock = channel(); mock.setStrategyBeanName("mockLlmStrategy");
+        assertDoesNotThrow(() -> service.prepareTestChannel(null, mock));
+        doReturn(null).when(service).getById(99L);
+        assertThrows(java.util.NoSuchElementException.class, () -> service.prepareTestChannel(99L, channel()));
+        verify(service, never()).save(any());
+        verify(service, never()).updateById(any());
+    }
+
     private GeoLlmChannelService configuredService() {
         var service = new GeoLlmChannelService();
         org.springframework.test.util.ReflectionTestUtils.setField(service, "strategies", java.util.Map.of(
