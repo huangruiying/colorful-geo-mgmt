@@ -22,13 +22,13 @@ class GeoDiagnosisTaskServiceTest {
     /** 非成功明细按任务隔离清空，成功状态排除，主任务同时回到待执行。 */
     @Test
     void shouldRestartOnlyNonSuccessfulResultsOfFinishedTask() {
-        var task = new GeoDiagnosisPlanExecRecordEntity();
+        var task = new GeoDiagnosisTaskEntity();
         task.setId(27L); task.setStatus("PARTIAL_FAILED");
         when(tasks.selectOne(any())).thenReturn(task);
         when(results.update(isNull(), any())).thenAnswer(invocation -> {
             var update = (com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<?>) invocation.getArgument(1);
             String where = update.getSqlSegment();
-            assertTrue(where.contains("exec_record_id ="));
+            assertTrue(where.contains("task_id ="));
             assertTrue(where.contains("status <>"));
             assertTrue(update.getParamNameValuePairs().containsValue(27L));
             assertTrue(update.getParamNameValuePairs().containsValue("SUCCEEDED"));
@@ -49,7 +49,7 @@ class GeoDiagnosisTaskServiceTest {
     @Test
     void shouldRejectRestartOfActiveOrSuccessfulTask() {
         for (String status : List.of("PENDING", "RUNNING", "SUCCEEDED")) {
-            var task = new GeoDiagnosisPlanExecRecordEntity();
+            var task = new GeoDiagnosisTaskEntity();
             task.setId(27L); task.setStatus(status);
             when(tasks.selectOne(any())).thenReturn(task);
             assertThrows(IllegalArgumentException.class, () -> service.restart(27L));
@@ -63,7 +63,7 @@ class GeoDiagnosisTaskServiceTest {
     void shouldRejectMissingTaskAndEmptyRestart() {
         when(tasks.selectOne(any())).thenReturn(null);
         assertThrows(NoSuchElementException.class, () -> service.restart(999L));
-        var task = new GeoDiagnosisPlanExecRecordEntity();
+        var task = new GeoDiagnosisTaskEntity();
         task.setId(27L); task.setStatus("FAILED");
         when(tasks.selectOne(any())).thenReturn(task);
         when(results.update(isNull(), any())).thenReturn(0);
@@ -72,8 +72,8 @@ class GeoDiagnosisTaskServiceTest {
     }
 
     private final GeoDiagnosisTaskService service = new GeoDiagnosisTaskService();
-    private final GeoDiagnosisPlanExecRecordDao tasks = mock(GeoDiagnosisPlanExecRecordDao.class);
-    private final GeoDiagnosisPlanExecRecordResultDao results = mock(GeoDiagnosisPlanExecRecordResultDao.class);
+    private final GeoDiagnosisTaskDao tasks = mock(GeoDiagnosisTaskDao.class);
+    private final GeoDiagnosisTaskResultDao results = mock(GeoDiagnosisTaskResultDao.class);
     private final GeoDiagnosisPlanDao plans = mock(GeoDiagnosisPlanDao.class);
     private final GeoProjectInfoDao projects = mock(GeoProjectInfoDao.class);
     private final GeoLlmChannelDao channels = mock(GeoLlmChannelDao.class);
@@ -81,16 +81,16 @@ class GeoDiagnosisTaskServiceTest {
     private final LLMStrategyRouter router = mock(LLMStrategyRouter.class);
     private final DiagnosisTaskSnapshots snapshots = new DiagnosisTaskSnapshots();
 
-    private final List<GeoDiagnosisPlanExecRecordResultEntity> inserted = new ArrayList<>();
+    private final List<GeoDiagnosisTaskResultEntity> inserted = new ArrayList<>();
     private final List<Integer> batchSizes = new ArrayList<>();
-    private final AtomicReference<GeoDiagnosisPlanExecRecordEntity> saved = new AtomicReference<>();
+    private final AtomicReference<GeoDiagnosisTaskEntity> saved = new AtomicReference<>();
 
     /** 注入真实快照转换与模拟数据库，诊断结果批次按调用时复制避免列表清空影响断言。 */
     @BeforeEach
     void setup() {
         var assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "diagnosis-task-test");
-        for (Class<?> type : List.of(GeoDiagnosisPlanEntity.class, GeoDiagnosisPlanExecRecordEntity.class,
-                GeoDiagnosisPlanExecRecordResultEntity.class, GeoProjectInfoEntity.class, GeoLlmChannelEntity.class)) {
+        for (Class<?> type : List.of(GeoDiagnosisPlanEntity.class, GeoDiagnosisTaskEntity.class,
+                GeoDiagnosisTaskResultEntity.class, GeoProjectInfoEntity.class, GeoLlmChannelEntity.class)) {
             TableInfoHelper.initTableInfo(assistant, type);
         }
 
@@ -105,13 +105,13 @@ class GeoDiagnosisTaskServiceTest {
         ReflectionTestUtils.setField(service, "router", router);
         ReflectionTestUtils.setField(service, "snapshots", snapshots);
 
-        when(tasks.insert(any(GeoDiagnosisPlanExecRecordEntity.class))).thenAnswer(call -> {
-            var task = call.<GeoDiagnosisPlanExecRecordEntity>getArgument(0);
+        when(tasks.insert(any(GeoDiagnosisTaskEntity.class))).thenAnswer(call -> {
+            var task = call.<GeoDiagnosisTaskEntity>getArgument(0);
             task.setId(55L); saved.set(task); return 1;
         });
         when(tasks.selectById(55L)).thenAnswer(call -> saved.get());
         when(results.insertSamples(anyList())).thenAnswer(call -> {
-            var batch = call.<List<GeoDiagnosisPlanExecRecordResultEntity>>getArgument(0);
+            var batch = call.<List<GeoDiagnosisTaskResultEntity>>getArgument(0);
             batchSizes.add(batch.size()); inserted.addAll(batch); return batch.size();
         });
     }
@@ -126,7 +126,7 @@ class GeoDiagnosisTaskServiceTest {
         assertTrue(inserted.stream().allMatch(row -> "PENDING".equals(row.getStatus())));
         assertEquals(List.of(12), batchSizes);
         assertEquals(12, inserted.stream().map(row -> row.getQuestionSortOrder() + ":" + row.getChannelId() + ":" + row.getRepeatIndex()).distinct().count());
-        assertTrue(inserted.stream().allMatch(row -> row.getExecRecordId().equals(55L)));
+        assertTrue(inserted.stream().allMatch(row -> row.getTaskId().equals(55L)));
         assertTrue(inserted.stream().allMatch(row -> row.getQuestionSnapshot().contains("独立问题") && !row.getQuestionSnapshot().contains("项目背景")));
         assertFalse(task.getPlanSnapshot().contains("qa-secret"));
         assertFalse(task.getPlanSnapshot().contains("private-query"));
@@ -151,10 +151,10 @@ class GeoDiagnosisTaskServiceTest {
     @Test
     void shouldReuseCreatedSubmissionAndRejectDifferentPlan() {
         configure(2, 2, 2);
-        var original = new GeoDiagnosisPlanExecRecordEntity(); original.setId(77L); original.setPlanId(1L);
+        var original = new GeoDiagnosisTaskEntity(); original.setId(77L); original.setPlanId(1L);
         when(tasks.selectOne(any())).thenReturn(original);
         assertSame(original, service.create(new CreateDiagnosisTaskRequest(1L, "existing")));
-        verify(tasks, never()).insert(any(GeoDiagnosisPlanExecRecordEntity.class));
+        verify(tasks, never()).insert(any(GeoDiagnosisTaskEntity.class));
         verifyNoInteractions(results, projects);
         assertThrows(IllegalArgumentException.class, () -> service.requireSamePlan(original, 2L));
     }
@@ -174,7 +174,7 @@ class GeoDiagnosisTaskServiceTest {
     @Test
     void shouldAllowCredentialRotationButRejectChangedConfiguration() {
         var channel = channel(1L);
-        var sample = new GeoDiagnosisPlanExecRecordResultEntity();
+        var sample = new GeoDiagnosisTaskResultEntity();
         sample.setChannelId(1L); sample.setChannelSnapshot(JSON.toJSONString(snapshots.channel(channel),
                 com.alibaba.fastjson.serializer.SerializerFeature.WriteMapNullValue));
         when(channels.selectById(1L)).thenReturn(channel);
@@ -192,7 +192,7 @@ class GeoDiagnosisTaskServiceTest {
         channel.setTemperature(0.3);
         var frozen = JSON.toJSONString(snapshots.channel(channel),
                 com.alibaba.fastjson.serializer.SerializerFeature.WriteMapNullValue).replace("0.3", "0.30");
-        var sample = new GeoDiagnosisPlanExecRecordResultEntity();
+        var sample = new GeoDiagnosisTaskResultEntity();
         sample.setChannelId(1L);
         sample.setChannelSnapshot(frozen);
         when(channels.selectById(1L)).thenReturn(channel);
@@ -207,7 +207,7 @@ class GeoDiagnosisTaskServiceTest {
         var citation = new org.huangry.colorful.geo.infrastructure.client.llm.model.LLMCitation(
                 "来源", "https://example.invalid/source", null, null, "摘要");
         var response = new org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse("回答", List.of(citation));
-        var sample = new GeoDiagnosisPlanExecRecordResultEntity();
+        var sample = new GeoDiagnosisTaskResultEntity();
         sample.setId(9L);
         when(results.update(any(), any())).thenReturn(1);
         service.succeed(sample, response, 20);
@@ -256,10 +256,10 @@ class GeoDiagnosisTaskServiceTest {
     @Test
     void shouldBindInitialSampleStatusInBatchInsert() {
         var configuration = new MybatisConfiguration();
-        configuration.addMapper(GeoDiagnosisPlanExecRecordResultDao.class);
-        var sample = new GeoDiagnosisPlanExecRecordResultEntity();
+        configuration.addMapper(GeoDiagnosisTaskResultDao.class);
+        var sample = new GeoDiagnosisTaskResultEntity();
         sample.setStatus("PENDING");
-        var statement = configuration.getMappedStatement(GeoDiagnosisPlanExecRecordResultDao.class.getName() + ".insertSamples");
+        var statement = configuration.getMappedStatement(GeoDiagnosisTaskResultDao.class.getName() + ".insertSamples");
         var sql = statement.getBoundSql(Map.of("items", List.of(sample)));
         var statusParameter = sql.getParameterMappings().stream()
                 .filter(parameter -> parameter.getProperty().endsWith(".status")).findFirst().orElseThrow();

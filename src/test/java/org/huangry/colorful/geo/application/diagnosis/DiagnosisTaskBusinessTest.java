@@ -1,9 +1,9 @@
 package org.huangry.colorful.geo.application.diagnosis;
 
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
-import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisPlanExecRecordDao;
-import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisPlanExecRecordResultDao;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordEntity;
+import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisTaskDao;
+import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisTaskResultDao;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -16,17 +16,17 @@ import static org.mockito.Mockito.*;
 /** 验证整轮任务与单条诊断结果分别校验状态，并保持接口和数据损坏处理语义。 */
 class DiagnosisTaskBusinessTest {
     private final DiagnosisTaskBusiness business = new DiagnosisTaskBusiness();
-    private final GeoDiagnosisPlanExecRecordDao tasks = mock(GeoDiagnosisPlanExecRecordDao.class);
-    private final GeoDiagnosisPlanExecRecordResultDao results = mock(GeoDiagnosisPlanExecRecordResultDao.class);
+    private final GeoDiagnosisTaskDao tasks = mock(GeoDiagnosisTaskDao.class);
+    private final GeoDiagnosisTaskResultDao results = mock(GeoDiagnosisTaskResultDao.class);
 
     /** 注入查询替身及真实快照解析，不连接数据库或调用模型。 */
     @BeforeEach
     void setup() {
         var configuration = new com.baomidou.mybatisplus.core.MybatisConfiguration();
         var assistant = new org.apache.ibatis.builder.MapperBuilderAssistant(configuration, "diagnosis-status-test");
-        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, GeoDiagnosisPlanExecRecordEntity.class);
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, GeoDiagnosisTaskEntity.class);
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant,
-                org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordResultEntity.class);
+                org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultEntity.class);
         ReflectionTestUtils.setField(business, "taskDao", tasks);
         ReflectionTestUtils.setField(business, "resultDao", results);
         ReflectionTestUtils.setField(business, "snapshots", new DiagnosisTaskSnapshots());
@@ -88,8 +88,8 @@ class DiagnosisTaskBusinessTest {
      * 创建供响应组装使用的任务，状态字段保持数据库的字符串类型。
      * @return 最小完整的任务快照
      */
-    private GeoDiagnosisPlanExecRecordEntity task() {
-        var task = new GeoDiagnosisPlanExecRecordEntity();
+    private GeoDiagnosisTaskEntity task() {
+        var task = new GeoDiagnosisTaskEntity();
         task.setId(1L);
         task.setStatus("RUNNING");
         task.setPlanSnapshot("{\"planName\":\"方案\",\"project\":{\"name\":\"项目\"},\"channels\":[]}");

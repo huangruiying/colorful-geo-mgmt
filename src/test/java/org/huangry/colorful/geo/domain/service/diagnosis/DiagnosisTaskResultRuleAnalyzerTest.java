@@ -10,8 +10,8 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** 规则处理：提及识别、是否实际联网、来源归类顺序与平台对照。 */
-class DiagnosisResultRuleAnalyzerTest {
-    private final DiagnosisResultRuleAnalyzer ruleAnalyzer = new DiagnosisResultRuleAnalyzer();
+class DiagnosisTaskResultRuleAnalyzerTest {
+    private final DiagnosisTaskResultRuleAnalyzer ruleAnalyzer = new DiagnosisTaskResultRuleAnalyzer();
     private final JSONObject project = JSON.parseObject("""
             {"name":"团油","aliases":["能链团油","Newlink"],"competitors":["易加油"],"websiteUrl":"https://www.tuanyou.net/"}""");
 

@@ -3,20 +3,20 @@ package org.huangry.colorful.geo.presentation.task;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisResultAnalysisPrompt;
-import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisResultRuleAnalyzer;
+import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskResultAnalysisPrompt;
+import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskResultRuleAnalyzer;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisReportSummarizer;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
-import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisResultOutputService;
-import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisResultOutputService.ReportAnswer;
+import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService;
+import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService.ReportAnswer;
 import org.huangry.colorful.geo.domain.service.llm.GeoLlmChannelService;
 import org.huangry.colorful.geo.infrastructure.client.llm.LLMClient;
 import org.huangry.colorful.geo.infrastructure.client.llm.LLMStrategyRouter;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisResultAnalysisEntity;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordResultEntity;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisResultOutputEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultAnalysisEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskReportEntity;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,8 +34,8 @@ import static org.mockito.Mockito.*;
 /** 报告生成编排：冻结默认判定渠道、逐条判定、失败不重试继续下一条、全部判定后汇总；不连接数据库与模型。 */
 class DiagnosisReportWorkerTest {
     private final DiagnosisReportWorker worker = new DiagnosisReportWorker();
-    private final GeoDiagnosisResultOutputService service = mock(GeoDiagnosisResultOutputService.class);
-    private final DiagnosisResultAnalysisPrompt analysisPrompt = mock(DiagnosisResultAnalysisPrompt.class);
+    private final GeoDiagnosisTaskReportService service = mock(GeoDiagnosisTaskReportService.class);
+    private final DiagnosisTaskResultAnalysisPrompt analysisPrompt = mock(DiagnosisTaskResultAnalysisPrompt.class);
     private final DiagnosisReportSummarizer summarizer = mock(DiagnosisReportSummarizer.class);
     private final LLMClient llmClient = mock(LLMClient.class);
     private final LLMStrategyRouter router = mock(LLMStrategyRouter.class);
@@ -48,14 +48,14 @@ class DiagnosisReportWorkerTest {
         when(service.nextPendingAnalysis(9L)).thenReturn(analysis(1L), analysis(2L), null);
         when(llmClient.query(any(), same(channel))).thenReturn(new LLMResponse("{}", List.of()))
                 .thenThrow(new LLMClientException("调用失败"));
-        when(analysisPrompt.parse(any(), any(), any(), any())).thenReturn(new DiagnosisResultAnalysisPrompt.AnalysisResult(new JSONArray(), new JSONArray(), null, null));
-        when(service.loadAnswers(9L)).thenReturn(List.of(new ReportAnswer(succeeded(), new GeoDiagnosisPlanExecRecordResultEntity())));
+        when(analysisPrompt.parse(any(), any(), any(), any())).thenReturn(new DiagnosisTaskResultAnalysisPrompt.AnalysisResult(new JSONArray(), new JSONArray(), null, null));
+        when(service.loadAnswers(9L)).thenReturn(List.of(new ReportAnswer(succeeded(), new GeoDiagnosisTaskResultEntity())));
         when(summarizer.collectDimensions(any())).thenReturn(Set.of());
         when(summarizer.summarize(any(), any(), any(), any(), any())).thenReturn(new JSONObject().fluentPut("sample", new JSONObject()));
 
         ReflectionTestUtils.invokeMethod(worker, "generate", report());
 
-        verify(service).freezeJudgeChannel(eq(9L), any(), eq(DiagnosisResultAnalysisPrompt.PROMPT_VERSION));
+        verify(service).freezeJudgeChannel(eq(9L), any(), eq(DiagnosisTaskResultAnalysisPrompt.PROMPT_VERSION));
         verify(service).saveAnalysis(argThat(saved -> saved.getId() == 1L));
         verify(service).failAnalysis(eq(2L), eq("判定模型不可用或未返回有效回答"), any());
         verify(service).finish(eq(9L), contains("sample"));
@@ -66,9 +66,9 @@ class DiagnosisReportWorkerTest {
     @Test
     void shouldFailReportWhenNoAnswerJudged() {
         when(service.nextPendingAnalysis(9L)).thenReturn(null);
-        var failed = new GeoDiagnosisResultAnalysisEntity();
+        var failed = new GeoDiagnosisTaskResultAnalysisEntity();
         failed.setStatus("FAILED");
-        when(service.loadAnswers(9L)).thenReturn(List.of(new ReportAnswer(failed, new GeoDiagnosisPlanExecRecordResultEntity())));
+        when(service.loadAnswers(9L)).thenReturn(List.of(new ReportAnswer(failed, new GeoDiagnosisTaskResultEntity())));
 
         ReflectionTestUtils.invokeMethod(worker, "generate", report());
 
@@ -94,7 +94,7 @@ class DiagnosisReportWorkerTest {
         when(lease.isValid(anyInt())).thenReturn(true);
         ReflectionTestUtils.setField(worker, "lease", lease);
         ReflectionTestUtils.setField(worker, "service", service);
-        ReflectionTestUtils.setField(worker, "ruleAnalyzer", new DiagnosisResultRuleAnalyzer());
+        ReflectionTestUtils.setField(worker, "ruleAnalyzer", new DiagnosisTaskResultRuleAnalyzer());
         ReflectionTestUtils.setField(worker, "analysisPrompt", analysisPrompt);
         ReflectionTestUtils.setField(worker, "summarizer", summarizer);
         ReflectionTestUtils.setField(worker, "snapshots", snapshots);
@@ -107,7 +107,7 @@ class DiagnosisReportWorkerTest {
         when(snapshots.read(any())).thenAnswer(invocation -> JSON.parse(invocation.<String>getArgument(0)));
         when(service.taskSnapshot(30L)).thenReturn(new JSONObject().fluentPut("project", new JSONObject().fluentPut("name", "团油")));
         when(service.publishedUrls()).thenReturn(Set.of());
-        var result = new GeoDiagnosisPlanExecRecordResultEntity();
+        var result = new GeoDiagnosisTaskResultEntity();
         result.setAnswerText("回答");
         result.setCitations("[]");
         result.setQuestionSnapshot("{\"text\":\"问题\",\"brandScope\":\"NON_BRAND\"}");
@@ -116,10 +116,10 @@ class DiagnosisReportWorkerTest {
     }
 
     /** @return 待生成的报告，尚未冻结判定渠道 */
-    private GeoDiagnosisResultOutputEntity report() {
-        var report = new GeoDiagnosisResultOutputEntity();
+    private GeoDiagnosisTaskReportEntity report() {
+        var report = new GeoDiagnosisTaskReportEntity();
         report.setId(9L);
-        report.setExecRecordId(30L);
+        report.setTaskId(30L);
         report.setStatus("RUNNING");
         return report;
     }
@@ -128,17 +128,17 @@ class DiagnosisReportWorkerTest {
      * @param id 分析记录 ID
      * @return 待判定记录
      */
-    private GeoDiagnosisResultAnalysisEntity analysis(long id) {
-        var analysis = new GeoDiagnosisResultAnalysisEntity();
+    private GeoDiagnosisTaskResultAnalysisEntity analysis(long id) {
+        var analysis = new GeoDiagnosisTaskResultAnalysisEntity();
         analysis.setId(id);
-        analysis.setResultId(id);
+        analysis.setTaskResultId(id);
         analysis.setStatus("PENDING");
         return analysis;
     }
 
     /** @return 判定成功的分析记录 */
-    private GeoDiagnosisResultAnalysisEntity succeeded() {
-        var analysis = new GeoDiagnosisResultAnalysisEntity();
+    private GeoDiagnosisTaskResultAnalysisEntity succeeded() {
+        var analysis = new GeoDiagnosisTaskResultAnalysisEntity();
         analysis.setStatus("SUCCEEDED");
         return analysis;
     }

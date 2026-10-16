@@ -2,9 +2,9 @@ package org.huangry.colorful.geo.domain.service.diagnosis;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisResultOutputService.ReportAnswer;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisResultAnalysisEntity;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordResultEntity;
+import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService.ReportAnswer;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultAnalysisEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -89,7 +89,7 @@ class DiagnosisReportSummarizerTest {
      * @return 指定问题、采样、分组与判定内容的一条回答
      */
     private ReportAnswer answer(int question, int repeat, String brandScope, String text, String brands, String points, String sentiment, String status) {
-        var result = new GeoDiagnosisPlanExecRecordResultEntity();
+        var result = new GeoDiagnosisTaskResultEntity();
         result.setId((long) (question * 10 + repeat));
         result.setQuestionSortOrder(question);
         result.setRepeatIndex(repeat);
@@ -97,7 +97,7 @@ class DiagnosisReportSummarizerTest {
         result.setCitations("[]");
         result.setChannelSnapshot("{\"id\":6,\"channelName\":\"能链 claude\",\"modelName\":\"claude\"}");
         result.setQuestionSnapshot("{\"brandScope\":\"" + brandScope + "\",\"intent\":\"RECOMMENDATION\"}");
-        var analysis = new GeoDiagnosisResultAnalysisEntity();
+        var analysis = new GeoDiagnosisTaskResultAnalysisEntity();
         analysis.setStatus(status);
         analysis.setBrands(brands);
         analysis.setPoints(points);
@@ -108,7 +108,7 @@ class DiagnosisReportSummarizerTest {
     /** @return 注入规则与快照组件的汇总器 */
     private static DiagnosisReportSummarizer summarizer() {
         var summarizer = new DiagnosisReportSummarizer();
-        ReflectionTestUtils.setField(summarizer, "ruleAnalyzer", new DiagnosisResultRuleAnalyzer());
+        ReflectionTestUtils.setField(summarizer, "ruleAnalyzer", new DiagnosisTaskResultRuleAnalyzer());
         ReflectionTestUtils.setField(summarizer, "snapshots", new DiagnosisTaskSnapshots());
         return summarizer;
     }

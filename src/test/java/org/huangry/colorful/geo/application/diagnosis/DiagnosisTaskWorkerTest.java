@@ -7,7 +7,7 @@ import org.huangry.colorful.geo.infrastructure.client.llm.LLMClient;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordResultEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultEntity;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.presentation.task.DiagnosisTaskWorker;
 import org.junit.jupiter.api.Test;
@@ -135,9 +135,9 @@ class DiagnosisTaskWorkerTest {
      * @param text 问题原文
      * @return 诊断结果
      */
-    private GeoDiagnosisPlanExecRecordResultEntity sample(long id, String text) {
-        var sample = new GeoDiagnosisPlanExecRecordResultEntity();
-        sample.setId(id); sample.setExecRecordId(5L); sample.setQuestionSnapshot("{\"text\":\"" + text + "\"}");
+    private GeoDiagnosisTaskResultEntity sample(long id, String text) {
+        var sample = new GeoDiagnosisTaskResultEntity();
+        sample.setId(id); sample.setTaskId(5L); sample.setQuestionSnapshot("{\"text\":\"" + text + "\"}");
         return sample;
     }
 }
