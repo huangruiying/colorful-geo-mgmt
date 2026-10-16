@@ -21,6 +21,15 @@ public class ResponsesApiDeepSeekStrategy extends AbstractResponsesApiStrategy {
     private static final String WEB_SEARCH_CALL_ID_MARKER = "ws_call_id=";
 
     /**
+     * 声明 DeepSeek 开放平台的 API Key 管理页，供配置页面引导获取密钥。
+     * @return DeepSeek 开放平台 API Key 管理页地址
+     */
+    @Override
+    public String apiKeyConsoleUrl() {
+        return "https://platform.deepseek.com/api_keys";
+    }
+
+    /**
      * 在协议基础请求上维护当前策略的参数。
      * @param request 当前问题
      * @param channel 渠道配置

@@ -14,11 +14,13 @@ import java.net.URI;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-/** 模型渠道领域服务；保存、查询与启停配置，不测试远程模型。 */
+/** 模型渠道领域服务；保存、查询、启停配置及准备测试配置，不调用远程模型。 */
 @Service
 public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmChannelEntity> {
     @Resource
     private Map<String, LLMStrategy> strategies;
+    /** 未填写输出上限时的默认值，与配置页初始值及建表默认值一致。 */
+    private static final int DEFAULT_MAX_TOKENS = 60000;
     /** 校验并保存渠道；更新时保持编码和系统字段不变。 */
     @Transactional
     public GeoLlmChannelEntity saveChannel(Long id, GeoLlmChannelEntity channel) {
@@ -50,6 +52,30 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
             throw new IllegalStateException("模型渠道保存失败");
         }
         return getById(channel.getId());
+    }
+
+    /**
+     * 按保存规则准备一份测试连接用的渠道配置，不写库。
+     * <p>编辑时密钥留空则使用已保存密钥，与保存的密钥保留规则一致；远程渠道最终仍无密钥时拒绝测试。</p>
+     * @param id 编辑中的渠道 ID，新建时为 null
+     * @param channel 页面当前填写的配置，校验后原地补全默认值与密钥
+     * @throws IllegalArgumentException 配置不合法或远程渠道缺少密钥
+     * @throws NoSuchElementException 编辑的渠道不存在
+     */
+    public void prepareTestChannel(Long id, GeoLlmChannelEntity channel) {
+        // 1. 与保存走同一套校验，避免测试通过而保存失败
+        validateChannel(channel);
+        // 2. 密钥留空时沿用已保存密钥，仍只在服务端使用
+        String key = channel.getApiKey() == null ? null : channel.getApiKey().strip();
+        if ((key == null || key.isEmpty()) && id != null) {
+            GeoLlmChannelEntity existing = getById(id);
+            if (existing == null) throw new NoSuchElementException("模型渠道不存在");
+            key = existing.getApiKey();
+        }
+        channel.setApiKey(key == null || key.isBlank() ? null : key);
+        // 3. 远程渠道必须有密钥才发起调用，模拟渠道不需要
+        if (strategies.get(channel.getStrategyBeanName()).protocolType() != LLMProtocolType.MOCK && channel.getApiKey() == null)
+            throw new IllegalArgumentException("请填写 API 密钥后再测试");
     }
 
     /** 按名称或编码查询，按默认优先级排序。 */
@@ -106,7 +132,8 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
                 || channel.getTemperature() < 0 || channel.getTemperature() > 2)) {
             throw new IllegalArgumentException("生成随机性必须在 0 到 2 之间");
         }
-        if (channel.getMaxTokens() == null) channel.setMaxTokens(1400);
+        // 未填写时给足推理与长回答余量：历史诊断最大输出 5502；上限较小的模型（如 ernie-4.5 为 12288）需在页面调低
+        if (channel.getMaxTokens() == null) channel.setMaxTokens(DEFAULT_MAX_TOKENS);
         if (channel.getMaxTokens() < 1 || channel.getMaxTokens() > 1000000) throw new IllegalArgumentException("输出上限必须在 1 到 1000000 之间");
         if (channel.getTimeoutSeconds() == null) channel.setTimeoutSeconds(60);
         if (channel.getTimeoutSeconds() < 1 || channel.getTimeoutSeconds() > 600) throw new IllegalArgumentException("超时必须在 1 到 600 秒之间");

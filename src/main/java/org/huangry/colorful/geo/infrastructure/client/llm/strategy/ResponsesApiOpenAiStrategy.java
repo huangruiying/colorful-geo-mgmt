@@ -14,6 +14,15 @@ import java.util.List;
 @Component
 public class ResponsesApiOpenAiStrategy extends AbstractResponsesApiStrategy {
     /**
+     * 声明 OpenAI 平台的 API Key 管理页，供配置页面引导获取密钥。
+     * @return OpenAI 平台 API Key 管理页地址
+     */
+    @Override
+    public String apiKeyConsoleUrl() {
+        return "https://platform.openai.com/api-keys";
+    }
+
+    /**
      * 在协议基础请求上维护当前策略的参数。
      * @param request 当前问题
      * @param channel 渠道配置

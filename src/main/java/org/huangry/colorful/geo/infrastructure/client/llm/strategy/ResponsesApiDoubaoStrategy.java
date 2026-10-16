@@ -14,6 +14,15 @@ import java.util.List;
 @Component
 public class ResponsesApiDoubaoStrategy extends AbstractResponsesApiStrategy {
     /**
+     * 声明火山方舟控制台的 API Key 管理页，供配置页面引导获取密钥。
+     * @return 火山方舟控制台 API Key 管理页地址
+     */
+    @Override
+    public String apiKeyConsoleUrl() {
+        return "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey";
+    }
+
+    /**
      * 在协议基础请求上维护当前策略的参数。
      * @param request 当前问题
      * @param channel 渠道配置
