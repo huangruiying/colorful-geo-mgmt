@@ -19,7 +19,7 @@ public class GeoDiagnosisResultAnalysisEntity {
     private Long outputId;
     /** 被分析的诊断结果 ID，只包含成功且未因输出上限截断的结果。 */
     private Long resultId;
-    /** 判定状态，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisAnswerAnalysisStatus} 的枚举名称。 */
+    /** 判定状态，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisResultAnalysisStatus} 的枚举名称。 */
     private String status;
     /** 点名问题中模型对目标的评价倾向，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisBrandSentiment} 的枚举名称；其他问题为空。 */
     private String brandSentiment;
