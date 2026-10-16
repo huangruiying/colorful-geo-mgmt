@@ -4,6 +4,8 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-17 按用户确认统一诊断报告相关命名（与“诊断结果”及 `geo_diagnosis_result_analysis` 表一致）：`DiagnosisAnswerJudge` → `DiagnosisResultAnalysisPrompt`（内部 `JudgeResult` → `AnalysisResult`，只组装提示词与解析，不调用模型）；`DiagnosisAnswerRules` → `DiagnosisResultRuleAnalyzer`；`DiagnosisAnswerAnalysisStatus` → `DiagnosisResultAnalysisStatus`；注入字段 `judge`/`rules` → `analysisPrompt`/`ruleAnalyzer`，两个测试类同步改名，`诊断报告全景.md` 同步。`DiagnosisReportSummarizer` 保留。只改名不改逻辑；`mvn -o test` 366 项 365 通过，唯一失败仍为原有路由测试。本条之前的记录仍用旧类名，以本条为准。未重启、未提交。
+
 - 2026-10-17 按用户要求统一列表命名与注释：只给列表用的行类改名为 `XxxPageItem`（`ContentOptimizationRecordSummary` → `ContentOptimizationRecordPageItem`，DAO/Service `listSummaries` → `listPageItems`；`DiagnosisPlanBusiness.PlanSummary` → `PlanPageItem`）；与创建/详情共用的 Response 和领域对象不改。各层列表方法注释改为“XX列表（分页）查询”的直白写法，去掉列表语境的“摘要”，删除写错层的说明（如应用层“避免加载正文”），补 @param/@return 及校验/查询分段注释；JSON 字段不变。删除无引用的 `src/test/.../test/WhatsAppDemo.java`，常规 `mvn -o test` 恢复可编译：360 项 359 通过，唯一失败为原有 `LLMStrategyRouterTest.shouldRejectDisabledExactTaskChannel`。Java 17 主代码编译通过；未重启、未提交。
 
 - 2026-10-17 按用户确认统一分页结构：新增 `infrastructure/common/model/PageResponse<T>`，删除 `ContentOptimizationRecordPage`、`ContentPublishRecordPage`、`LlmChannelPage`、`ProjectInfoPage`、`DiagnosisPlanBusiness.PlanPage` 及 `DiagnosisTaskResponse.PageResponse`，8 个列表接口及 4 个 Controller 测试同步；JSON 结构不变，前端无需改。规范写入 `.claude/rules/project-conventions.md`「列表与分页」。`mvn -o test` 360 项 359 通过，唯一失败仍为原有 `shouldRejectDisabledExactTaskChannel`。未重启、未提交。
