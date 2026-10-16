@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261016-test1", error = document.getElementById("model-error");
+    const version = "20261016-test2", error = document.getElementById("model-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
     async function request(path, options = {}) {
         const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
@@ -97,11 +97,10 @@
                 const seconds = (result.costMs / 1000).toFixed(1) + " 秒";
                 if (result.success) {
                     showTestResult(true, "连接成功", ["耗时：" + seconds, "实际模型：" + (result.modelName || "接口未返回"),
-                        "结束原因：" + (result.finishReason || "接口未返回"),
                         "引用来源：" + (result.citationCount > 0 ? result.citationCount + " 条" : "0 条（本次未返回联网来源）")], result.answerPreview);
                 } else {
-                    showTestResult(false, "连接失败：" + result.failureDescription, ["耗时：" + seconds,
-                        "HTTP 状态：" + (result.httpStatus ?? "无（未收到厂商响应）"), "厂商报错：" + (result.providerMessage || "无")]);
+                    showTestResult(false, "连接失败" + (result.httpStatus ? " · HTTP " + result.httpStatus : ""),
+                        ["耗时：" + seconds, "报错：" + (result.errorMessage || "无")]);
                 }
             } catch (failure) { testResult.hidden = true; showError(failure.message); }
             finally { testButton.disabled = false; testButton.textContent = "测试连接"; }

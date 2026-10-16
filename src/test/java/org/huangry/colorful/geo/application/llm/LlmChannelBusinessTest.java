@@ -44,7 +44,7 @@ class LlmChannelBusinessTest {
         assertThrows(java.util.NoSuchElementException.class, () -> business.getChannel(99));
     }
 
-    /** 测试连接先准备配置再调用一次：成功返回摘要与引用数，失败返回分类与厂商原文，均不保存配置。 */
+    /** 测试连接先准备配置再调用一次：成功返回摘要与引用数，失败返回 HTTP 状态与厂商原文，均不保存配置。 */
     @Test
     void shouldReportConnectionTestResultWithoutSaving() {
         var service = mock(GeoLlmChannelService.class);
@@ -64,17 +64,16 @@ class LlmChannelBusinessTest {
         assertTrue(success.success());
         assertEquals(1, success.citationCount());
         assertEquals("deepseek-v4-pro", success.modelName());
-        assertEquals(201, success.answerPreview().length());
-        assertNull(success.failureType());
+        assertEquals(301, success.answerPreview().length());
+        assertNull(success.errorMessage());
 
         when(router.query(any(), any(GeoLlmChannelEntity.class))).thenThrow(org.springframework.web.client.HttpClientErrorException.create(
                 org.springframework.http.HttpStatus.PAYMENT_REQUIRED, "Payment Required", org.springframework.http.HttpHeaders.EMPTY,
                 "{\"error\":{\"message\":\"Insufficient Balance\"}}".getBytes(java.nio.charset.StandardCharsets.UTF_8), null));
         var failure = business.testChannel(1L, request);
         assertFalse(failure.success());
-        assertEquals("INSUFFICIENT_BALANCE", failure.failureType());
         assertEquals(402, failure.httpStatus());
-        assertEquals("Insufficient Balance", failure.providerMessage());
+        assertEquals("{\"error\":{\"message\":\"Insufficient Balance\"}}", failure.errorMessage());
 
         var prepared = org.mockito.ArgumentCaptor.forClass(GeoLlmChannelEntity.class);
         verify(service, times(2)).prepareTestChannel(eq(1L), prepared.capture());

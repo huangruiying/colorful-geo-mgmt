@@ -45,11 +45,11 @@ class LlmChannelControllerTest {
     @Test
     void shouldTestChannelWithOptionalId() throws Exception {
         when(business.testChannel(eq(7L), any())).thenReturn(new org.huangry.colorful.geo.application.llm.model.LlmChannelTestResponse(
-                false, 120, null, null, 0, null, "INVALID_KEY", "密钥无效或无权限，请检查 API Key 及其产品权限", 401, "令牌已过期或验证不正确"));
+                false, 120, null, 0, null, 401, "{\"error\":{\"code\":\"401\",\"message\":\"令牌已过期或验证不正确\"}}"));
         mvc.perform(post("/llm-channels/test").param("id", "7").contentType("application/json").content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.failureType").value("INVALID_KEY"))
+                .andExpect(jsonPath("$.errorMessage").value(org.hamcrest.Matchers.containsString("令牌已过期")))
                 .andExpect(jsonPath("$.httpStatus").value(401))
                 .andExpect(jsonPath("$.apiKey").doesNotExist());
         when(business.testChannel(isNull(), any())).thenThrow(new IllegalArgumentException("请填写 API 密钥后再测试"));
