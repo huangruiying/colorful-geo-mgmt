@@ -48,7 +48,9 @@ class ChatCompletionsApiQianfanStrategyTest {
                 + "{\"id\":\"5\",\"type\":\"web\",\"title\":\"无地址\",\"url\":\"\"}]}";
         var template = new RestTemplate();
         var server = MockRestServiceServer.bindTo(template).build();
+        // 千帆拒绝分块请求（实测 411 MissingContentLength），请求必须带 Content-Length
         server.expect(requestTo("http://localhost/chat/completions"))
+                .andExpect(request -> assertTrue(request.getHeaders().getContentLength() > 0))
                 .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
         var strategy = new ChatCompletionsApiQianfanStrategy();
         ReflectionTestUtils.setField(strategy, "llmRestTemplate", template);

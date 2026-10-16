@@ -121,7 +121,7 @@ class GeoLlmChannelServiceTest {
         reused.setApiKey("  ");
         service.prepareTestChannel(1L, reused);
         assertEquals("existing-test-key", reused.getApiKey());
-        assertEquals(1400, reused.getMaxTokens());
+        assertEquals(60000, reused.getMaxTokens());
 
         var replaced = channel();
         replaced.setApiKey(" new-test-key ");

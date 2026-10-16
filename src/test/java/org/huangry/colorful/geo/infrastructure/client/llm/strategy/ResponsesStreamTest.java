@@ -45,6 +45,18 @@ class ResponsesStreamTest {
         }
     }
 
+    /** 失败事件的异常信息带上厂商报错：千问超出输出上限的 response.failed，以及不含 type 的 error 事件。 */
+    @Test
+    void shouldIncludeProviderErrorInStreamFailure() {
+        var failed = assertThrows(LLMClientException.class, () -> query("data:{\"type\":\"response.failed\",\"response\":{\"status\":\"failed\","
+                + "\"error\":{\"code\":\"InvalidParameter\",\"message\":\"Range of max_tokens should be [1, 65536]\"}}}\n\n"));
+        assertTrue(failed.getMessage().contains("InvalidParameter Range of max_tokens should be [1, 65536]"));
+
+        var untyped = assertThrows(LLMClientException.class, () -> query("id:9\nevent:error\n"
+                + "data:{\"code\":\"InternalError\",\"message\":\"The request processing has failed due to some unknown error.\"}\n\n"));
+        assertTrue(untyped.getMessage().contains("InternalError"));
+    }
+
     /** 多行 data 以及末尾没有空行的完成事件仍按 SSE 数据帧解析。 */
     @Test
     void shouldAcceptMultilineFinalFrameWithoutBlankLine() {
@@ -103,6 +115,7 @@ class ResponsesStreamTest {
         var server = MockRestServiceServer.bindTo(template).build();
         server.expect(requestTo("http://localhost/responses"))
                 .andExpect(header("Accept", "text/event-stream"))
+                .andExpect(request -> assertTrue(request.getHeaders().getContentLength() > 0))
                 .andRespond(withSuccess(events, MediaType.TEXT_EVENT_STREAM));
         var strategy = new ResponsesApiDoubaoStrategy();
         ReflectionTestUtils.setField(strategy, "llmRestTemplate", template);

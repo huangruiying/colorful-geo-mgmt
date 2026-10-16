@@ -31,6 +31,15 @@ class FastjsonResponseParsingTest {
         assertTrue(JSON.parseObject(result.getRawResponse()).containsKey("extra"));
     }
 
+    /** 输出达到上限的截断回答判为失败，提示调大上限；实测能链 claude 曾以 length 结束且正文停在半句。 */
+    @Test
+    void shouldRejectChatAnswerTruncatedByOutputLimit() {
+        ChatCompletionsApiCommonStrategy strategy = new ChatCompletionsApiCommonStrategy();
+        var failure = assertThrows(LLMClientException.class, () -> strategy.parseResponse(JSON.parseObject(
+                "{\"choices\":[{\"finish_reason\":\"length\",\"message\":{\"content\":\"分布式缓存（Redis\"}}]}")));
+        assertTrue(failure.getMessage().contains("finish_reason=length"));
+    }
+
     /** 错误结构不能经 Fastjson 的类型转换被当作有效回答。 */
     @Test
     void shouldRejectMalformedChatTextAndChoices() {
