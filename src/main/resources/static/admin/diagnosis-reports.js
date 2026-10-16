@@ -73,7 +73,7 @@
             const row = rows.insertRow();
             row.insertCell().textContent = "#" + item.id;
             const name = row.insertCell();
-            name.append(element("span", null, (item.planName || "—") + " / " + (item.projectName || "—")), element("span", "task-secondary", "诊断任务 #" + item.taskId));
+            name.append(element("span", null, (item.planName || "—") + " / " + (item.projectName || "—")), element("span", "task-secondary", "诊断任务 #" + item.diagnosisTaskId));
             row.insertCell().append(statusBadge(item.status));
             row.insertCell().textContent = progressText(item.progress);
             row.insertCell().textContent = time(item.createdAt);
@@ -120,7 +120,7 @@
         if (revision !== detailRevision || !detailDialog.open) return;
         report = detail;
         const judge = detail.judgeChannel ? (detail.judgeChannel.channelName || "—") + " · " + (detail.judgeChannel.modelName || "—") : "未开始";
-        byId("report-detail-note").textContent = (detail.planName || "—") + " / " + (detail.projectName || "—") + " · 诊断任务 #" + detail.taskId
+        byId("report-detail-note").textContent = (detail.planName || "—") + " / " + (detail.projectName || "—") + " · 诊断任务 #" + detail.diagnosisTaskId
             + " · 判定模型：" + judge + " · " + (labels[detail.status] || detail.status);
         renderTabs();
         renderPanel();
@@ -211,7 +211,7 @@
         byId("answer-content").textContent = "正在加载…";
         answerDialog.showModal();
         try {
-            const answer = await request("/diagnosis-tasks/" + report.taskId + "/results/" + resultId);
+            const answer = await request("/diagnosis-tasks/" + report.diagnosisTaskId + "/results/" + resultId);
             byId("answer-note").textContent = (answer.channelName || "—") + " · 问题：" + (answer.questionText || "—");
             byId("answer-content").textContent = answer.answerText || "无回答正文";
         } catch (error) { byId("answer-content").textContent = ""; show("answer-error", error.message); }
@@ -230,7 +230,7 @@
         if (creating || !byId("create-task").value) return;
         creating = true; byId("submit-create").disabled = true; show("create-error", "");
         try {
-            const created = await request("/diagnosis-reports", {method:"POST", body:JSON.stringify({taskId:Number(byId("create-task").value)})});
+            const created = await request("/diagnosis-reports/diagnosis-tasks/" + Number(byId("create-task").value), {method:"POST"});
             createDialog.close();
             show("report-success", "已开始生成报告 #" + created.id + "，共 " + created.progress.total + " 条有效回答待判定。");
             page = 0; await loadList();
@@ -239,7 +239,7 @@
         finally { creating = false; byId("submit-create").disabled = false; }
     });
 
-    // 从诊断任务详情跳转时带 taskId，直接打开生成对话框并选中该任务
-    const preselected = new URLSearchParams(location.search).get("taskId");
+    // 从诊断任务详情跳转时带 diagnosisTaskId，直接打开生成对话框并选中该任务
+    const preselected = new URLSearchParams(location.search).get("diagnosisTaskId");
     loadList().then(() => preselected ? openCreate(preselected) : null).catch(error => show("report-error", error.message));
 })();

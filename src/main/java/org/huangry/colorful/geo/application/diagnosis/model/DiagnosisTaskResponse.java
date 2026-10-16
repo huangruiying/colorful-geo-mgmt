@@ -76,10 +76,10 @@ public record DiagnosisTaskResponse(
 	 */
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public record ResultResponse(
-			/** 单次诊断记录 ID，用于查询这一条回答详情。 */
+			/** 采样结果 ID（geo_diagnosis_task_result.id），用于查询这一条回答详情。 */
 			Long id,
-			/** 所属诊断任务 ID。 */
-			Long taskId,
+			/** 所属诊断任务 ID（geo_diagnosis_task.id）。 */
+			Long diagnosisTaskId,
 			/** 创建任务时冻结的问题排序号。 */
 			int questionSortOrder,
 			/** 冻结的问题原文，不拼入项目背景或历史回答。 */

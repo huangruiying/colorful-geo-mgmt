@@ -22,16 +22,16 @@ class DiagnosisReportControllerTest {
     /** 生成报告返回 201 与判定进度；业务拒绝映射为 400 并带原因。 */
     @Test
     void shouldCreateReportOrExplainRejection() throws Exception {
-        when(business.create(any())).thenReturn(new DiagnosisReportResponse(9L, 30L, "加油诊断", "团油", "PENDING",
+        when(business.create(30L)).thenReturn(new DiagnosisReportResponse(9L, 30L, "加油诊断", "团油", "PENDING",
                 new DiagnosisReportResponse.ProgressResponse(70, 70, 0, 0), null, null, null, null, null, null, null))
                 .thenThrow(new IllegalArgumentException("该诊断任务已有报告正在生成，请等待完成"));
 
-        mvc.perform(post("/diagnosis-reports").contentType("application/json").content("{\"taskId\":30}"))
+        mvc.perform(post("/diagnosis-reports/diagnosis-tasks/30"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(9))
                 .andExpect(jsonPath("$.progress.total").value(70))
                 .andExpect(jsonPath("$.summary").doesNotExist());
-        mvc.perform(post("/diagnosis-reports").contentType("application/json").content("{\"taskId\":30}"))
+        mvc.perform(post("/diagnosis-reports/diagnosis-tasks/30"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("该诊断任务已有报告正在生成，请等待完成"));
     }

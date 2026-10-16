@@ -3,7 +3,6 @@ package org.huangry.colorful.geo.application.diagnosis;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
-import org.huangry.colorful.geo.application.diagnosis.model.CreateDiagnosisReportRequest;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService;
 import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisTaskResultAnalysisDao;
@@ -71,8 +70,7 @@ class DiagnosisReportBusinessTest {
     /** 未选择任务、未知状态与越界分页在调用服务和查询前拒绝。 */
     @Test
     void shouldRejectInvalidInput() {
-        assertThrows(IllegalArgumentException.class, () -> business.create(null));
-        assertThrows(IllegalArgumentException.class, () -> business.create(new CreateDiagnosisReportRequest(0L)));
+        assertThrows(IllegalArgumentException.class, () -> business.create(0L));
         assertThrows(IllegalArgumentException.class, () -> business.list(null, "DONE", 0, 10));
         assertThrows(IllegalArgumentException.class, () -> business.list(null, null, 0, 101));
         verifyNoInteractions(service);

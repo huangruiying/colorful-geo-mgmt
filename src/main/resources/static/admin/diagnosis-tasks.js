@@ -324,7 +324,7 @@
     }
     byId("new-task").addEventListener("click", () => openCreate().catch(fail));
     byId("report-task").addEventListener("click", () => {
-        if (taskId != null) location.href = "./history-report.html?v=20261017-report1&taskId=" + taskId;
+        if (taskId != null) location.href = "./history-report.html?v=20261017-report1&diagnosisTaskId=" + taskId;
     });
     byId("restart-task").addEventListener("click", async () => {
         if (restarting || taskId == null) return;
