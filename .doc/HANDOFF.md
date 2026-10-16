@@ -4,8 +4,12 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-17 按用户要求统一列表命名与注释：只给列表用的行类改名为 `XxxPageItem`（`ContentOptimizationRecordSummary` → `ContentOptimizationRecordPageItem`，DAO/Service `listSummaries` → `listPageItems`；`DiagnosisPlanBusiness.PlanSummary` → `PlanPageItem`）；与创建/详情共用的 Response 和领域对象不改。各层列表方法注释改为“XX列表（分页）查询”的直白写法，去掉列表语境的“摘要”，删除写错层的说明（如应用层“避免加载正文”），补 @param/@return 及校验/查询分段注释；JSON 字段不变。删除无引用的 `src/test/.../test/WhatsAppDemo.java`，常规 `mvn -o test` 恢复可编译：360 项 359 通过，唯一失败为原有 `LLMStrategyRouterTest.shouldRejectDisabledExactTaskChannel`。Java 17 主代码编译通过；未重启、未提交。
+
+- 2026-10-17 按用户确认统一分页结构：新增 `infrastructure/common/model/PageResponse<T>`，删除 `ContentOptimizationRecordPage`、`ContentPublishRecordPage`、`LlmChannelPage`、`ProjectInfoPage`、`DiagnosisPlanBusiness.PlanPage` 及 `DiagnosisTaskResponse.PageResponse`，8 个列表接口及 4 个 Controller 测试同步；JSON 结构不变，前端无需改。规范写入 `.claude/rules/project-conventions.md`「列表与分页」。`mvn -o test` 360 项 359 通过，唯一失败仍为原有 `shouldRejectDisabledExactTaskChannel`。未重启、未提交。
+
 - 2026-10-17 按用户要求表改名（页面与接口仍称“诊断报告”，避免与单条“诊断结果”混淆，用户已确认）：geo_diagnosis_report → `geo_diagnosis_result_output`，geo_diagnosis_answer_analysis → `geo_diagnosis_result_analysis`，分析表 report_id → `output_id`；实体、DAO、持久化服务同步为 `GeoDiagnosisResultOutputEntity/Dao/Service`、`GeoDiagnosisResultAnalysisEntity/Dao`（实体字段 outputId），索引与约束名同步。新增 `022_rename_diagnosis_result_tables.sql`（RENAME 保留数据，已核对库内索引与约束名与脚本一致），`001_init.sql` 改为新表定义，021 历史脚本不改。诊断相关独立 JUnit 58 项全部通过。
-  **022 尚未在本地库执行**：执行时报告 5（任务 27）正在由旧代码服务生成（4/23），现在改名会中断它。待报告 5 完成后：执行 022 → 用新代码重启服务。旧代码服务在 022 执行后会读写失败，新代码在 022 执行前同样会失败，两者须同时切换。
+  022 已于报告 5 完成后在本地库执行（期间无 PENDING/RUNNING 报告）：两表与 output_id 列、索引、外键、CHECK 均为新名，数据保留（报告 3 行、分析 33 行），旧表名已不存在。8010 仍为旧代码，需用新代码重启后才能读写新表。
   判定失败观察：报告 3 失败 3/5“判定模型不可用或未返回有效回答”、报告 4 失败 1/5“判定模型调用超时”，判定渠道为能链 claude（上限 1400），与此前风险一致。未提交。
 
 - 2026-10-17 诊断报告接口与页面：新增 `MgmtDiagnosisReportController`（POST/GET 列表/GET 详情，错误映射同诊断任务）、`DiagnosisReportBusiness`（名称取任务快照，`GeoDiagnosisAnswerAnalysisDao.countStatuses` 一次汇总多份报告判定进度，汇总只在详情返回）、`CreateDiagnosisReportRequest`、`DiagnosisReportResponse`；`history-report.html` 由占位改为报告列表 + 生成对话框 + 详情（6 个子 Tab，①② 已接入，③–⑥ 待接入）+ 回答原文对话框，新增 `diagnosis-reports.js/css`（v 20261017-report1）；诊断任务详情新增「生成报告」入口（diagnosis-tasks.js v 20261017-report1）。说明见 [诊断报告全景](诊断报告全景.md)「接口与页面」。
