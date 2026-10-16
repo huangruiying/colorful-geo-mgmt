@@ -3,7 +3,7 @@ package org.huangry.colorful.geo.presentation.controller;
 import org.huangry.colorful.geo.application.content.ContentPublishBusiness;
 import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.huangry.colorful.geo.application.content.model.ContentPublishRecordPage;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,7 +66,7 @@ class ContentPublishMgmtControllerTest {
     @Test
     void 发布列表使用当前发布路径() throws Exception {
         when(publishBusiness.listContentPublishRecords(0, 20))
-                .thenReturn(new ContentPublishRecordPage(List.of(), 0, 0, 20));
+                .thenReturn(new PageResponse<>(List.of(), 0, 0, 20));
 
         mockMvc.perform(get("/content-publish/list"))
                 .andExpect(status().isOk());

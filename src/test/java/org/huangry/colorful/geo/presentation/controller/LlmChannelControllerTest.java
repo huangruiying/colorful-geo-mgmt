@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.presentation.controller;
 
 import org.huangry.colorful.geo.application.llm.LlmChannelBusiness;
-import org.huangry.colorful.geo.application.llm.model.LlmChannelPage;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.application.llm.model.LlmChannelResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -50,7 +50,7 @@ class LlmChannelControllerTest {
             .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(1))
             .andExpect(jsonPath("$.apiKey").doesNotExist())
             .andExpect(jsonPath("$.strategyName").doesNotExist());
-        when(business.listChannels(null, 0, 20)).thenReturn(new LlmChannelPage(List.of(c), 1, 0, 20));
+        when(business.listChannels(null, 0, 20)).thenReturn(new PageResponse<>(List.of(c), 1, 0, 20));
         mvc.perform(get("/llm-channels")).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
     }
 

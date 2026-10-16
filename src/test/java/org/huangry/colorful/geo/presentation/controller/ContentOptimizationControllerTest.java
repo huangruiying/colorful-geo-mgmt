@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.presentation.controller;
 
 import org.huangry.colorful.geo.application.content.ContentOptimizationBusiness;
-import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordPage;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordDetail;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,7 +51,7 @@ class ContentOptimizationControllerTest {
     @Test
     void 优化列表使用当前路径() throws Exception {
         when(optimizationBusiness.listContentOptimizationRecords(0, 20))
-                .thenReturn(new ContentOptimizationRecordPage(List.of(), 0, 0, 20));
+                .thenReturn(new PageResponse<>(List.of(), 0, 0, 20));
 
         mockMvc.perform(get("/content-optimize/list"))
                 .andExpect(status().isOk());
