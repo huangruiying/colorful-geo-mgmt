@@ -4,6 +4,8 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-17 与用户确认诊断报告结构，落地 [诊断报告全景](诊断报告全景.md)：6 个子 Tab（概览、可见度与推荐、品牌认知、竞品对比、引用与内容、优化建议）、按问题类型与是否提及划分的 4 类分析场景、分析口径（只分析成功回答，引用指标同口径比较）。仅文档，未实现；下一步为指标计算、回答分析结果表与判定方式的详细设计。
+
 - 2026-10-17 按用户要求移除「测试连接」功能，以本条为准替代 2026-10-16 测试连接相关各条：删除 `POST /llm-channels/test`、`LlmChannelTestResponse`、`GeoLlmChannelService.prepareTestChannel`、页面按钮/结果区/脚本/样式及项目约定中的对应条目；`LlmChannelBusiness` 及三个测试文件恢复到加入前版本（0ce1e8f、6be745e、941f187）。保留：API Key 控制台链接、默认输出上限 60000（页面提示改为「需按模型调低」）、请求体字节发送带 Content-Length、流式失败带厂商报错、Chat finish_reason=length 判失败。models.js 版本 20261017-keyurl2，models.css 恢复 20261013-bean3。验证：compile、JS 语法通过，相关独立 JUnit 56 项 55 通过（既有失败同前），源码与约定无测试连接残留。注意：分类器/枚举/测试响应在暂存区为 AD，测试文件 LLMCallFailureClassifierTest 为已提交后删除，提交前需同步暂存删除。未重启，未提交。
 
 - 2026-10-16 按用户要求精简测试连接：删除 `LLMCallFailureClassifier`、`LLMCallFailureType` 及其测试（共 268 行），失败改为直接返回 HTTP 状态码与截断 300 字的厂商原文（HTTP 错误取响应体，其余取异常说明）；`LlmChannelTestResponse` 由 10 字段减为 7 个，Business 内联耗时与截断；页面失败显示「连接失败 · HTTP 状态」与原文，models.js 版本 20261016-test2；项目约定同步。保留：prepareTestChannel、流式失败原因、Content-Length 修复、Chat 截断判失败。上一条中分类器描述以本条为准。验证：compile、JS 语法通过，相关 JUnit 60 项 59 通过（既有失败同前）。未重启，未提交。
