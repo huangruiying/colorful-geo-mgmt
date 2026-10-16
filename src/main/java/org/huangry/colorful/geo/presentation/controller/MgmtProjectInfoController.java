@@ -6,10 +6,14 @@ import org.huangry.colorful.geo.application.project.ProjectBusiness;
 import org.huangry.colorful.geo.application.project.model.CreateProjectRequest;
 import org.huangry.colorful.geo.application.project.model.ProjectInfoResponse;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
-import org.huangry.colorful.geo.application.project.model.ProjectInfoResponse;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 /** 项目管理接口；POST 创建基础档案，GET 分页查询，不管理监测或分析任务。 */
 @RestController
@@ -41,12 +45,5 @@ public class MgmtProjectInfoController {
                                         @RequestParam(value = "page", defaultValue = "0") int page,
                                         @RequestParam(value = "size", defaultValue = "20") int size) {
         return projectBusiness.listProjects(keyword, page, size);
-    }
-
-    /** 将基础资料及分页校验失败转换为可读的 HTTP 400。 */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail invalidRequest(IllegalArgumentException exception) {
-        log.warn("项目管理输入校验失败 httpStatus=400");
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
     }
 }

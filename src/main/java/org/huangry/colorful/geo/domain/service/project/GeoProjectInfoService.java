@@ -2,6 +2,7 @@ package org.huangry.colorful.geo.domain.service.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.infrastructure.repository.GeoProjectInfoDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoProjectInfoEntity;
 import org.springframework.stereotype.Service;
@@ -29,14 +30,12 @@ public class GeoProjectInfoService extends ServiceImpl<GeoProjectInfoDao, GeoPro
     /**
      * 项目列表查询，可按名称筛选，最新创建的在前。
      *
-     * @param keyword 项目名称关键词，可为空
-     * @param size 每页条数
-     * @param offset 起始偏移
+     * @param pageQuery 已校验的分页参数及项目名称关键词
      * @return 当前页项目
      */
-    public List<GeoProjectInfoEntity> listProjects(String keyword, int size, long offset) {
-        return list(buildProjectQuery(keyword).orderByDesc(GeoProjectInfoEntity::getId)
-                .last("LIMIT " + size + " OFFSET " + offset));
+    public List<GeoProjectInfoEntity> listProjects(PageQuery pageQuery) {
+        return list(buildProjectQuery(pageQuery.keyword()).orderByDesc(GeoProjectInfoEntity::getId)
+                .last(pageQuery.limitClause()));
     }
 
     /** 使用与列表相同的筛选条件统计项目数量。 */

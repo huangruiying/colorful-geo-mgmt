@@ -9,7 +9,8 @@ import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLogin
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformScanLoginMethod;
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformType;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.PlatformBrowserLoginException;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 独立 Playwright 登录接口；提供已接入平台的扫码与状态检测，不负责管理后台鉴权。
@@ -251,14 +251,14 @@ public class MgmtPlatformLoginController {
      * 将独立流程错误转换成可读提示，不输出内部异常或敏感会话。
      *
      * @param exception 登录流程异常
-     * @return 失败提示
+     * @return HTTP 400 及失败提示，与其他接口一样放在 ProblemDetail 的 detail 字段
      */
     @ExceptionHandler(PlatformBrowserLoginException.class)
-    public ResponseEntity<Map<String, String>> handleLoginError(PlatformBrowserLoginException exception) {
+    public ProblemDetail handleLoginError(PlatformBrowserLoginException exception) {
         log.warn("浏览器登录接口 response httpStatus=400 reason={} causeType={}",
                 exception.getMessage(), exception.getCause() == null ? "NONE"
                         : exception.getCause().getClass().getSimpleName());
-        return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
     }
 
     /**

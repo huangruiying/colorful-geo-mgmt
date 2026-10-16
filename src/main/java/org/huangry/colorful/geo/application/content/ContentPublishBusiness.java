@@ -5,6 +5,7 @@ import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationP
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.PublicationPlatformStrategy;
 import java.util.Comparator;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
 import org.huangry.colorful.geo.domain.service.content.ContentPublishRecordService;
@@ -53,14 +54,11 @@ public class ContentPublishBusiness {
      */
     public PageResponse<ContentPublishRecord> listContentPublishRecords(int page, int size) {
         // 分页参数越界直接拒绝，避免一次查询过多记录
-        if (page < 0 || size < 1 || size > 100) {
-            throw new IllegalArgumentException("分页参数不合法：page 不小于 0，size 范围为 1～100");
-        }
+        var pageQuery = new PageQuery(page, size);
 
         // 查询当前页记录和总数
-        long offset = (long) page * size;
-        return new PageResponse<>(publishRecordService.listContentPublishRecords(size, offset),
-                publishRecordService.countContentPublishRecords(), page, size);
+        return pageQuery.toResponse(publishRecordService.listContentPublishRecords(pageQuery),
+                publishRecordService.countContentPublishRecords());
     }
 
     /**

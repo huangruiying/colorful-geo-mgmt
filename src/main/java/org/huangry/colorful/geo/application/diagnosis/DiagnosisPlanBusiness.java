@@ -3,6 +3,7 @@ package org.huangry.colorful.geo.application.diagnosis;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.application.diagnosis.model.*;
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisPlanService;
 import org.huangry.colorful.geo.domain.service.QuestionGenerateService;
@@ -59,14 +60,12 @@ public class DiagnosisPlanBusiness {
      */
     public PageResponse<PlanPageItem> list(String keyword, int page, int size) {
         // 1. 分页参数和关键词越界直接拒绝，避免一次查询过多记录
-        if (page < 0 || size < 1 || size > 100) throw new IllegalArgumentException("每页条数为 1 到 100，页码从零开始");
-        if (keyword != null && keyword.length() > 200) throw new IllegalArgumentException("关键词最多 200 字符");
+        var pageQuery = new PageQuery(page, size, keyword);
         // 2. 按名称筛选查询当前页方案和总数，关键词通过绑定参数传入
         var query = new LambdaQueryWrapper<GeoDiagnosisPlanEntity>()
-                .like(keyword != null && !keyword.isBlank(), GeoDiagnosisPlanEntity::getName, keyword);
+                .like(pageQuery.keyword() != null, GeoDiagnosisPlanEntity::getName, pageQuery.keyword());
         long total = planService.count(query);
-        var plans = planService.list(query.orderByDesc(GeoDiagnosisPlanEntity::getId)
-                .last("LIMIT " + size + " OFFSET " + ((long) page * size)));
+        var plans = planService.list(query.orderByDesc(GeoDiagnosisPlanEntity::getId).last(pageQuery.limitClause()));
         // 3. 批量读取所属项目名称，避免逐条查询
         Map<Long, String> names = new HashMap<>();
         if (!plans.isEmpty()) {
@@ -76,7 +75,7 @@ public class DiagnosisPlanBusiness {
         // 4. 组装列表行
         var items = plans.stream().map(plan -> new PlanPageItem(plan.getId(), plan.getName(),
                 plan.getProjectId(), names.get(plan.getProjectId()), plan.getRepeatCount(), plan.getUpdatedAt())).toList();
-        return new PageResponse<>(items, total, page, size);
+        return pageQuery.toResponse(items, total);
     }
 
     /** 候选仅返回给页面，不修改已保存方案或用户现有集合。 */

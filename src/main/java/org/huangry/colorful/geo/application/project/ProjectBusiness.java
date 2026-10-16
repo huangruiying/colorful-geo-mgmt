@@ -4,6 +4,7 @@ import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.application.project.model.CreateProjectRequest;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoProjectInfoEntity;
 import org.huangry.colorful.geo.application.project.model.ProjectInfoResponse;
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.project.GeoProjectInfoService;
 import org.springframework.stereotype.Service;
@@ -43,17 +44,15 @@ public class ProjectBusiness {
      * @return 当前页项目及总数
      */
     public PageResponse<ProjectInfoResponse> listProjects(String keyword, int page, int size) {
-        // 分页边界限定为有限查询，避免无界加载基础档案。
-        if (page < 0 || size < 1 || size > 100) throw new IllegalArgumentException("页码不能小于零，每页条数必须在 1 到 100 之间");
-        if (keyword != null && keyword.length() > 200) throw new IllegalArgumentException("查询关键词最多 200 字符");
-        String normalizedKeyword = keyword == null ? null : keyword.strip();
-        // 列表和计数使用相同名称条件，偏移计算使用 long 防止溢出。
-        long offset = (long) page * size;
-        var items = projectService.listProjects(normalizedKeyword, size, offset).stream()
+        // 分页参数和关键词越界直接拒绝，避免无界加载基础档案
+        var pageQuery = new PageQuery(page, size, keyword);
+
+        // 列表和总数使用相同名称条件
+        var items = projectService.listProjects(pageQuery).stream()
             .map(this::toResponse)
             .toList();
-        long total = projectService.countProjects(normalizedKeyword);
-        return new PageResponse<>(items, total, page, size);
+        long total = projectService.countProjects(pageQuery.keyword());
+        return pageQuery.toResponse(items, total);
     }
 
     /** 显式转换接口字段，持久化实体只在内部流转。 */

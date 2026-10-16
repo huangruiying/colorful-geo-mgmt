@@ -8,6 +8,7 @@ import java.util.Map;
 import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
@@ -57,14 +58,12 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
     /**
      * 模型列表查询，可按名称或编码筛选，按优先级排序。
      *
-     * @param keyword 名称或编码关键词，可为空
-     * @param size 每页条数
-     * @param offset 起始偏移
+     * @param pageQuery 已校验的分页参数及名称或编码关键词
      * @return 当前页模型
      */
-    public List<GeoLlmChannelEntity> listChannels(String keyword, int size, long offset) {
-        return list(query(keyword).orderByDesc(GeoLlmChannelEntity::getScore).orderByAsc(GeoLlmChannelEntity::getId)
-            .last("LIMIT " + size + " OFFSET " + offset));
+    public List<GeoLlmChannelEntity> listChannels(PageQuery pageQuery) {
+        return list(query(pageQuery.keyword()).orderByDesc(GeoLlmChannelEntity::getScore).orderByAsc(GeoLlmChannelEntity::getId)
+            .last(pageQuery.limitClause()));
     }
 
     /** 使用列表相同的条件统计总数。 */

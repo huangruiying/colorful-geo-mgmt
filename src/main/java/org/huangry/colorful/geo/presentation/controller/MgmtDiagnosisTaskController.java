@@ -10,7 +10,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.*;
-import java.util.NoSuchElementException;
 
 /** 诊断任务入口；创建立即返回，后台执行及回答查询独立于浏览器请求。 */
 @RestController
@@ -97,16 +96,6 @@ public class MgmtDiagnosisTaskController {
     }
 
     /**
-     * 本地输入不合法时返回可修正提示。
-     * @param exception 本地校验异常
-     * @return 输入错误
-     */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail invalid(IllegalArgumentException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
-    }
-
-    /**
      * 无效模型配置不创建任务，不回传远程异常。
      * @param exception 渠道校验失败
      * @return 配置错误
@@ -114,16 +103,6 @@ public class MgmtDiagnosisTaskController {
     @ExceptionHandler(LLMClientException.class)
     public ProblemDetail channelInvalid(LLMClientException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "测试渠道不可用，请检查启用状态、策略、地址、模型和密钥");
-    }
-
-    /**
-     * 缺失任务或回答明确返回 404。
-     * @param exception 未找到异常
-     * @return 缺失提示
-     */
-    @ExceptionHandler(NoSuchElementException.class)
-    public ProblemDetail missing(NoSuchElementException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
     /**

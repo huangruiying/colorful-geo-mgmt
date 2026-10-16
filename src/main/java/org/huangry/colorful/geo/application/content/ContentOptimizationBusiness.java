@@ -7,6 +7,7 @@ import org.huangry.colorful.geo.application.content.model.OptimizeContentCommand
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRequest;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationResult;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.content.ContentPublishRecordService;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
@@ -67,14 +68,11 @@ public class ContentOptimizationBusiness {
      */
     public PageResponse<ContentOptimizationRecordPageItem> listContentOptimizationRecords(int page, int size) {
         // 分页参数越界直接拒绝，避免一次查询过多记录
-        if (page < 0 || size < 1 || size > 100) {
-            throw new IllegalArgumentException("分页参数不合法：page 不小于 0，size 范围为 1～100");
-        }
+        var pageQuery = new PageQuery(page, size);
 
         // 查询当前页记录和总数
-        long offset = (long) page * size;
-        return new PageResponse<>(optimizationRecordService.listPageItems(size, offset),
-                optimizationRecordService.countAll(), page, size);
+        return pageQuery.toResponse(optimizationRecordService.listPageItems(pageQuery),
+                optimizationRecordService.countAll());
     }
 
     /**

@@ -9,7 +9,6 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 /**
  * 诊断方案管理入口；候选生成与保存分离，不调用被测渠道执行诊断。
@@ -65,22 +64,6 @@ public class MgmtDiagnosisPlanController {
 	@PostMapping("/generate-questions")
 	public List<DiagnosisQuestion> generate(@RequestBody GenerateDiagnosisQuestionsRequest request) {
 		return business.generate(request);
-	}
-
-	/**
-	 * 输入或集合不合法时，保留客户端已编辑内容供修正。
-	 */
-	@ExceptionHandler(IllegalArgumentException.class)
-	public ProblemDetail invalid(IllegalArgumentException exception) {
-		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
-	}
-
-	/**
-	 * 缺失方案不能伪装为创建成功。
-	 */
-	@ExceptionHandler(NoSuchElementException.class)
-	public ProblemDetail missing(NoSuchElementException exception) {
-		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
 	}
 
 	/**

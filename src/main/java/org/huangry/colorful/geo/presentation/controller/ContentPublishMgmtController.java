@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 /**
  * 内容发布接口；提供平台选项、预发布动作及本地发布记录管理，不删除平台上的草稿或文章。
@@ -88,20 +87,6 @@ public class ContentPublishMgmtController {
         log.info("删除内容发布记录 request publishRecordId={}", id);
         publishBusiness.deleteContentPublishRecord(id);
         log.info("删除内容发布记录 response publishRecordId={} httpStatus=204", id);
-    }
-
-    /** 参数错误返回 400，避免被误认为数据库故障。 */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail invalidRequest(IllegalArgumentException exception) {
-        log.warn("内容发布接口 response httpStatus=400 errorType={}", exception.getClass().getSimpleName());
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
-    }
-
-    /** 记录已被其他操作删除时返回 404。 */
-    @ExceptionHandler(NoSuchElementException.class)
-    public ProblemDetail missingRecord(NoSuchElementException exception) {
-        log.warn("内容发布接口 response httpStatus=404 errorType={}", exception.getClass().getSimpleName());
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
     /** 平台任务仍在执行时返回 409，提示用户先核对结果。 */

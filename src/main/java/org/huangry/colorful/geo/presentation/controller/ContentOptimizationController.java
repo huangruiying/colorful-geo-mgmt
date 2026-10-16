@@ -9,8 +9,6 @@ import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.application.content.model.OptimizeContentCommand;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.NoSuchElementException;
 
 /**
  * 内容优化记录接口；提供优化与查询，不接收平台发布动作。
@@ -79,20 +76,6 @@ public class ContentOptimizationController {
         log.info("查询内容优化记录详情 response recordId={} publishRecordCount={}",
                 detail.record().getId(), detail.publishRecords().size());
         return detail;
-    }
-
-    /** 将无效输入映射为 400，不将它当作平台或数据库故障。 */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail invalidRequest(IllegalArgumentException exception) {
-        log.warn("内容优化接口 response httpStatus=400 errorType={}", exception.getClass().getSimpleName());
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
-    }
-
-    /** 将不存在的记录映射为 404，便于页面提示记录已被移除。 */
-    @ExceptionHandler(NoSuchElementException.class)
-    public ProblemDetail missingRecord(NoSuchElementException exception) {
-        log.warn("内容优化接口 response httpStatus=404 errorType={}", exception.getClass().getSimpleName());
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
 }

@@ -7,6 +7,7 @@ import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
 import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationResult;
 import org.huangry.colorful.geo.infrastructure.common.enums.ContentPublishRecordStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformType;
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.infrastructure.repository.ContentPublishRecordDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.ContentPublishRecordEntity;
 import org.springframework.dao.DuplicateKeyException;
@@ -26,14 +27,13 @@ public class ContentPublishRecordService extends ServiceImpl<ContentPublishRecor
     /**
      * 发布记录列表查询，最新的在前。
      *
-     * @param size 每页条数
-     * @param offset 起始偏移
+     * @param pageQuery 已校验的分页参数
      * @return 当前页发布记录
      */
-    public List<ContentPublishRecord> listContentPublishRecords(int size, long offset) {
+    public List<ContentPublishRecord> listContentPublishRecords(PageQuery pageQuery) {
         LambdaQueryWrapper<ContentPublishRecordEntity> query = new LambdaQueryWrapper<ContentPublishRecordEntity>()
                 .orderByDesc(ContentPublishRecordEntity::getId)
-                .last("LIMIT " + size + " OFFSET " + offset);
+                .last(pageQuery.limitClause());
         return baseMapper.selectList(query).stream().map(this::convertToContentPublishRecord).toList();
     }
 

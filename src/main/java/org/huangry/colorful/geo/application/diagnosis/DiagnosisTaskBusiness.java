@@ -7,6 +7,7 @@ import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskResultStatus;
 import org.huangry.colorful.geo.application.diagnosis.model.CreateDiagnosisTaskRequest;
 import org.huangry.colorful.geo.application.diagnosis.model.DiagnosisTaskResponse;
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskService;
@@ -69,7 +70,7 @@ public class DiagnosisTaskBusiness {
      */
     public PageResponse<DiagnosisTaskResponse> list(Long planId, String status, int page, int size) {
         // 分页参数和状态不合法直接拒绝
-        validatePage(page, size);
+        var pageQuery = new PageQuery(page, size);
         validateStatus(status, true);
 
         // 按筛选条件查询总数和当前页任务，最新的在前
@@ -77,9 +78,9 @@ public class DiagnosisTaskBusiness {
                 .eq(planId != null, GeoDiagnosisPlanExecRecordEntity::getPlanId, planId)
                 .eq(status != null && !status.isBlank(), GeoDiagnosisPlanExecRecordEntity::getStatus, status);
         long total = taskDao.selectCount(query);
-        query.orderByDesc(GeoDiagnosisPlanExecRecordEntity::getId).last("LIMIT " + size + " OFFSET " + (long) page * size);
+        query.orderByDesc(GeoDiagnosisPlanExecRecordEntity::getId).last(pageQuery.limitClause());
         var items = taskDao.selectList(query).stream().map(task -> response(task, false)).toList();
-        return new PageResponse<>(items, total, page, size);
+        return pageQuery.toResponse(items, total);
     }
 
     /**
@@ -103,7 +104,7 @@ public class DiagnosisTaskBusiness {
     public PageResponse<DiagnosisTaskResponse.ResultResponse> results(long taskId, String status, Long channelId, int page, int size) {
         // 任务不存在或参数不合法直接拒绝
         requireTask(taskId);
-        validatePage(page, size);
+        var pageQuery = new PageQuery(page, size);
         validateStatus(status, false);
 
         // 查询总数和当前页结果，只取列表字段
@@ -120,9 +121,9 @@ public class DiagnosisTaskBusiness {
                 .orderByAsc(GeoDiagnosisPlanExecRecordResultEntity::getQuestionSortOrder)
                 .orderByAsc(GeoDiagnosisPlanExecRecordResultEntity::getChannelId)
                 .orderByAsc(GeoDiagnosisPlanExecRecordResultEntity::getRepeatIndex)
-                .last("LIMIT " + size + " OFFSET " + (long) page * size);
+                .last(pageQuery.limitClause());
         var items = resultDao.selectList(query).stream().map(this::resultResponse).toList();
-        return new PageResponse<>(items, total, page, size);
+        return pageQuery.toResponse(items, total);
     }
 
     /**
@@ -227,17 +228,6 @@ public class DiagnosisTaskBusiness {
      */
     private DiagnosisTaskResponse.ProgressResponse progress(long[] counts) {
         return new DiagnosisTaskResponse.ProgressResponse(counts[0], counts[1], counts[2], counts[3], counts[4]);
-    }
-
-    /**
-     * 分页输入校验，SQL 拼接只接受经过校验的数字。
-     * @param page 从零开始的页码
-     * @param size 每页数量
-     */
-    private void validatePage(int page, int size) {
-        if (page < 0 || size < 1 || size > 100) {
-            throw new IllegalArgumentException("页码不能为负，每页数量必须为 1 到 100");
-        }
     }
 
     /**

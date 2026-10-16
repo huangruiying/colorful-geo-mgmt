@@ -9,7 +9,6 @@ import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
-import java.util.NoSuchElementException;
 import java.util.List;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 
@@ -73,15 +72,7 @@ public class MgmtLlmChannelController {
     /** 状态更新命令，空值不能被当成停用。 */
     public record EnabledCommand(Boolean enabled) {}
 
-    /** 将输入错误映射为明确的请求错误。 */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail invalid(IllegalArgumentException e) { return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage()); }
-
     /** 编码冲突不暴露数据库异常内容。 */
     @ExceptionHandler(DuplicateKeyException.class)
     public ProblemDetail duplicate() { return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "渠道编码已存在"); }
-
-    /** 缺失记录不伪装成成功。 */
-    @ExceptionHandler(NoSuchElementException.class)
-    public ProblemDetail missing(NoSuchElementException e) { return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage()); }
 }
