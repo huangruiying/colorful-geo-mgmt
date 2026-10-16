@@ -6,7 +6,7 @@ import org.huangry.colorful.geo.infrastructure.common.enums.ContentOptimizationS
 import java.util.List;
 
 /**
- * 创建并保存优化记录的输入；标题属于内容记录，不传给领域优化服务。
+ * 新建优化接口的入参：调用模型优化正文，成功后保存为一条内容优化记录；标题属于内容记录，不传给领域优化服务。
  *
  * @param title 内容标题
  * @param content 优化前正文
@@ -14,7 +14,7 @@ import java.util.List;
  * @param strategies 可选优化策略；空列表使用领域服务默认策略
  * @param references 可选参考资料
  */
-public record OptimizeContentCommand(String title, String content, String optimizationPreference,
-                                     List<ContentOptimizationStrategy> strategies,
-                                     List<ContentOptimizationReference> references) {
+public record CreateContentOptimizationRecordRequest(String title, String content, String optimizationPreference,
+                                                     List<ContentOptimizationStrategy> strategies,
+                                                     List<ContentOptimizationReference> references) {
 }

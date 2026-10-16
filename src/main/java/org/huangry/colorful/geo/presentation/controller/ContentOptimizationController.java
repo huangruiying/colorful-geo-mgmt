@@ -6,7 +6,7 @@ import org.huangry.colorful.geo.application.content.ContentOptimizationBusiness;
 import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordDetail;
 import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordPageItem;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
-import org.huangry.colorful.geo.application.content.model.OptimizeContentCommand;
+import org.huangry.colorful.geo.application.content.model.CreateContentOptimizationRecordRequest;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,16 +33,16 @@ public class ContentOptimizationController {
     /**
      * 优化并保存一篇内容，供页面后续确认稿件和预发布。
      *
-     * @param command 标题、原文及可选优化配置
+     * @param request 标题、原文及可选优化配置
      * @return 已入库的优化内容
      */
     @PostMapping("optimize")
     @ResponseStatus(HttpStatus.CREATED)
-    public ContentOptimizationRecord optimize(@RequestBody OptimizeContentCommand command) {
+    public ContentOptimizationRecord optimize(@RequestBody CreateContentOptimizationRecordRequest request) {
         log.info("创建内容优化记录 request contentLength={} strategyCount={}",
-                command.content() == null ? 0 : command.content().length(),
-                command.strategies() == null ? 0 : command.strategies().size());
-        ContentOptimizationRecord record = optimizationBusiness.optimizeAndSave(command);
+                request.content() == null ? 0 : request.content().length(),
+                request.strategies() == null ? 0 : request.strategies().size());
+        ContentOptimizationRecord record = optimizationBusiness.optimizeAndSave(request);
         log.info("创建内容优化记录 response recordId={}", record.getId());
         return record;
     }

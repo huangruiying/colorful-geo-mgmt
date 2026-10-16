@@ -1,6 +1,6 @@
 package org.huangry.colorful.geo.application.content;
 
-import org.huangry.colorful.geo.application.content.model.OptimizeContentCommand;
+import org.huangry.colorful.geo.application.content.model.CreateContentOptimizationRecordRequest;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationResult;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
@@ -35,7 +35,7 @@ class ContentOptimizationBusinessTest {
                 ((ContentOptimizationRecord) invocation.getArgument(0)).toBuilder().id(7L).build());
 
         ContentOptimizationRecord saved = service.optimizeAndSave(
-                new OptimizeContentCommand("标题", "原文", null, List.of(), List.of()));
+                new CreateContentOptimizationRecordRequest("标题", "原文", null, List.of(), List.of()));
 
         assertEquals(7L, saved.getId());
         assertEquals("原文", saved.getOriginalContent());
