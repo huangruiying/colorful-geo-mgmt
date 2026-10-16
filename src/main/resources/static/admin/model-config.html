@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="./styles.css">
     <link rel="stylesheet" href="./contents.css">
     <link rel="stylesheet" href="./projects.css?v=20261011-config3">
-<link rel="stylesheet" href="./models.css?v=20261013-bean3">
+<link rel="stylesheet" href="./models.css?v=20261016-test1">
 </head>
 <body>
 <div class="app-shell">
@@ -71,7 +71,7 @@
 <label class="project-field"><span>渠道编码</span><input name="channelCode" id="channelCode" type="text" required maxlength="100" pattern="[a-zA-Z0-9_-]+" placeholder="例如：deepseek-chat"></label>
 <label class="project-field"><span>渠道名称</span><input name="channelName" id="channelName" type="text" required maxlength="200" placeholder="例如：DeepSeek 日常问答"></label>
 <label class="project-field"><span>供应商标识</span><input name="providerCode" id="providerCode" type="text" required maxlength="100" placeholder="例如：deepseek"></label>
-<label class="project-field"><span>调用策略</span><select name="strategyBeanName" id="strategyBeanName" required><option value="">正在加载策略…</option></select></label>
+<label class="project-field"><span>调用策略</span><select name="strategyBeanName" id="strategyBeanName" required><option value="">正在加载策略…</option></select><small id="api-key-console" hidden>获取 API Key：<a id="api-key-console-link" target="_blank" rel="noopener noreferrer"></a></small></label>
 <label class="project-field"><span>接口地址</span><input name="baseUrl" id="baseUrl" type="url" maxlength="2048" placeholder="https://api.example.com/v1"></label>
 <label class="project-field"><span>选用模型</span><input name="modelName" id="modelName" type="text" maxlength="200" placeholder="填写平台提供的模型 ID 或接入点 ID"><small>填写平台调用示例中的 model 值，不是“豆包”等展示名称。</small></label>
 <label class="project-field"><span>API 密钥</span><input name="apiKey" id="apiKey" type="password" maxlength="8192" autocomplete="new-password" placeholder="填写密钥；编辑时留空保留原值"><small id="key-status">远程渠道启用前需保存密钥。</small></label>
@@ -86,5 +86,6 @@
 <p class="model-help" id="protocol-help">请求参数由实际策略决定，接口协议不代表模型一定支持搜索。</p>
 </div></section>
 <p id="model-error" class="notice notice-error" role="alert" hidden></p>
-<div class="project-actions"><a class="text-button" href="./models.html?v=20261011-config3">返回模型列表</a><button id="save-model" class="primary-button" type="submit">保存模型配置</button></div>
-</form></main></div></div><script src="./models.js?v=20261014-protocol1"></script></body></html>
+<div id="test-result" class="notice" role="status" hidden></div>
+<div class="project-actions"><a class="text-button" href="./models.html?v=20261011-config3">返回模型列表</a><button id="test-model" class="text-button" type="button" title="用当前填写的配置真实调用一次，不保存；会产生模型及联网搜索费用">测试连接</button><button id="save-model" class="primary-button" type="submit">保存模型配置</button></div>
+</form></main></div></div><script src="./models.js?v=20261016-test1"></script></body></html>

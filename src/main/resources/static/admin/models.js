@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261014-protocol1", error = document.getElementById("model-error");
+    const version = "20261016-test1", error = document.getElementById("model-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
     async function request(path, options = {}) {
         const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
@@ -31,6 +31,12 @@
                 ? "当前策略或模型不发送这些生成参数，因此不提供编辑。"
                 : "随机性可留空，留空不发送；填写则由模型接口校验。输出上限会随请求发送。"
                     + (protocol === "OPENAI_RESPONSES" ? "输出上限使用 max_output_tokens，可能包含推理 token。" : "");
+            // 厂商策略提供密钥获取页，通用策略没有固定厂商时隐藏；只接受 https 地址
+            const consoleUrl = option?.dataset.apiKeyConsoleUrl || "";
+            const consoleLink = document.getElementById("api-key-console-link");
+            document.getElementById("api-key-console").hidden = !consoleUrl.startsWith("https://");
+            consoleLink.href = consoleUrl.startsWith("https://") ? consoleUrl : "#";
+            consoleLink.textContent = consoleUrl;
             document.getElementById("protocol-help").textContent = "策略 Bean：" + (option?.value || "请选择调用策略") + " · 接口协议：" + (protocol || "—")
                 + "。策略决定请求参数，模型和工具权限仍需实际验证。";
         };
@@ -45,6 +51,7 @@
                     const option = document.createElement("option");
                     option.value = strategy.beanName; option.textContent = strategy.beanName + " · " + strategy.protocolType;
                     option.dataset.protocolType = strategy.protocolType;
+                    option.dataset.apiKeyConsoleUrl = strategy.apiKeyConsoleUrl || "";
                     select.append(option);
                 }
                 select.value = "chatCompletionsApiCommonStrategy";
@@ -59,9 +66,8 @@
                 form.elements.channelCode.readOnly = true;
                 syncStrategy(); button.disabled = false;
             }).catch(failure => showError(failure.message));
-        form.addEventListener("submit", async event => {
-            event.preventDefault(); if (button.disabled) return;
-            button.disabled = true; button.textContent = "正在保存…"; showError("");
+        // 保存与测试连接提交同一份表单配置
+        const readChannel = () => {
             const channel = Object.fromEntries(new FormData(form));
             // 禁用字段不在 FormData 中，不把缺失值转换为 NaN 或 null。
             for (const key of ["score", "maxTokens"]) {
@@ -70,6 +76,40 @@
             channel.temperature = "temperature" in channel && channel.temperature.trim() !== ""
                 ? Number(channel.temperature) : null;
             channel.enabled = form.elements.enabled.checked;
+            return channel;
+        };
+        const testButton = document.getElementById("test-model"), testResult = document.getElementById("test-result");
+        // 测试结果用文本节点渲染，厂商报错原文不作为 HTML 解析
+        const showTestResult = (success, title, lines, answer) => {
+            const list = document.createElement("ul"); list.className = "test-result-list";
+            for (const line of lines) { const item = document.createElement("li"); item.textContent = line; list.append(item); }
+            const heading = document.createElement("strong"); heading.textContent = title;
+            testResult.replaceChildren(heading, list);
+            if (answer) { const text = document.createElement("p"); text.className = "test-result-answer"; text.textContent = "回答摘要：" + answer; testResult.append(text); }
+            testResult.className = "notice " + (success ? "notice-success" : "notice-error"); testResult.hidden = false;
+        };
+        testButton.addEventListener("click", async () => {
+            if (!form.reportValidity()) return;
+            testButton.disabled = true; testButton.textContent = "测试中…"; showError("");
+            testResult.className = "notice notice-loading"; testResult.textContent = "正在调用模型，联网模型可能需要 30 到 70 秒…"; testResult.hidden = false;
+            try {
+                const result = await request("/llm-channels/test" + (id ? "?id=" + id : ""), {method: "POST", body: JSON.stringify(readChannel())});
+                const seconds = (result.costMs / 1000).toFixed(1) + " 秒";
+                if (result.success) {
+                    showTestResult(true, "连接成功", ["耗时：" + seconds, "实际模型：" + (result.modelName || "接口未返回"),
+                        "结束原因：" + (result.finishReason || "接口未返回"),
+                        "引用来源：" + (result.citationCount > 0 ? result.citationCount + " 条" : "0 条（本次未返回联网来源）")], result.answerPreview);
+                } else {
+                    showTestResult(false, "连接失败：" + result.failureDescription, ["耗时：" + seconds,
+                        "HTTP 状态：" + (result.httpStatus ?? "无（未收到厂商响应）"), "厂商报错：" + (result.providerMessage || "无")]);
+                }
+            } catch (failure) { testResult.hidden = true; showError(failure.message); }
+            finally { testButton.disabled = false; testButton.textContent = "测试连接"; }
+        });
+        form.addEventListener("submit", async event => {
+            event.preventDefault(); if (button.disabled) return;
+            button.disabled = true; button.textContent = "正在保存…"; showError("");
+            const channel = readChannel();
             try {
                 const saved = await request(id ? "/llm-channels/" + id : "/llm-channels",
                     {method: id ? "PUT" : "POST", body: JSON.stringify(channel)});
