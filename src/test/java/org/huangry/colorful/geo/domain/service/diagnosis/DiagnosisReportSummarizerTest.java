@@ -2,8 +2,8 @@ package org.huangry.colorful.geo.domain.service.diagnosis;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisReportService.ReportAnswer;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisAnswerAnalysisEntity;
+import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisResultOutputService.ReportAnswer;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisResultAnalysisEntity;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordResultEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -97,7 +97,7 @@ class DiagnosisReportSummarizerTest {
         result.setCitations("[]");
         result.setChannelSnapshot("{\"id\":6,\"channelName\":\"能链 claude\",\"modelName\":\"claude\"}");
         result.setQuestionSnapshot("{\"brandScope\":\"" + brandScope + "\",\"intent\":\"RECOMMENDATION\"}");
-        var analysis = new GeoDiagnosisAnswerAnalysisEntity();
+        var analysis = new GeoDiagnosisResultAnalysisEntity();
         analysis.setStatus(status);
         analysis.setBrands(brands);
         analysis.setPoints(points);

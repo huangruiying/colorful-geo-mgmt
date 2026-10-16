@@ -5,12 +5,12 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.huangry.colorful.geo.application.diagnosis.model.CreateDiagnosisReportRequest;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
-import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisReportService;
-import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisAnswerAnalysisDao;
+import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisResultOutputService;
+import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisResultAnalysisDao;
 import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisPlanExecRecordDao;
-import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisReportDao;
+import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisResultOutputDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordEntity;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisReportEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisResultOutputEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -26,9 +26,9 @@ import static org.mockito.Mockito.*;
 /** 报告列表与详情的组装：名称取自任务快照、判定进度按状态汇总、汇总只在详情返回、输入校验。 */
 class DiagnosisReportBusinessTest {
     private final DiagnosisReportBusiness business = new DiagnosisReportBusiness();
-    private final GeoDiagnosisReportService service = mock(GeoDiagnosisReportService.class);
-    private final GeoDiagnosisReportDao reports = mock(GeoDiagnosisReportDao.class);
-    private final GeoDiagnosisAnswerAnalysisDao analyses = mock(GeoDiagnosisAnswerAnalysisDao.class);
+    private final GeoDiagnosisResultOutputService service = mock(GeoDiagnosisResultOutputService.class);
+    private final GeoDiagnosisResultOutputDao reports = mock(GeoDiagnosisResultOutputDao.class);
+    private final GeoDiagnosisResultAnalysisDao analyses = mock(GeoDiagnosisResultAnalysisDao.class);
     private final GeoDiagnosisPlanExecRecordDao tasks = mock(GeoDiagnosisPlanExecRecordDao.class);
 
     /** 列表按报告汇总判定进度，名称来自任务快照，不返回冻结汇总。 */
@@ -37,9 +37,9 @@ class DiagnosisReportBusinessTest {
         when(reports.selectCount(any())).thenReturn(1L);
         when(reports.selectList(any())).thenReturn(List.of(report("{\"models\":[]}")));
         when(analyses.countStatuses(List.of(9L))).thenReturn(List.of(
-                Map.of("report_id", 9L, "status", "PENDING", "analysis_count", 2L),
-                Map.of("report_id", 9L, "status", "SUCCEEDED", "analysis_count", 5L),
-                Map.of("report_id", 9L, "status", "FAILED", "analysis_count", 1L)));
+                Map.of("output_id", 9L, "status", "PENDING", "analysis_count", 2L),
+                Map.of("output_id", 9L, "status", "SUCCEEDED", "analysis_count", 5L),
+                Map.of("output_id", 9L, "status", "FAILED", "analysis_count", 1L)));
 
         var page = business.list(null, "RUNNING", 0, 10);
 
@@ -82,7 +82,7 @@ class DiagnosisReportBusinessTest {
     @BeforeEach
     void setup() {
         var assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "diagnosis-report-business-test");
-        TableInfoHelper.initTableInfo(assistant, GeoDiagnosisReportEntity.class);
+        TableInfoHelper.initTableInfo(assistant, GeoDiagnosisResultOutputEntity.class);
         ReflectionTestUtils.setField(business, "reportService", service);
         ReflectionTestUtils.setField(business, "reportDao", reports);
         ReflectionTestUtils.setField(business, "analysisDao", analyses);
@@ -98,8 +98,8 @@ class DiagnosisReportBusinessTest {
      * @param summary 冻结汇总 JSON
      * @return 所属任务 30、已冻结判定渠道的报告
      */
-    private GeoDiagnosisReportEntity report(String summary) {
-        var report = new GeoDiagnosisReportEntity();
+    private GeoDiagnosisResultOutputEntity report(String summary) {
+        var report = new GeoDiagnosisResultOutputEntity();
         report.setId(9L);
         report.setExecRecordId(30L);
         report.setStatus("RUNNING");

@@ -7,16 +7,16 @@ import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisAnswerJudge;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisAnswerRules;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisReportSummarizer;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
-import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisReportService;
-import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisReportService.ReportAnswer;
+import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisResultOutputService;
+import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisResultOutputService.ReportAnswer;
 import org.huangry.colorful.geo.domain.service.llm.GeoLlmChannelService;
 import org.huangry.colorful.geo.infrastructure.client.llm.LLMClient;
 import org.huangry.colorful.geo.infrastructure.client.llm.LLMStrategyRouter;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisAnswerAnalysisEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisResultAnalysisEntity;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordResultEntity;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisReportEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisResultOutputEntity;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +34,7 @@ import static org.mockito.Mockito.*;
 /** 报告生成编排：冻结默认判定渠道、逐条判定、失败不重试继续下一条、全部判定后汇总；不连接数据库与模型。 */
 class DiagnosisReportWorkerTest {
     private final DiagnosisReportWorker worker = new DiagnosisReportWorker();
-    private final GeoDiagnosisReportService service = mock(GeoDiagnosisReportService.class);
+    private final GeoDiagnosisResultOutputService service = mock(GeoDiagnosisResultOutputService.class);
     private final DiagnosisAnswerJudge judge = mock(DiagnosisAnswerJudge.class);
     private final DiagnosisReportSummarizer summarizer = mock(DiagnosisReportSummarizer.class);
     private final LLMClient llmClient = mock(LLMClient.class);
@@ -66,7 +66,7 @@ class DiagnosisReportWorkerTest {
     @Test
     void shouldFailReportWhenNoAnswerJudged() {
         when(service.nextPendingAnalysis(9L)).thenReturn(null);
-        var failed = new GeoDiagnosisAnswerAnalysisEntity();
+        var failed = new GeoDiagnosisResultAnalysisEntity();
         failed.setStatus("FAILED");
         when(service.loadAnswers(9L)).thenReturn(List.of(new ReportAnswer(failed, new GeoDiagnosisPlanExecRecordResultEntity())));
 
@@ -116,8 +116,8 @@ class DiagnosisReportWorkerTest {
     }
 
     /** @return 待生成的报告，尚未冻结判定渠道 */
-    private GeoDiagnosisReportEntity report() {
-        var report = new GeoDiagnosisReportEntity();
+    private GeoDiagnosisResultOutputEntity report() {
+        var report = new GeoDiagnosisResultOutputEntity();
         report.setId(9L);
         report.setExecRecordId(30L);
         report.setStatus("RUNNING");
@@ -128,8 +128,8 @@ class DiagnosisReportWorkerTest {
      * @param id 分析记录 ID
      * @return 待判定记录
      */
-    private GeoDiagnosisAnswerAnalysisEntity analysis(long id) {
-        var analysis = new GeoDiagnosisAnswerAnalysisEntity();
+    private GeoDiagnosisResultAnalysisEntity analysis(long id) {
+        var analysis = new GeoDiagnosisResultAnalysisEntity();
         analysis.setId(id);
         analysis.setResultId(id);
         analysis.setStatus("PENDING");
@@ -137,8 +137,8 @@ class DiagnosisReportWorkerTest {
     }
 
     /** @return 判定成功的分析记录 */
-    private GeoDiagnosisAnswerAnalysisEntity succeeded() {
-        var analysis = new GeoDiagnosisAnswerAnalysisEntity();
+    private GeoDiagnosisResultAnalysisEntity succeeded() {
+        var analysis = new GeoDiagnosisResultAnalysisEntity();
         analysis.setStatus("SUCCEEDED");
         return analysis;
     }
