@@ -7,19 +7,19 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 映射 geo_diagnosis_result_analysis，保存一次报告中单条有效回答的分析结果；通过 DAO 持久化，不负责判定。
+ * 映射 geo_diagnosis_task_result_analysis，保存一份报告中对单条采样结果的分析；通过 DAO 持久化，不负责判定。
  * <p>问题分组、引用口径、是否有来源、是否实际联网可由诊断结果快照、引用与原始响应推导，不在此重复保存。</p>
  */
 @Data
-@TableName("geo_diagnosis_result_analysis")
-public class GeoDiagnosisResultAnalysisEntity {
+@TableName("geo_diagnosis_task_result_analysis")
+public class GeoDiagnosisTaskResultAnalysisEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
-    /** 所属诊断报告（geo_diagnosis_result_output）ID，与诊断结果 ID 组成唯一键。 */
-    private Long outputId;
-    /** 被分析的诊断结果 ID，只包含成功且未因输出上限截断的结果。 */
-    private Long resultId;
-    /** 判定状态，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisResultAnalysisStatus} 的枚举名称。 */
+    /** 所属诊断报告（geo_diagnosis_task_report）ID，与采样结果 ID 组成唯一键。 */
+    private Long reportId;
+    /** 被分析的采样结果（geo_diagnosis_task_result）ID，只包含成功且未因输出上限截断的结果。 */
+    private Long taskResultId;
+    /** 判定状态，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskResultAnalysisStatus} 的枚举名称。 */
     private String status;
     /** 点名问题中模型对目标的评价倾向，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisBrandSentiment} 的枚举名称；其他问题为空。 */
     private String brandSentiment;

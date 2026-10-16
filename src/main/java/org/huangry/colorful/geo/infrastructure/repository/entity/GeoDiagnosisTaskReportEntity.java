@@ -6,14 +6,14 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.time.LocalDateTime;
 
-/** 映射 geo_diagnosis_result_output，保存一次手动生成的诊断报告状态与冻结结果；通过 DAO 持久化，不负责判定与汇总。 */
+/** 映射 geo_diagnosis_task_report，保存一次手动生成的诊断报告状态与冻结结果；通过 DAO 持久化，不负责判定与汇总。 */
 @Data
-@TableName("geo_diagnosis_result_output")
-public class GeoDiagnosisResultOutputEntity {
+@TableName("geo_diagnosis_task_report")
+public class GeoDiagnosisTaskReportEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
     /** 所属诊断任务 ID；同一任务可多次生成报告，旧报告保留。 */
-    private Long execRecordId;
+    private Long taskId;
     /** 报告生成状态，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisReportStatus} 的枚举名称。 */
     private String status;
     /** JSON 字符串：判定所用渠道（默认渠道，即已启用渠道中分数最高者）的非敏感配置，不保存凭据；开始判定时写入。 */

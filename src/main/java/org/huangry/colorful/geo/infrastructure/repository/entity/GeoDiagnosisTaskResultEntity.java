@@ -6,14 +6,14 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.time.LocalDateTime;
 
-/** 映射 geo_diagnosis_plan_exec_record_result，保存一次独立诊断的问题、渠道快照及模型响应；通过 DAO 持久化，不负责执行调度。 */
+/** 映射 geo_diagnosis_task_result，保存诊断任务中一次独立采样的问题、渠道快照及模型响应；通过 DAO 持久化，不负责执行调度。 */
 @Data
-@TableName("geo_diagnosis_plan_exec_record_result")
-public class GeoDiagnosisPlanExecRecordResultEntity {
+@TableName("geo_diagnosis_task_result")
+public class GeoDiagnosisTaskResultEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
-    /** 所属执行记录 ID，通过外键关联本轮任务。 */
-    private Long execRecordId;
+    /** 所属诊断任务 ID，通过外键关联本轮任务。 */
+    private Long taskId;
     /** 来源问题 ID，仅用于追溯；方案编辑可能重建问题。 */
     private Long questionId;
     /** 创建任务时的问题序号，与渠道和重复序号组成诊断结果唯一键。 */

@@ -10,8 +10,8 @@ import org.huangry.colorful.geo.infrastructure.client.llm.LLMClient;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordEntity;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordResultEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultEntity;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -131,7 +131,7 @@ public class DiagnosisTaskWorker {
 				interruptedTaskId = null;
 			}
 			// 5. 领取一轮任务，正常执行完成后清除中断标识。
-			GeoDiagnosisPlanExecRecordEntity task = service.claimNext();
+			GeoDiagnosisTaskEntity task = service.claimNext();
 			if (task != null) {
 				interruptedTaskId = task.getId();
 				execute(task.getId());
@@ -157,7 +157,7 @@ public class DiagnosisTaskWorker {
 				throw new IllegalStateException("诊断执行锁连接已失效");
 			}
 			// 2. 领取一条诊断结果；没有剩余待执行诊断时汇总整轮终态。
-			GeoDiagnosisPlanExecRecordResultEntity sample = service.claimSample(taskId);
+			GeoDiagnosisTaskResultEntity sample = service.claimSample(taskId);
 			if (sample == null) {
 				service.finish(taskId);
 				return;

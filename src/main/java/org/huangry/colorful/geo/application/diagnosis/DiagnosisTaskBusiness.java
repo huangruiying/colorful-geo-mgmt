@@ -11,10 +11,10 @@ import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskService;
-import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisPlanExecRecordDao;
-import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisPlanExecRecordResultDao;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordEntity;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanExecRecordResultEntity;
+import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisTaskDao;
+import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisTaskResultDao;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskEntity;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultEntity;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import java.util.*;
@@ -35,9 +35,9 @@ public class DiagnosisTaskBusiness {
     @Resource
     private GeoDiagnosisTaskService service;
     @Resource
-    private GeoDiagnosisPlanExecRecordDao taskDao;
+    private GeoDiagnosisTaskDao taskDao;
     @Resource
-    private GeoDiagnosisPlanExecRecordResultDao resultDao;
+    private GeoDiagnosisTaskResultDao resultDao;
     @Resource
     private DiagnosisTaskSnapshots snapshots;
 
@@ -47,7 +47,7 @@ public class DiagnosisTaskBusiness {
      * @return 已持久化任务
      */
     public DiagnosisTaskResponse create(CreateDiagnosisTaskRequest request) {
-        GeoDiagnosisPlanExecRecordEntity task;
+        GeoDiagnosisTaskEntity task;
         try {
             task = service.create(request);
         } catch (DuplicateKeyException exception) {
@@ -74,11 +74,11 @@ public class DiagnosisTaskBusiness {
         validateStatus(status, true);
 
         // 按筛选条件查询总数和当前页任务，最新的在前
-        LambdaQueryWrapper<GeoDiagnosisPlanExecRecordEntity> query = new LambdaQueryWrapper<GeoDiagnosisPlanExecRecordEntity>()
-                .eq(planId != null, GeoDiagnosisPlanExecRecordEntity::getPlanId, planId)
-                .eq(status != null && !status.isBlank(), GeoDiagnosisPlanExecRecordEntity::getStatus, status);
+        LambdaQueryWrapper<GeoDiagnosisTaskEntity> query = new LambdaQueryWrapper<GeoDiagnosisTaskEntity>()
+                .eq(planId != null, GeoDiagnosisTaskEntity::getPlanId, planId)
+                .eq(status != null && !status.isBlank(), GeoDiagnosisTaskEntity::getStatus, status);
         long total = taskDao.selectCount(query);
-        query.orderByDesc(GeoDiagnosisPlanExecRecordEntity::getId).last(pageQuery.limitClause());
+        query.orderByDesc(GeoDiagnosisTaskEntity::getId).last(pageQuery.limitClause());
         var items = taskDao.selectList(query).stream().map(task -> response(task, false)).toList();
         return pageQuery.toResponse(items, total);
     }
@@ -108,19 +108,19 @@ public class DiagnosisTaskBusiness {
         validateStatus(status, false);
 
         // 查询总数和当前页结果，只取列表字段
-        LambdaQueryWrapper<GeoDiagnosisPlanExecRecordResultEntity> query = new LambdaQueryWrapper<GeoDiagnosisPlanExecRecordResultEntity>()
-                .eq(GeoDiagnosisPlanExecRecordResultEntity::getExecRecordId, taskId)
-                .eq(status != null && !status.isBlank(), GeoDiagnosisPlanExecRecordResultEntity::getStatus, status)
-                .eq(channelId != null, GeoDiagnosisPlanExecRecordResultEntity::getChannelId, channelId);
+        LambdaQueryWrapper<GeoDiagnosisTaskResultEntity> query = new LambdaQueryWrapper<GeoDiagnosisTaskResultEntity>()
+                .eq(GeoDiagnosisTaskResultEntity::getTaskId, taskId)
+                .eq(status != null && !status.isBlank(), GeoDiagnosisTaskResultEntity::getStatus, status)
+                .eq(channelId != null, GeoDiagnosisTaskResultEntity::getChannelId, channelId);
         long total = resultDao.selectCount(query);
-        query.select(GeoDiagnosisPlanExecRecordResultEntity::getId, GeoDiagnosisPlanExecRecordResultEntity::getExecRecordId,
-                GeoDiagnosisPlanExecRecordResultEntity::getQuestionSortOrder, GeoDiagnosisPlanExecRecordResultEntity::getQuestionSnapshot,
-                GeoDiagnosisPlanExecRecordResultEntity::getChannelId, GeoDiagnosisPlanExecRecordResultEntity::getChannelSnapshot,
-                GeoDiagnosisPlanExecRecordResultEntity::getRepeatIndex, GeoDiagnosisPlanExecRecordResultEntity::getStatus,
-                GeoDiagnosisPlanExecRecordResultEntity::getDurationMs, GeoDiagnosisPlanExecRecordResultEntity::getErrorMessage)
-                .orderByAsc(GeoDiagnosisPlanExecRecordResultEntity::getQuestionSortOrder)
-                .orderByAsc(GeoDiagnosisPlanExecRecordResultEntity::getChannelId)
-                .orderByAsc(GeoDiagnosisPlanExecRecordResultEntity::getRepeatIndex)
+        query.select(GeoDiagnosisTaskResultEntity::getId, GeoDiagnosisTaskResultEntity::getTaskId,
+                GeoDiagnosisTaskResultEntity::getQuestionSortOrder, GeoDiagnosisTaskResultEntity::getQuestionSnapshot,
+                GeoDiagnosisTaskResultEntity::getChannelId, GeoDiagnosisTaskResultEntity::getChannelSnapshot,
+                GeoDiagnosisTaskResultEntity::getRepeatIndex, GeoDiagnosisTaskResultEntity::getStatus,
+                GeoDiagnosisTaskResultEntity::getDurationMs, GeoDiagnosisTaskResultEntity::getErrorMessage)
+                .orderByAsc(GeoDiagnosisTaskResultEntity::getQuestionSortOrder)
+                .orderByAsc(GeoDiagnosisTaskResultEntity::getChannelId)
+                .orderByAsc(GeoDiagnosisTaskResultEntity::getRepeatIndex)
                 .last(pageQuery.limitClause());
         var items = resultDao.selectList(query).stream().map(this::resultResponse).toList();
         return pageQuery.toResponse(items, total);
@@ -134,9 +134,9 @@ public class DiagnosisTaskBusiness {
      */
     public DiagnosisTaskResponse.ResultResponse result(long taskId, long resultId) {
         requireTask(taskId);
-        GeoDiagnosisPlanExecRecordResultEntity row = resultDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisPlanExecRecordResultEntity>()
-                .eq(GeoDiagnosisPlanExecRecordResultEntity::getId, resultId)
-                .eq(GeoDiagnosisPlanExecRecordResultEntity::getExecRecordId, taskId));
+        GeoDiagnosisTaskResultEntity row = resultDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisTaskResultEntity>()
+                .eq(GeoDiagnosisTaskResultEntity::getId, resultId)
+                .eq(GeoDiagnosisTaskResultEntity::getTaskId, taskId));
         if (row == null) {
             throw new NoSuchElementException("诊断回答不存在或不属于该任务");
         }
@@ -148,8 +148,8 @@ public class DiagnosisTaskBusiness {
      * @param taskId 任务 ID
      * @return 持久化任务
      */
-    private GeoDiagnosisPlanExecRecordEntity requireTask(long taskId) {
-        GeoDiagnosisPlanExecRecordEntity task = taskId > 0 ? taskDao.selectById(taskId) : null;
+    private GeoDiagnosisTaskEntity requireTask(long taskId) {
+        GeoDiagnosisTaskEntity task = taskId > 0 ? taskDao.selectById(taskId) : null;
         if (task == null) {
             throw new NoSuchElementException("诊断任务不存在");
         }
@@ -162,7 +162,7 @@ public class DiagnosisTaskBusiness {
      * @param detail 是否返回完整快照
      * @return 安全响应
      */
-    private DiagnosisTaskResponse response(GeoDiagnosisPlanExecRecordEntity task, boolean detail) {
+    private DiagnosisTaskResponse response(GeoDiagnosisTaskEntity task, boolean detail) {
         // 1. 回读冻结配置并汇总诊断结果状态，未知状态明确失败
         JSONObject snapshot = (JSONObject) snapshots.read(task.getPlanSnapshot());
         Map<Long, long[]> counts = new LinkedHashMap<>();
@@ -208,12 +208,12 @@ public class DiagnosisTaskBusiness {
      * @param row 诊断结果实体或列表查询结果
      * @return 安全结果响应
      */
-    private DiagnosisTaskResponse.ResultResponse resultResponse(GeoDiagnosisPlanExecRecordResultEntity row) {
+    private DiagnosisTaskResponse.ResultResponse resultResponse(GeoDiagnosisTaskResultEntity row) {
         // 回读问题和渠道对象，保留本次诊断创建时的内容
         JSONObject question = (JSONObject) snapshots.read(row.getQuestionSnapshot());
         JSONObject channel = (JSONObject) snapshots.read(row.getChannelSnapshot());
         // 引用和用量保留原 JSON 结构，缺失时不构造默认数据
-        return new DiagnosisTaskResponse.ResultResponse(row.getId(), row.getExecRecordId(), row.getQuestionSortOrder(),
+        return new DiagnosisTaskResponse.ResultResponse(row.getId(), row.getTaskId(), row.getQuestionSortOrder(),
                 question.getString("text"), question, row.getChannelId(), channel.getString("channelName"), channel,
                 row.getRepeatIndex(), row.getStatus(), row.getAnswerText(),
                 row.getCitations() == null ? null : snapshots.read(row.getCitations()), row.getModelName(),

@@ -6,10 +6,10 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.time.LocalDateTime;
 
-/** 映射 geo_diagnosis_plan_exec_record，保存一次执行的配置快照与状态；通过 DAO 持久化，不负责执行调度。 */
+/** 映射 geo_diagnosis_task，保存一次诊断任务（诊断方案的一次执行）的配置快照与状态；通过 DAO 持久化，不负责执行调度。 */
 @Data
-@TableName("geo_diagnosis_plan_exec_record")
-public class GeoDiagnosisPlanExecRecordEntity {
+@TableName("geo_diagnosis_task")
+public class GeoDiagnosisTaskEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
     /** 同一次创建提交使用同一标识，数据库唯一键防止重复建任务；历史记录可为空。 */

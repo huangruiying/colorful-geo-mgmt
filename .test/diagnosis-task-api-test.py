@@ -32,8 +32,8 @@ def cleanup(prefix):
         raise ValueError("清理标识无效")
     condition = "p.name LIKE '" + prefix + "%'"
     sql("START TRANSACTION;"
-        "DELETE r FROM geo_diagnosis_plan_exec_record_result r JOIN geo_diagnosis_plan_exec_record t ON r.exec_record_id=t.id JOIN geo_diagnosis_plan p ON t.plan_id=p.id WHERE " + condition + ";"
-        "DELETE t FROM geo_diagnosis_plan_exec_record t JOIN geo_diagnosis_plan p ON t.plan_id=p.id WHERE " + condition + ";"
+        "DELETE r FROM geo_diagnosis_task_result r JOIN geo_diagnosis_task t ON r.task_id=t.id JOIN geo_diagnosis_plan p ON t.plan_id=p.id WHERE " + condition + ";"
+        "DELETE t FROM geo_diagnosis_task t JOIN geo_diagnosis_plan p ON t.plan_id=p.id WHERE " + condition + ";"
         "DELETE FROM geo_diagnosis_plan WHERE name LIKE '" + prefix + "%';"
         "DELETE FROM geo_llm_channel WHERE channel_code LIKE '" + prefix + "%';"
         "DELETE FROM geo_project_info WHERE name LIKE '" + prefix + "%';COMMIT;")
@@ -219,10 +219,10 @@ def run(base_url, keep):
         trigger = "qa_diag_" + uuid.uuid4().hex[:12]
         question_id = int(sql("SELECT id FROM geo_diagnosis_plan_question WHERE plan_id=" + str(browser_plan["id"]) + " ORDER BY id LIMIT 1;"))
         rollback_request = uuid.uuid4().hex
-        sql("DELIMITER //\nCREATE TRIGGER " + trigger + " BEFORE INSERT ON geo_diagnosis_plan_exec_record_result FOR EACH ROW BEGIN IF NEW.question_id=" + str(question_id) + " THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='QA sample insert failure'; END IF; END//\nDELIMITER ;\n", admin=True)
+        sql("DELIMITER //\nCREATE TRIGGER " + trigger + " BEFORE INSERT ON geo_diagnosis_task_result FOR EACH ROW BEGIN IF NEW.question_id=" + str(question_id) + " THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='QA sample insert failure'; END IF; END//\nDELIMITER ;\n", admin=True)
         try:
             create(browser_plan["id"], rollback_request, expected=500)
-            assert sql("SELECT COUNT(*) FROM geo_diagnosis_plan_exec_record WHERE request_id='" + rollback_request + "';") == "0"
+            assert sql("SELECT COUNT(*) FROM geo_diagnosis_task WHERE request_id='" + rollback_request + "';") == "0"
         finally:
             sql("DROP TRIGGER IF EXISTS " + trigger + ";", admin=True)
         passed.append("真实 MySQL 触发器模拟采样插入失败，任务创建事务完整回滚，无半个任务")
@@ -230,7 +230,7 @@ def run(base_url, keep):
         persistence_plan, _ = plan("结果保存失败", [chat["id"]], 2, 1)
         persistence_questions = sql("SELECT GROUP_CONCAT(id) FROM geo_diagnosis_plan_question WHERE plan_id=" + str(persistence_plan["id"]) + ";")
         save_trigger = "qa_diag_save_" + uuid.uuid4().hex[:12]
-        sql("DELIMITER //\nCREATE TRIGGER " + save_trigger + " BEFORE UPDATE ON geo_diagnosis_plan_exec_record_result FOR EACH ROW BEGIN IF NEW.question_id IN (" + persistence_questions + ") AND NEW.status='SUCCEEDED' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='QA result update failure'; END IF; END//\nDELIMITER ;\n", admin=True)
+        sql("DELIMITER //\nCREATE TRIGGER " + save_trigger + " BEFORE UPDATE ON geo_diagnosis_task_result FOR EACH ROW BEGIN IF NEW.question_id IN (" + persistence_questions + ") AND NEW.status='SUCCEEDED' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='QA result update failure'; END IF; END//\nDELIMITER ;\n", admin=True)
         before_calls = len(ModelStub.requests)
         try:
             persistence = wait(create(persistence_plan["id"])["id"])
@@ -259,7 +259,7 @@ def run(base_url, keep):
             print("PASS: " + item)
         print("SUMMARY: " + str(len(passed)) + " 个真实 API/MySQL 场景通过；模型为本地 HTTP 替身，未调用外部厂商。")
     except AssertionError:
-        reasons = sql("SELECT r.status,COALESCE(r.error_message,''),COUNT(*) FROM geo_diagnosis_plan_exec_record_result r JOIN geo_diagnosis_plan_exec_record t ON r.exec_record_id=t.id JOIN geo_diagnosis_plan p ON t.plan_id=p.id WHERE p.name LIKE '" + prefix + "%' GROUP BY r.status,r.error_message;")
+        reasons = sql("SELECT r.status,COALESCE(r.error_message,''),COUNT(*) FROM geo_diagnosis_task_result r JOIN geo_diagnosis_task t ON r.task_id=t.id JOIN geo_diagnosis_plan p ON t.plan_id=p.id WHERE p.name LIKE '" + prefix + "%' GROUP BY r.status,r.error_message;")
         print("诊断失败分类：", reasons)
         print("本地替身收到请求数：", len(ModelStub.requests))
         raise
