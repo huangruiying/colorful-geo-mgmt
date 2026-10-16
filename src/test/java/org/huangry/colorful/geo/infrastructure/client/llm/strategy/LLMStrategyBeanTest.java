@@ -30,16 +30,20 @@ class LLMStrategyBeanTest {
                     LLMStrategyRouter.class, MockLlmStrategy.class,
                     ChatCompletionsApiCommonStrategy.class, ResponsesApiCommonStrategy.class,
                     ChatCompletionsApiOpenAiStrategy.class, ResponsesApiOpenAiStrategy.class, ResponsesApiDoubaoStrategy.class,
-                    ResponsesApiDeepSeekStrategy.class);
+                    ResponsesApiDeepSeekStrategy.class, ResponsesApiQwenStrategy.class,
+                    ResponsesApiZhipuStrategy.class, ChatCompletionsApiQianfanStrategy.class);
             context.refresh();
             var strategies = context.getBeansOfType(LLMStrategy.class);
-            assertEquals(7, strategies.size());
+            assertEquals(10, strategies.size());
             assertSame(context.getBean(ChatCompletionsApiCommonStrategy.class), strategies.get("chatCompletionsApiCommonStrategy"));
             assertSame(context.getBean(ResponsesApiCommonStrategy.class), strategies.get("responsesApiCommonStrategy"));
             assertFalse(strategies.containsKey("compatibleChatCompletionsApiStrategy"));
             assertFalse(strategies.containsKey("compatibleResponsesApiStrategy"));
             assertSame(context.getBean(ResponsesApiDoubaoStrategy.class), strategies.get("responsesApiDoubaoStrategy"));
             assertSame(context.getBean(ResponsesApiDeepSeekStrategy.class), strategies.get("responsesApiDeepSeekStrategy"));
+            assertSame(context.getBean(ResponsesApiQwenStrategy.class), strategies.get("responsesApiQwenStrategy"));
+            assertSame(context.getBean(ResponsesApiZhipuStrategy.class), strategies.get("responsesApiZhipuStrategy"));
+            assertSame(context.getBean(ChatCompletionsApiQianfanStrategy.class), strategies.get("chatCompletionsApiQianfanStrategy"));
             assertSame(context.getBean(ChatCompletionsApiOpenAiStrategy.class), strategies.get("chatCompletionsApiOpenAiStrategy"));
             assertSame(context.getBean(ResponsesApiOpenAiStrategy.class), strategies.get("responsesApiOpenAiStrategy"));
             assertFalse(strategies.containsKey("doubao_responses"));

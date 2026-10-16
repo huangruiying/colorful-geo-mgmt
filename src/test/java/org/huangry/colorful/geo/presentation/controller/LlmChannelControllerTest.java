@@ -24,17 +24,21 @@ class LlmChannelControllerTest {
         var controller = new MgmtLlmChannelController();
         ReflectionTestUtils.setField(controller, "business", business);
         ReflectionTestUtils.setField(controller, "strategies", java.util.Map.of(
-                "responsesApiDoubaoStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiDoubaoStrategy()));
+                "responsesApiDoubaoStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiDoubaoStrategy(),
+                "responsesApiCommonStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiCommonStrategy()));
         return MockMvcBuilders.standaloneSetup(controller).build();
     }
 
-    /** 页面选项来自实际注册集合，不允许独立选择冲突的协议。 */
+    /** 页面选项来自实际注册集合，厂商策略带密钥获取页，通用策略没有固定厂商时为空。 */
     @Test
     void shouldListRegisteredStrategyOptions() throws Exception {
         mvc.perform(get("/llm-channels/strategies")).andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].beanName").value("responsesApiDoubaoStrategy"))
-                .andExpect(jsonPath("$[0].protocolType").value("OPENAI_RESPONSES"))
-                .andExpect(jsonPath("$[0].name").doesNotExist());
+                .andExpect(jsonPath("$[0].beanName").value("responsesApiCommonStrategy"))
+                .andExpect(jsonPath("$[0].apiKeyConsoleUrl").isEmpty())
+                .andExpect(jsonPath("$[1].beanName").value("responsesApiDoubaoStrategy"))
+                .andExpect(jsonPath("$[1].protocolType").value("OPENAI_RESPONSES"))
+                .andExpect(jsonPath("$[1].apiKeyConsoleUrl").value("https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey"))
+                .andExpect(jsonPath("$[1].name").doesNotExist());
     }
 
     /** 创建返回标识，列表采用有限分页，输入不能携带密钥字段。 */
