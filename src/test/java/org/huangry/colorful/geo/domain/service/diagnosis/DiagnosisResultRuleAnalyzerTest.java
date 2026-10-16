@@ -10,28 +10,28 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** 规则处理：提及识别、是否实际联网、来源归类顺序与平台对照。 */
-class DiagnosisAnswerRulesTest {
-    private final DiagnosisAnswerRules rules = new DiagnosisAnswerRules();
+class DiagnosisResultRuleAnalyzerTest {
+    private final DiagnosisResultRuleAnalyzer ruleAnalyzer = new DiagnosisResultRuleAnalyzer();
     private final JSONObject project = JSON.parseObject("""
             {"name":"团油","aliases":["能链团油","Newlink"],"competitors":["易加油"],"websiteUrl":"https://www.tuanyou.net/"}""");
 
     /** 名称或别名不区分大小写命中即为提及，空白名称不参与匹配。 */
     @Test
     void shouldMatchNamesIgnoringCase() {
-        assertTrue(rules.mentions("推荐 NEWLINK 的产品", rules.targetNames(project)));
-        assertFalse(rules.mentions("推荐易加油", rules.targetNames(project)));
-        assertFalse(rules.mentions("任意文本", List.of(" ")));
-        assertFalse(rules.mentions(null, rules.targetNames(project)));
+        assertTrue(ruleAnalyzer.mentions("推荐 NEWLINK 的产品", ruleAnalyzer.targetNames(project)));
+        assertFalse(ruleAnalyzer.mentions("推荐易加油", ruleAnalyzer.targetNames(project)));
+        assertFalse(ruleAnalyzer.mentions("任意文本", List.of(" ")));
+        assertFalse(ruleAnalyzer.mentions(null, ruleAnalyzer.targetNames(project)));
     }
 
     /** 有引用、搜索调用或检索结果即为实际联网；DeepSeek flash 这类静默不搜的响应为未联网。 */
     @Test
     void shouldDetectSearchFromCitationsOrRawResponse() {
-        assertTrue(rules.searchPerformed(null, "[{\"url\":\"https://a.com\"}]"));
-        assertTrue(rules.searchPerformed("{\"output\":[{\"type\":\"reasoning\"},{\"type\":\"web_search_call\"}]}", "[]"));
-        assertTrue(rules.searchPerformed("{\"references\":[{\"url\":\"https://a.com\"}],\"choices\":[]}", "[]"));
-        assertFalse(rules.searchPerformed("{\"output\":[{\"type\":\"reasoning\"},{\"type\":\"message\"}]}", "[]"));
-        assertFalse(rules.searchPerformed(null, null));
+        assertTrue(ruleAnalyzer.searchPerformed(null, "[{\"url\":\"https://a.com\"}]"));
+        assertTrue(ruleAnalyzer.searchPerformed("{\"output\":[{\"type\":\"reasoning\"},{\"type\":\"web_search_call\"}]}", "[]"));
+        assertTrue(ruleAnalyzer.searchPerformed("{\"references\":[{\"url\":\"https://a.com\"}],\"choices\":[]}", "[]"));
+        assertFalse(ruleAnalyzer.searchPerformed("{\"output\":[{\"type\":\"reasoning\"},{\"type\":\"message\"}]}", "[]"));
+        assertFalse(ruleAnalyzer.searchPerformed(null, null));
     }
 
     /** 我方发布优先于自有域名，其次标题提到目标、竞品；按网址去重并对照平台名称。 */
@@ -46,7 +46,7 @@ class DiagnosisAnswerRulesTest {
                  {"url":"https://zhuanlan.zhihu.com/p/1","title":"重复"},
                  {"url":"","title":"空地址"}]""";
 
-        var sources = rules.classifySources(citations, project, Set.of("https://www.tuanyou.net/jc/13.html"));
+        var sources = ruleAnalyzer.classifySources(citations, project, Set.of("https://www.tuanyou.net/jc/13.html"));
 
         assertEquals(List.of("PUBLISHED", "OWNED", "THIRD_PARTY_TARGET", "COMPETITOR", "OTHER"),
                 sources.stream().map(source -> ((JSONObject) source).getString("sourceType")).toList());

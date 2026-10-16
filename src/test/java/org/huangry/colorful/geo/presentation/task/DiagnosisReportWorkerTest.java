@@ -3,8 +3,8 @@ package org.huangry.colorful.geo.presentation.task;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisAnswerJudge;
-import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisAnswerRules;
+import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisResultAnalysisPrompt;
+import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisResultRuleAnalyzer;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisReportSummarizer;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisResultOutputService;
@@ -35,7 +35,7 @@ import static org.mockito.Mockito.*;
 class DiagnosisReportWorkerTest {
     private final DiagnosisReportWorker worker = new DiagnosisReportWorker();
     private final GeoDiagnosisResultOutputService service = mock(GeoDiagnosisResultOutputService.class);
-    private final DiagnosisAnswerJudge judge = mock(DiagnosisAnswerJudge.class);
+    private final DiagnosisResultAnalysisPrompt analysisPrompt = mock(DiagnosisResultAnalysisPrompt.class);
     private final DiagnosisReportSummarizer summarizer = mock(DiagnosisReportSummarizer.class);
     private final LLMClient llmClient = mock(LLMClient.class);
     private final LLMStrategyRouter router = mock(LLMStrategyRouter.class);
@@ -48,14 +48,14 @@ class DiagnosisReportWorkerTest {
         when(service.nextPendingAnalysis(9L)).thenReturn(analysis(1L), analysis(2L), null);
         when(llmClient.query(any(), same(channel))).thenReturn(new LLMResponse("{}", List.of()))
                 .thenThrow(new LLMClientException("调用失败"));
-        when(judge.parse(any(), any(), any(), any())).thenReturn(new DiagnosisAnswerJudge.JudgeResult(new JSONArray(), new JSONArray(), null, null));
+        when(analysisPrompt.parse(any(), any(), any(), any())).thenReturn(new DiagnosisResultAnalysisPrompt.AnalysisResult(new JSONArray(), new JSONArray(), null, null));
         when(service.loadAnswers(9L)).thenReturn(List.of(new ReportAnswer(succeeded(), new GeoDiagnosisPlanExecRecordResultEntity())));
         when(summarizer.collectDimensions(any())).thenReturn(Set.of());
         when(summarizer.summarize(any(), any(), any(), any(), any())).thenReturn(new JSONObject().fluentPut("sample", new JSONObject()));
 
         ReflectionTestUtils.invokeMethod(worker, "generate", report());
 
-        verify(service).freezeJudgeChannel(eq(9L), any(), eq(DiagnosisAnswerJudge.PROMPT_VERSION));
+        verify(service).freezeJudgeChannel(eq(9L), any(), eq(DiagnosisResultAnalysisPrompt.PROMPT_VERSION));
         verify(service).saveAnalysis(argThat(saved -> saved.getId() == 1L));
         verify(service).failAnalysis(eq(2L), eq("判定模型不可用或未返回有效回答"), any());
         verify(service).finish(eq(9L), contains("sample"));
@@ -94,14 +94,14 @@ class DiagnosisReportWorkerTest {
         when(lease.isValid(anyInt())).thenReturn(true);
         ReflectionTestUtils.setField(worker, "lease", lease);
         ReflectionTestUtils.setField(worker, "service", service);
-        ReflectionTestUtils.setField(worker, "rules", new DiagnosisAnswerRules());
-        ReflectionTestUtils.setField(worker, "judge", judge);
+        ReflectionTestUtils.setField(worker, "ruleAnalyzer", new DiagnosisResultRuleAnalyzer());
+        ReflectionTestUtils.setField(worker, "analysisPrompt", analysisPrompt);
         ReflectionTestUtils.setField(worker, "summarizer", summarizer);
         ReflectionTestUtils.setField(worker, "snapshots", snapshots);
         ReflectionTestUtils.setField(worker, "llmClient", llmClient);
         ReflectionTestUtils.setField(worker, "router", router);
         ReflectionTestUtils.setField(worker, "channelService", mock(GeoLlmChannelService.class));
-        channel.setChannelCode("judge");
+        channel.setChannelCode("analysisPrompt");
         when(router.selectDefaultChannel()).thenReturn(channel);
         when(snapshots.channel(channel)).thenReturn(new JSONObject().fluentPut("id", 1));
         when(snapshots.read(any())).thenAnswer(invocation -> JSON.parse(invocation.<String>getArgument(0)));
@@ -112,7 +112,7 @@ class DiagnosisReportWorkerTest {
         result.setCitations("[]");
         result.setQuestionSnapshot("{\"text\":\"问题\",\"brandScope\":\"NON_BRAND\"}");
         when(service.getResult(anyLong())).thenReturn(result);
-        when(judge.buildPrompt(any(), any(), any())).thenReturn("判定提示词");
+        when(analysisPrompt.buildPrompt(any(), any(), any())).thenReturn("判定提示词");
     }
 
     /** @return 待生成的报告，尚未冻结判定渠道 */

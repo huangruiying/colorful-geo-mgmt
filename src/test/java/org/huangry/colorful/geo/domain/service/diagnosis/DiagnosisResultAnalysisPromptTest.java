@@ -10,8 +10,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** 判定提示词与输出校验：名称统一、原文片段校验、枚举与分组限制；样例取自本地真实回答。 */
-class DiagnosisAnswerJudgeTest {
-    private final DiagnosisAnswerJudge judge = judge();
+class DiagnosisResultAnalysisPromptTest {
+    private final DiagnosisResultAnalysisPrompt analysisPrompt = analysisPrompt();
     private final JSONObject project = JSON.parseObject("""
             {"name":"团油","aliases":["能链团油","车主邦"],"competitors":["易加油","支付宝加油服务","小桔加油（滴滴加油）"],
              "coreFeatures":"加油优惠","sellingPoints":"站点多","pricing":"按站点","targetAudience":"车主"}""");
@@ -21,7 +21,7 @@ class DiagnosisAnswerJudgeTest {
     /** 目标统一为项目名，竞品简称归到预设名，对不上预设的为待确认产品，同一产品只保留一次。 */
     @Test
     void shouldNormalizeTargetAndCompetitorNames() {
-        var result = judge.parse("""
+        var result = analysisPrompt.parse("""
                 {"brands":[{"name":"能链团油","type":"TARGET","recommended":true,"rank":2,"strength":"PARALLEL"},
                   {"name":"支付宝","type":"COMPETITOR","recommended":true,"rank":null,"strength":"PASSING"},
                   {"name":"滴滴加油","type":"CANDIDATE","recommended":true,"rank":1,"strength":"PARALLEL"},
@@ -41,7 +41,7 @@ class DiagnosisAnswerJudgeTest {
     /** 省略 Markdown 符号或把换行写成 \\n 的引用保留；改写、未知或缺失类型、维度胜负缺结果的观点丢弃，不中断解析。 */
     @Test
     void shouldKeepFormatDifferencesButDropFabricatedQuotes() {
-        var result = judge.parse("""
+        var result = analysisPrompt.parse("""
                 ```json
                 {"brands":[],"points":[
                   {"type":"SELECTION_CRITERION","dimension":"比价","content":"多平台比价","quote":"1. 多平台比价：建议同时装2-3个比较"},
@@ -61,8 +61,8 @@ class DiagnosisAnswerJudgeTest {
     void shouldKeepSentimentOnlyForBrandQuestions() {
         String output = "{\"brands\":[],\"brandSentiment\":\"POSITIVE\",\"descriptionAccurate\":false,\"points\":[]}";
 
-        var brand = judge.parse(output, answer, "BRAND", project);
-        var nonBrand = judge.parse(output, answer, "NON_BRAND", project);
+        var brand = analysisPrompt.parse(output, answer, "BRAND", project);
+        var nonBrand = analysisPrompt.parse(output, answer, "NON_BRAND", project);
 
         assertEquals("POSITIVE", brand.brandSentiment());
         assertEquals(false, brand.descriptionAccurate());
@@ -73,15 +73,15 @@ class DiagnosisAnswerJudgeTest {
     /** 输出不是 JSON 时明确失败，由执行器记为判定失败。 */
     @Test
     void shouldRejectNonJsonOutput() {
-        assertThrows(IllegalArgumentException.class, () -> judge.parse("无法判断", answer, "NON_BRAND", project));
-        assertThrows(IllegalArgumentException.class, () -> judge.parse("{brands:[", answer, "NON_BRAND", project));
+        assertThrows(IllegalArgumentException.class, () -> analysisPrompt.parse("无法判断", answer, "NON_BRAND", project));
+        assertThrows(IllegalArgumentException.class, () -> analysisPrompt.parse("{brands:[", answer, "NON_BRAND", project));
     }
 
     /** 点名问题附项目资料用于判断准确性，其他分组不附，避免模型用资料替代回答内容。 */
     @Test
     void shouldAttachProjectFactsOnlyForBrandQuestions() {
-        String brandPrompt = judge.buildPrompt(project, JSON.parseObject("{\"text\":\"团油靠谱吗\",\"brandScope\":\"BRAND\"}"), answer);
-        String nonBrandPrompt = judge.buildPrompt(project, JSON.parseObject("{\"text\":\"加油省钱\",\"brandScope\":\"NON_BRAND\"}"), answer);
+        String brandPrompt = analysisPrompt.buildPrompt(project, JSON.parseObject("{\"text\":\"团油靠谱吗\",\"brandScope\":\"BRAND\"}"), answer);
+        String nonBrandPrompt = analysisPrompt.buildPrompt(project, JSON.parseObject("{\"text\":\"加油省钱\",\"brandScope\":\"NON_BRAND\"}"), answer);
 
         assertTrue(brandPrompt.contains("核心卖点：站点多"));
         assertFalse(nonBrandPrompt.contains("核心卖点：站点多"));
@@ -90,9 +90,9 @@ class DiagnosisAnswerJudgeTest {
     }
 
     /** @return 注入规则组件的判定器 */
-    private static DiagnosisAnswerJudge judge() {
-        var judge = new DiagnosisAnswerJudge();
-        ReflectionTestUtils.setField(judge, "rules", new DiagnosisAnswerRules());
-        return judge;
+    private static DiagnosisResultAnalysisPrompt analysisPrompt() {
+        var analysisPrompt = new DiagnosisResultAnalysisPrompt();
+        ReflectionTestUtils.setField(analysisPrompt, "ruleAnalyzer", new DiagnosisResultRuleAnalyzer());
+        return analysisPrompt;
     }
 }

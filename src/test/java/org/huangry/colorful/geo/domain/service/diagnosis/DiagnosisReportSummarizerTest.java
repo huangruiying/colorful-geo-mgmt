@@ -108,7 +108,7 @@ class DiagnosisReportSummarizerTest {
     /** @return 注入规则与快照组件的汇总器 */
     private static DiagnosisReportSummarizer summarizer() {
         var summarizer = new DiagnosisReportSummarizer();
-        ReflectionTestUtils.setField(summarizer, "rules", new DiagnosisAnswerRules());
+        ReflectionTestUtils.setField(summarizer, "ruleAnalyzer", new DiagnosisResultRuleAnalyzer());
         ReflectionTestUtils.setField(summarizer, "snapshots", new DiagnosisTaskSnapshots());
         return summarizer;
     }
