@@ -8,6 +8,8 @@
 
 - 2026-10-17 按用户确认统一分页结构：新增 `infrastructure/common/model/PageResponse<T>`，删除 `ContentOptimizationRecordPage`、`ContentPublishRecordPage`、`LlmChannelPage`、`ProjectInfoPage`、`DiagnosisPlanBusiness.PlanPage` 及 `DiagnosisTaskResponse.PageResponse`，8 个列表接口及 4 个 Controller 测试同步；JSON 结构不变，前端无需改。规范写入 `.claude/rules/project-conventions.md`「列表与分页」。`mvn -o test` 360 项 359 通过，唯一失败仍为原有 `shouldRejectDisabledExactTaskChannel`。未重启、未提交。
 
+- 2026-10-17 按用户确认抽取公共能力：新增 `PageQuery`（分页与关键词校验、offset、LIMIT 片段、组装 `PageResponse`），8 个列表 Business 及项目/模型/发布记录/内容优化记录 Service 改为接收 `PageQuery`，删除各自的分页与关键词校验和 `DiagnosisTaskBusiness.validatePage`；分页报错文案统一为“页码不能小于 0，每页条数必须在 1 到 100 之间”。新增 `GlobalExceptionHandler` 统一 400/404，7 个 Controller 删除重复处理，模块特有映射保留；全局 400 也覆盖原先未处理 IllegalArgumentException 的登录与测试接口（原为 500）。`MgmtPlatformLoginController` 错误改为 `ProblemDetail`，`browser-login.js` 只读 `detail`（版本 20261017-problem-detail）。新增 `PageQueryTest` 6 项；`mvn -o test` 366 项 365 通过，唯一失败仍为原有路由测试。规范见 project-conventions「列表与分页」「接口异常响应」。未重启、未提交。
+
 - 2026-10-17 按用户要求表改名（页面与接口仍称“诊断报告”，避免与单条“诊断结果”混淆，用户已确认）：geo_diagnosis_report → `geo_diagnosis_result_output`，geo_diagnosis_answer_analysis → `geo_diagnosis_result_analysis`，分析表 report_id → `output_id`；实体、DAO、持久化服务同步为 `GeoDiagnosisResultOutputEntity/Dao/Service`、`GeoDiagnosisResultAnalysisEntity/Dao`（实体字段 outputId），索引与约束名同步。新增 `022_rename_diagnosis_result_tables.sql`（RENAME 保留数据，已核对库内索引与约束名与脚本一致），`001_init.sql` 改为新表定义，021 历史脚本不改。诊断相关独立 JUnit 58 项全部通过。
   022 已于报告 5 完成后在本地库执行（期间无 PENDING/RUNNING 报告）：两表与 output_id 列、索引、外键、CHECK 均为新名，数据保留（报告 3 行、分析 33 行），旧表名已不存在。8010 仍为旧代码，需用新代码重启后才能读写新表。
   判定失败观察：报告 3 失败 3/5“判定模型不可用或未返回有效回答”、报告 4 失败 1/5“判定模型调用超时”，判定渠道为能链 claude（上限 1400），与此前风险一致。未提交。

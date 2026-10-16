@@ -39,7 +39,7 @@ async function request(path, options = {}) {
     });
     if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.message || body.detail || `请求失败（${response.status}）`);
+        throw new Error(body.detail || `请求失败（${response.status}）`);
     }
     const body = await response.text();
     return body ? JSON.parse(body) : null;

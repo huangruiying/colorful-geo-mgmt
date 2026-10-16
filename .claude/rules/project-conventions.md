@@ -56,9 +56,16 @@ infrastructure/client：外部协议、平台及浏览器适配
 ## 列表与分页
 
 - 所有分页列表接口统一返回 `infrastructure/common/model/PageResponse<T>`（`items`、`total`、`page`、`size`），不再为每个模块新建 `XxxPage`。
-- 页码从 0 开始；Business 校验分页参数（`page >= 0`，`size` 为 1～100），越界直接拒绝，列表和总数使用同一筛选条件。
+- 分页参数统一用 `infrastructure/common/model/PageQuery`：Business 用接口入参 `new PageQuery(page, size[, keyword])` 构造，构造时校验页码从 0 开始、`size` 为 1～100、关键词去空白且最多 200 字，空白视为未填写；不再各自写校验。Service 接收 `PageQuery`，用 `.last(pageQuery.limitClause())` 或 `offset()` 分页，用 `pageQuery.toResponse(items, total)` 组装结果；列表和总数使用同一筛选条件。
 - 列表行只给列表用时建行类，命名 `XxxPageItem`（如 `ContentOptimizationRecordPageItem`）；与创建、详情共用的 Response 或领域对象直接作为 `T`，不为列表再复制一份。
 - 列表方法注释直白写“XX列表（分页）查询，可按 X 筛选”；不用“摘要”指代列表行，不在不负责的层写“避免加载正文”等说明。
+
+## 接口异常响应
+
+- 所有接口出错统一返回 Spring `ProblemDetail`，前端读取 `detail` 字段展示原因，不再返回 `{"message": ...}` 等自定义结构。
+- `IllegalArgumentException → 400`、`NoSuchElementException → 404` 由 `presentation/controller/GlobalExceptionHandler` 统一处理并记 warn 日志，各 Controller 不再重复编写。
+- 含模块语义的映射（如发布记录 `IllegalStateException → 409`、诊断模块存储失败 500、`LLMClientException` 的提示文案、渠道编码重复 409）留在对应 Controller，Controller 内处理优先于全局处理。
+- Controller 单测使用 `standaloneSetup` 时需 `.setControllerAdvice(new GlobalExceptionHandler())`，否则 400/404 断言不生效。
 
 ## 已确认的大模型设计
 
