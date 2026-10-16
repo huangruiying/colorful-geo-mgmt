@@ -29,15 +29,17 @@ class LLMStrategyBeanTest {
             context.register(org.huangry.colorful.geo.infrastructure.config.RestTemplateConfig.class,
                     LLMStrategyRouter.class, MockLlmStrategy.class,
                     ChatCompletionsApiCommonStrategy.class, ResponsesApiCommonStrategy.class,
-                    ChatCompletionsApiOpenAiStrategy.class, ResponsesApiOpenAiStrategy.class, ResponsesApiDoubaoStrategy.class);
+                    ChatCompletionsApiOpenAiStrategy.class, ResponsesApiOpenAiStrategy.class, ResponsesApiDoubaoStrategy.class,
+                    ResponsesApiDeepSeekStrategy.class);
             context.refresh();
             var strategies = context.getBeansOfType(LLMStrategy.class);
-            assertEquals(6, strategies.size());
+            assertEquals(7, strategies.size());
             assertSame(context.getBean(ChatCompletionsApiCommonStrategy.class), strategies.get("chatCompletionsApiCommonStrategy"));
             assertSame(context.getBean(ResponsesApiCommonStrategy.class), strategies.get("responsesApiCommonStrategy"));
             assertFalse(strategies.containsKey("compatibleChatCompletionsApiStrategy"));
             assertFalse(strategies.containsKey("compatibleResponsesApiStrategy"));
             assertSame(context.getBean(ResponsesApiDoubaoStrategy.class), strategies.get("responsesApiDoubaoStrategy"));
+            assertSame(context.getBean(ResponsesApiDeepSeekStrategy.class), strategies.get("responsesApiDeepSeekStrategy"));
             assertSame(context.getBean(ChatCompletionsApiOpenAiStrategy.class), strategies.get("chatCompletionsApiOpenAiStrategy"));
             assertSame(context.getBean(ResponsesApiOpenAiStrategy.class), strategies.get("responsesApiOpenAiStrategy"));
             assertFalse(strategies.containsKey("doubao_responses"));
