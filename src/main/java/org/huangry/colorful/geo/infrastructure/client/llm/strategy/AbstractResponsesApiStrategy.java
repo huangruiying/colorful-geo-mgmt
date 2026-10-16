@@ -198,7 +198,8 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
     /**
      * 解析 OpenAI Responses API 的正文和结构化来源引用。
      *
-     * <p>只接受 output_text.annotations 内的 url_citation，正文中的 URL 不参与引用构建。</p>
+     * <p>默认只接受 output_text.annotations 内的 url_citation；子策略可补充厂商明确返回的结构化来源，
+     * 正文中的 URL 不参与引用构建。</p>
      *
      * @param responseBody Responses 原始响应
      * @return 标准模型响应
@@ -234,9 +235,19 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
         if (!hasText) {
             throw new LLMClientException("Responses 未返回文本回答");
         }
+        // 4. 厂商以其他结构化字段表达来源时由子策略补充，文本注解中的引用优先保留
+        collectStrategyCitations(output, citationByUrl);
         String reason = responseBody.get("status") instanceof String value ? value : null;
         // 直接填充网络响应字段，结果对象不负责 JSON 解析。
         return assembleLLMResponse(responseBody, content, citationByUrl, reason);
+    }
+
+    /**
+     * 补充厂商在 annotations 之外以结构化字段返回的来源；默认不补充，避免把检索召回当作引用。
+     * @param output Responses 的 output 数组，接口未返回时为 null
+     * @param citationByUrl 已从文本注解收集的引用，按 URL 去重；子策略只追加不覆盖
+     */
+    protected void collectStrategyCitations(JSONArray output, Map<String, LLMCitation> citationByUrl) {
     }
 
     /**
