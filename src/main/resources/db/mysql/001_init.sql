@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS geo_diagnosis_plan_exec_record_result (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='诊断方案一次执行的逐次回答结果';
 
 -- 诊断报告：每次手动生成一份，重新生成不覆盖旧报告；只为成功且未截断的诊断结果建立分析记录。
-CREATE TABLE IF NOT EXISTS geo_diagnosis_report (
+CREATE TABLE IF NOT EXISTS geo_diagnosis_result_output (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     exec_record_id BIGINT UNSIGNED NOT NULL COMMENT '所属诊断任务ID',
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / RUNNING / SUCCEEDED / FAILED',
@@ -181,14 +181,14 @@ CREATE TABLE IF NOT EXISTS geo_diagnosis_report (
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
-    KEY idx_diagnosis_report_task (exec_record_id, created_at),
-    CONSTRAINT fk_diagnosis_report_task FOREIGN KEY (exec_record_id) REFERENCES geo_diagnosis_plan_exec_record(id),
-    CONSTRAINT chk_diagnosis_report_status CHECK (status IN ('PENDING','RUNNING','SUCCEEDED','FAILED'))
+    KEY idx_diagnosis_result_output_task (exec_record_id, created_at),
+    CONSTRAINT fk_diagnosis_result_output_task FOREIGN KEY (exec_record_id) REFERENCES geo_diagnosis_plan_exec_record(id),
+    CONSTRAINT chk_diagnosis_result_output_status CHECK (status IN ('PENDING','RUNNING','SUCCEEDED','FAILED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='诊断报告，每次生成一份';
 
-CREATE TABLE IF NOT EXISTS geo_diagnosis_answer_analysis (
+CREATE TABLE IF NOT EXISTS geo_diagnosis_result_analysis (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    report_id BIGINT UNSIGNED NOT NULL COMMENT '所属诊断报告ID',
+    output_id BIGINT UNSIGNED NOT NULL COMMENT '所属诊断报告ID（geo_diagnosis_result_output）',
     result_id BIGINT UNSIGNED NOT NULL COMMENT '被分析的诊断结果ID',
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT '判定状态：PENDING / SUCCEEDED / FAILED',
     brand_sentiment VARCHAR(20) NULL COMMENT '点名问题中模型对目标的评价倾向：POSITIVE / NEUTRAL / NEGATIVE，其他问题为空',
@@ -201,10 +201,11 @@ CREATE TABLE IF NOT EXISTS geo_diagnosis_answer_analysis (
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
-    UNIQUE KEY uk_diagnosis_analysis_result (report_id, result_id),
-    KEY idx_diagnosis_analysis_status (report_id, status),
-    CONSTRAINT fk_diagnosis_analysis_report FOREIGN KEY (report_id) REFERENCES geo_diagnosis_report(id),
-    CONSTRAINT fk_diagnosis_analysis_result FOREIGN KEY (result_id) REFERENCES geo_diagnosis_plan_exec_record_result(id),
-    CONSTRAINT chk_diagnosis_analysis_status CHECK (status IN ('PENDING','SUCCEEDED','FAILED')),
-    CONSTRAINT chk_diagnosis_analysis_sentiment CHECK (brand_sentiment IS NULL OR brand_sentiment IN ('POSITIVE','NEUTRAL','NEGATIVE'))
+    UNIQUE KEY uk_diagnosis_result_analysis (output_id, result_id),
+    KEY idx_diagnosis_result_analysis_status (output_id, status),
+    KEY idx_diagnosis_result_analysis_result (result_id),
+    CONSTRAINT fk_diagnosis_result_analysis_output FOREIGN KEY (output_id) REFERENCES geo_diagnosis_result_output(id),
+    CONSTRAINT fk_diagnosis_result_analysis_result FOREIGN KEY (result_id) REFERENCES geo_diagnosis_plan_exec_record_result(id),
+    CONSTRAINT chk_diagnosis_result_analysis_status CHECK (status IN ('PENDING','SUCCEEDED','FAILED')),
+    CONSTRAINT chk_diagnosis_result_analysis_sentiment CHECK (brand_sentiment IS NULL OR brand_sentiment IN ('POSITIVE','NEUTRAL','NEGATIVE'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='诊断报告中逐条有效回答的分析结果';

@@ -4,6 +4,23 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-17 按用户要求表改名（页面与接口仍称“诊断报告”，避免与单条“诊断结果”混淆，用户已确认）：geo_diagnosis_report → `geo_diagnosis_result_output`，geo_diagnosis_answer_analysis → `geo_diagnosis_result_analysis`，分析表 report_id → `output_id`；实体、DAO、持久化服务同步为 `GeoDiagnosisResultOutputEntity/Dao/Service`、`GeoDiagnosisResultAnalysisEntity/Dao`（实体字段 outputId），索引与约束名同步。新增 `022_rename_diagnosis_result_tables.sql`（RENAME 保留数据，已核对库内索引与约束名与脚本一致），`001_init.sql` 改为新表定义，021 历史脚本不改。诊断相关独立 JUnit 58 项全部通过。
+  **022 尚未在本地库执行**：执行时报告 5（任务 27）正在由旧代码服务生成（4/23），现在改名会中断它。待报告 5 完成后：执行 022 → 用新代码重启服务。旧代码服务在 022 执行后会读写失败，新代码在 022 执行前同样会失败，两者须同时切换。
+  判定失败观察：报告 3 失败 3/5“判定模型不可用或未返回有效回答”、报告 4 失败 1/5“判定模型调用超时”，判定渠道为能链 claude（上限 1400），与此前风险一致。未提交。
+
+- 2026-10-17 诊断报告接口与页面：新增 `MgmtDiagnosisReportController`（POST/GET 列表/GET 详情，错误映射同诊断任务）、`DiagnosisReportBusiness`（名称取任务快照，`GeoDiagnosisAnswerAnalysisDao.countStatuses` 一次汇总多份报告判定进度，汇总只在详情返回）、`CreateDiagnosisReportRequest`、`DiagnosisReportResponse`；`history-report.html` 由占位改为报告列表 + 生成对话框 + 详情（6 个子 Tab，①② 已接入，③–⑥ 待接入）+ 回答原文对话框，新增 `diagnosis-reports.js/css`（v 20261017-report1）；诊断任务详情新增「生成报告」入口（diagnosis-tasks.js v 20261017-report1）。说明见 [诊断报告全景](诊断报告全景.md)「接口与页面」。
+  注释审计：控制器各接口与异常映射、业务三个公开方法与批量组装方法（3 段编号）均有说明及 @param/@return/@throws，状态计数用显式 switch 不依赖枚举顺序；页面脚本关键规则（原文以文本节点写入、可生成任务筛选与服务端一致、生成中轮询）有注释。通过。
+  验证：Maven 离线 compile；JS 语法检查；诊断相关（应用、领域、控制器、执行器）与 LLM 策略独立 JUnit 97 项 96 通过（新增业务 3、控制器 2；唯一失败为既有 shouldRejectDisabledExactTaskChannel）。未重启服务、未做浏览器与真实端到端验证；判定渠道选择待用户决定（默认渠道“能链 claude”本机不可达且上限 1400）。未提交。
+
+- 2026-10-17 诊断报告判定与汇总落地（计划见用户已批准方案，结构见 [诊断报告全景](诊断报告全景.md)「判定与汇总」）：`LLMStrategyRouter.selectDefaultChannel()`；`GeoDiagnosisReportService` 新增 claimNext（RUNNING 优先续跑）、freezeJudgeChannel、nextPendingAnalysis、saveAnalysis/failAnalysis（仅 PENDING 可写）、finish/fail（仅 RUNNING 可写）、getResult、taskSnapshot、publishedUrls、loadAnswers；新增 `DiagnosisAnswerRules`、`DiagnosisAnswerJudge`（v1）、`DiagnosisReportSummarizer`、`presentation/task/DiagnosisReportWorker`。用户确认报告范围为“一次诊断任务”，报告页按钮与接口下一步做。
+  实测发现并修正：竞品名不统一（改为提示词要求预设名 + 解析兜底归一）；原文校验误杀 Markdown 格式差异（比较前去符号，提示词限一句不跨段，保留率 ~50%→31/36）；Set.of.contains(null) 致解析 NPE（改空安全）。默认渠道“能链 claude”在本机内网地址 10.5.0.32 连接超时且输出上限 1400，作判定渠道风险高；qwen3.6-plus 判定 56–115 秒超过 60 秒超时，判定应选不推理快速模型。
+  注释审计：新增 4 类及 Service 新方法均有类/方法说明、@param/@return/@throws，多阶段方法编号，规则与降级决策（续跑、名称归一、原文校验、维度归一失败保持原名、汇总失败不重试）有注释；通过。架构：判定、规则、汇总为无 IO 的领域组件，编排在 presentation/task 执行器，持久化与状态在领域服务；无新表、无接口改动。
+  验证：Maven 离线 compile；诊断领域、报告执行器、LLM 策略包独立 JUnit 75 项 74 通过（新增 Judge 5、Rules 3、Summarizer 3、Service 2、Worker 3；唯一失败为既有 shouldRejectDisabledExactTaskChannel）；用 qwen-plus 对 6 条真实回答真实判定与汇总并人工核对。未经服务端到端运行（无接口触发、服务未重启），未提交。
+
+- 2026-10-17 诊断报告基础表落地（结构说明见 [诊断报告全景](诊断报告全景.md) 文末“数据结构”）：用户确认报告表 + 回答分析表两张表，判定用默认渠道（分数最高），手动点击生成。新增 `021_geo_diagnosis_report.sql`（`001_init.sql` 同步）、两个实体与 DAO（`insertPendingFromResults` 一条 SQL 按参数口径建立待判定记录）、三个枚举、领域服务 `GeoDiagnosisReportService.createReport`（FOR UPDATE 锁任务；仅 SUCCEEDED/PARTIAL_FAILED；同任务已有 PENDING/RUNNING 报告则拒绝；排除 finish_reason=length；无有效回答抛异常回滚）。可推导信息（问题分组、引用口径、有无来源、是否联网）不建列。
+  注释审计：两实体类与逐字段说明、两 DAO 类与批量方法 Javadoc、三枚举类与各项、`createReport` 方法说明含 @throws 与 4 段编号及决策注释，通过。架构：沿用诊断任务“一个领域服务配多个 DAO”，无空 Service 与 XML；DAO 不判断业务口径，状态与排除原因由服务传参。
+  验证：Maven 离线 compile 通过；诊断领域服务独立 JUnit 20 项全部通过（新增 4 项）；021 已在本地 MySQL `colorful_geo` 执行建表，回滚事务中验证任务 30 建 5 条、任务 26 成功 72 条中排除 2 条截断建 70 条，唯一键（1062）与状态/情感 CHECK（3819）生效，回滚后两表为空。判定、汇总、接口与页面未实现；服务未重启，未提交。
+
 - 2026-10-17 与用户确认诊断报告结构，落地 [诊断报告全景](诊断报告全景.md)：6 个子 Tab（概览、可见度与推荐、品牌认知、竞品对比、引用与内容、优化建议）、按问题类型与是否提及划分的 4 类分析场景、分析口径（只分析成功回答，引用指标同口径比较）。仅文档，未实现；下一步为指标计算、回答分析结果表与判定方式的详细设计。
 
 - 2026-10-17 按用户要求移除「测试连接」功能，以本条为准替代 2026-10-16 测试连接相关各条：删除 `POST /llm-channels/test`、`LlmChannelTestResponse`、`GeoLlmChannelService.prepareTestChannel`、页面按钮/结果区/脚本/样式及项目约定中的对应条目；`LlmChannelBusiness` 及三个测试文件恢复到加入前版本（0ce1e8f、6be745e、941f187）。保留：API Key 控制台链接、默认输出上限 60000（页面提示改为「需按模型调低」）、请求体字节发送带 Content-Length、流式失败带厂商报错、Chat finish_reason=length 判失败。models.js 版本 20261017-keyurl2，models.css 恢复 20261013-bean3。验证：compile、JS 语法通过，相关独立 JUnit 56 项 55 通过（既有失败同前），源码与约定无测试连接残留。注意：分类器/枚举/测试响应在暂存区为 AD，测试文件 LLMCallFailureClassifierTest 为已提交后删除，提交前需同步暂存删除。未重启，未提交。
