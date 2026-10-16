@@ -6,6 +6,8 @@
     <meta name="theme-color" content="#10233f">
     <title>诊断报告 · GEO 管理平台</title>
     <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./diagnosis-tasks.css?v=20261015-restart2">
+    <link rel="stylesheet" href="./diagnosis-reports.css?v=20261017-report1">
 </head>
 <body>
 <div class="app-shell">
@@ -65,25 +67,50 @@
                 <div>
                     <p class="eyebrow">DIAGNOSIS REPORTS</p>
                     <h1>诊断报告</h1>
-                    <p class="page-description">查看每轮诊断结果，从问题、竞品和引用来源追溯产品在 AI 回答中的表现。</p>
+                    <p class="page-description">选择一次已结束的诊断任务生成报告，逐条判定回答并汇总各模型的提及、推荐与用户关注点。</p>
                 </div>
+                <button type="button" class="primary-button" id="new-report">生成诊断报告</button>
             </div>
-            <section class="list-panel" aria-label="诊断报告功能规划">
-                <div class="panel-heading"><div><h2>报告内容规划</h2><p>页面入口已建立，以下能力待接入。</p></div></div>
+            <div id="report-error" class="notice error" role="alert" hidden></div>
+            <div id="report-success" class="notice success" role="status" hidden></div>
+            <section class="list-panel" aria-label="诊断报告列表">
+                <div class="panel-heading"><h2>诊断报告</h2><form id="report-filters" class="inline-controls">
+                    <select id="filter-status" aria-label="筛选状态"><option value="">全部状态</option><option value="PENDING">待生成</option><option value="RUNNING">生成中</option><option value="SUCCEEDED">已完成</option><option value="FAILED">失败</option></select>
+                    <button class="refresh-button">查询</button>
+                </form></div>
                 <div class="table-scroll">
                     <table>
-                        <thead><tr><th scope="col">功能</th><th scope="col">说明</th><th scope="col">状态</th></tr></thead>
-                        <tbody>
-                            <tr><td>诊断概览</td><td>展示诊断完成情况及各平台的提及率、推荐率和引用情况。</td><td class="table-message">待接入</td></tr>
-                            <tr><td>问题与竞品</td><td>逐题比较项目与竞品的表现，查看原始回答及判定依据。</td><td class="table-message">待接入</td></tr>
-                            <tr><td>引用来源</td><td>区分实际引用、搜索结果与普通链接，分析官方及第三方来源。</td><td class="table-message">待接入</td></tr>
-                            <tr><td>优化建议</td><td>结合证据提出待验证的解释与改进建议。</td><td class="table-message">待接入</td></tr>
-                        </tbody>
+                        <thead><tr><th scope="col">报告</th><th scope="col">方案 / 项目</th><th scope="col">状态</th><th scope="col">判定进度</th><th scope="col">创建时间</th><th scope="col">操作</th></tr></thead>
+                        <tbody id="report-list"></tbody>
                     </table>
                 </div>
+                <div class="task-pagination"><button type="button" class="refresh-button" id="report-previous">上一页</button><span id="report-page-info"></span><button type="button" class="refresh-button" id="report-next">下一页</button></div>
             </section>
+            <p class="help">报告由后台逐条判定，关闭页面不影响生成。判定使用已启用渠道中分数最高的模型，每条回答调用一次，会产生模型费用；判定失败不重试。</p>
         </main>
     </div>
 </div>
+<dialog id="create-report-dialog" class="task-dialog task-create-dialog" aria-labelledby="create-report-title">
+    <div class="panel-heading"><h2 id="create-report-title">生成诊断报告</h2><button type="button" class="refresh-button" id="close-create">关闭</button></div>
+    <form id="create-report-form" class="task-dialog-body">
+        <div id="create-error" class="notice error" role="alert" hidden></div>
+        <label class="task-field">诊断任务<select id="create-task" required><option value="">正在加载…</option></select></label>
+        <p class="help">只列出已结束且有成功回答的任务。报告分析该任务全部成功且未被截断的回答。</p>
+        <div class="task-actions"><button type="button" class="refresh-button" id="cancel-create">取消</button><button type="submit" class="primary-button" id="submit-create">生成</button></div>
+    </form>
+</dialog>
+<dialog id="report-detail-dialog" class="task-dialog report-detail-dialog" aria-labelledby="report-detail-title">
+    <div class="panel-heading"><div class="task-detail-heading"><h2 id="report-detail-title">诊断报告</h2><p id="report-detail-note" class="help"></p></div><div class="task-header-actions"><button type="button" class="refresh-button" id="close-detail">关闭</button></div></div>
+    <div class="task-dialog-body">
+        <div id="detail-error" class="notice error" role="alert" hidden></div>
+        <div class="report-tabs" role="tablist" id="report-tabs"></div>
+        <div id="report-panel"></div>
+    </div>
+</dialog>
+<dialog id="answer-dialog" class="task-dialog task-answer-dialog" aria-labelledby="answer-title">
+    <div class="panel-heading"><div><h2 id="answer-title">回答原文</h2><p id="answer-note" class="help"></p></div><button type="button" class="refresh-button" id="close-answer">返回报告</button></div>
+    <div class="task-dialog-body"><div id="answer-error" class="notice error" role="alert" hidden></div><div id="answer-content" class="answer-body"></div></div>
+</dialog>
+<script src="./diagnosis-reports.js?v=20261017-report1" defer></script>
 </body>
 </html>

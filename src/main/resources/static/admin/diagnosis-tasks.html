@@ -107,7 +107,7 @@
     </form>
 </dialog>
 <dialog id="task-detail-dialog" class="task-dialog" aria-labelledby="task-detail-title">
-    <div class="panel-heading"><div class="task-detail-heading"><h2 id="task-detail-title">查看诊断任务</h2><p id="detail-refresh-note">执行中的任务每 3 秒刷新。</p></div><div class="task-header-actions"><button type="button" class="primary-button" id="restart-task" hidden>重新发起</button><button type="button" class="refresh-button" id="close-detail">关闭</button></div></div>
+    <div class="panel-heading"><div class="task-detail-heading"><h2 id="task-detail-title">查看诊断任务</h2><p id="detail-refresh-note">执行中的任务每 3 秒刷新。</p></div><div class="task-header-actions"><button type="button" class="refresh-button" id="report-task" hidden>生成报告</button><button type="button" class="primary-button" id="restart-task" hidden>重新发起</button><button type="button" class="refresh-button" id="close-detail">关闭</button></div></div>
     <div class="task-dialog-body">
         <div id="detail-error" class="notice error" role="alert" hidden></div>
         <div id="task-overview" class="task-overview"></div>
@@ -131,6 +131,6 @@
     <div class="panel-heading"><div><h2 id="information-title">查看详情</h2><p id="information-note" class="help"></p></div><button type="button" class="refresh-button" id="close-information">返回</button></div>
     <div id="information-content" class="task-dialog-body"></div>
 </dialog>
-<script src="./diagnosis-tasks.js?v=20261015-restart2" defer></script>
+<script src="./diagnosis-tasks.js?v=20261017-report1" defer></script>
 </body>
 </html>
