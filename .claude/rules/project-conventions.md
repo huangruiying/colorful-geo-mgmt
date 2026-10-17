@@ -43,6 +43,23 @@ infrastructure/client：外部协议、平台及浏览器适配
 - Spring 依赖始终使用 `jakarta.annotation.Resource` 字段注入；不使用构造器注入或 `@RequiredArgsConstructor` 注入依赖。注入后的初始化使用 `@PostConstruct`。
 - Lombok 可用于数据模型及日志；枚举构造参数使用 `@RequiredArgsConstructor` 不属于 Spring 依赖注入。
 - 使用 `channel`、`entity`、`response` 等能表达职责的变量名，避免 `c`、`p` 等含糊缩写。
+- 方法名按 [naming.md](naming.md) §3.2 写成“动词 + 业务对象”，类名已经带上下文也不省略业务对象：用 `listTasks`、`getTask`、`listTaskResults`、`createReport`、`savePlan`，不用 `list`、`detail`、`results`、`create`。控制器处理方法与所调用的 Business 方法同名。
+- 动词按语义选：可能查不到用 `find`，必须存在用 `get`，纯校验抛异常用 `validate`，校验后返回确定值用 `confirm`；状态写操作写明结果，如 `updateResultSucceeded`、`updateResultFailed`，不用 `succeed`、`fail`、`save` 这类只有动作的名字。布尔方法用 `is`、`has`、`contains` 开头；名词不作方法名（`taskSnapshot` 改为 `getTaskSnapshot`）。
+- 业务对象在项目内可能同名时带上所属对象：报告分析表也带 result，所以单条诊断结果写 `TaskResult`（`listTaskResults`、`getTaskResult`），与已有的 `DiagnosisTaskResultStatus` 一致。
+- 改名按“类内声明 + 通过注入字段发起的调用”定位，再靠编译找出遗漏（包括 Mockito `when(service).x(...)` 写法）；`create`、`read`、`fail` 这类通用名不做全局文本替换。接口路径和页面文案是对外契约，内部改名不随之改。
+
+### 诊断模块术语与命名线
+
+| 业务概念 | 页面与注释用语 | 类名前缀 | 表 |
+|---|---|---|---|
+| 诊断方案 | 诊断方案 | `DiagnosisPlan` | `geo_diagnosis_plan` 及问题、渠道子表 |
+| 一轮执行 | 诊断任务 | `DiagnosisTask` | `geo_diagnosis_task` |
+| 一个问题在一个渠道上的一次调用记录 | 诊断结果（单次诊断） | `DiagnosisTaskResult` | `geo_diagnosis_task_result` |
+| 一次任务的分析报告 | 诊断报告 | `DiagnosisTaskReport` | `geo_diagnosis_task_report` |
+| 报告中对单条诊断结果的分析 | 回答分析 | `DiagnosisTaskResultAnalysis` | `geo_diagnosis_task_result_analysis` |
+
+- 同一业务对象的表、实体、DAO、领域服务、Business、Response、Controller、后台任务、枚举及测试类沿同一前缀命名；改名时整组一起改，控制器测试保留 `Mgmt` 前缀（如 `MgmtDiagnosisTaskReportControllerTest`）。
+- “诊断结果”只指单条调用记录，“诊断报告”只指整份报告，两者不互相借用；不再使用“采样”，重复调用称“重复执行次数”。
 
 ## 方法与可读性
 
@@ -52,6 +69,8 @@ infrastructure/client：外部协议、平台及浏览器适配
 - 避免无意义嵌套、取反的复杂三元表达式和挤在一行的查询／转换／计数；按业务步骤拆成清晰语句，不为减少行数牺牲可读性。
 - 日志记录实际选中渠道及必要结果，避免入口和下层重复记录同一调用，不打印问题原文、回答原文或凭据。
 - 注释解释职责、规则及必要边界，与最终实现一致；修改后删除过时的能力描述和兼容说明。
+- 方法注释写实际效果，不写模糊的动作描述：写清前置条件（如“仅失败或部分失败的任务”）、作用在哪一层对象（任务还是诊断结果）、保留什么、清除什么、后续由谁执行。例如重置任务写“非成功的诊断结果改回待执行并清空旧数据，成功结果保留，任务回到待执行由后台重新领取”，不写“重新排队”。
+- `@param` 用业务名称（“诊断任务 ID”），不用“当前任务 ID”这类依赖上下文的说法。同一行为在 Controller 与 Business 的注释口径一致，改一处同步另一处；改名后同步注释和文档中的类名、表名。
 
 ## 列表与分页
 
@@ -78,7 +97,7 @@ infrastructure/client：外部协议、平台及浏览器适配
 - LLMProtocolType 只表示 MOCK、OPENAI_CHAT_COMPLETIONS、OPENAI_RESPONSES 交互格式。引用始终按响应的结构化字段解析，不根据搜索标志过滤，也不从正文 URL 或搜索召回来源猜测。搜索参数按供应商处理，不把普通兼容供应商自动标为支持联网。
 - 引用只来自接口结构化数据，不把正文链接当成实际引用，不虚构引用。
 - 不返回 url_citation 的厂商由子策略重写 `collectStrategyCitations`，把接口结构化返回的来源网址补为引用：DeepSeek 取 `web_search_call` 的 `open_page`（去掉 `ws_call_id` 标识），千问、智谱取 `web_search_call.action.sources` 中 `type=url` 的网址（共用 `LlmCitationParser.collectSearchSources`）；文心（千帆智能搜索 Chat）取响应顶层 `references` 中 `type=web` 的网址与标题，正文 `^[n]^` 角标不解析。Chat 与 Responses 父类各提供同名默认空实现的补充入口。标题、摘要、位置留空且不抓取补全；检索词不作为引用；文本注解已有同一网址时保留注解资料。标准 url_citation（豆包、OpenAI）留在父类统一解析，不下沉到子策略。
-- `LLMQueryRequest` 仅含 `prompt`、`channelCode`、`modelName`，每次独立调用，无角色枚举、消息列表或历史上下文。重复采样通过多次独立调用完成。
+- `LLMQueryRequest` 仅含 `prompt`、`channelCode`、`modelName`，每次独立调用，无角色枚举、消息列表或历史上下文。重复执行通过多次独立调用完成。
 - 密钥仅供服务端使用，响应只返回 `keyConfigured`；编辑空密钥保留原值，输入新值才替换。
 
 ## 修改后的检查
