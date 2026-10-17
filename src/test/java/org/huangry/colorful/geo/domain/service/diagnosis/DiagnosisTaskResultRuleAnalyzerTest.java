@@ -18,20 +18,20 @@ class DiagnosisTaskResultRuleAnalyzerTest {
     /** 名称或别名不区分大小写命中即为提及，空白名称不参与匹配。 */
     @Test
     void shouldMatchNamesIgnoringCase() {
-        assertTrue(ruleAnalyzer.mentions("推荐 NEWLINK 的产品", ruleAnalyzer.targetNames(project)));
-        assertFalse(ruleAnalyzer.mentions("推荐易加油", ruleAnalyzer.targetNames(project)));
-        assertFalse(ruleAnalyzer.mentions("任意文本", List.of(" ")));
-        assertFalse(ruleAnalyzer.mentions(null, ruleAnalyzer.targetNames(project)));
+        assertTrue(ruleAnalyzer.containsAnyName("推荐 NEWLINK 的产品", ruleAnalyzer.listTargetNames(project)));
+        assertFalse(ruleAnalyzer.containsAnyName("推荐易加油", ruleAnalyzer.listTargetNames(project)));
+        assertFalse(ruleAnalyzer.containsAnyName("任意文本", List.of(" ")));
+        assertFalse(ruleAnalyzer.containsAnyName(null, ruleAnalyzer.listTargetNames(project)));
     }
 
     /** 有引用、搜索调用或检索结果即为实际联网；DeepSeek flash 这类静默不搜的响应为未联网。 */
     @Test
     void shouldDetectSearchFromCitationsOrRawResponse() {
-        assertTrue(ruleAnalyzer.searchPerformed(null, "[{\"url\":\"https://a.com\"}]"));
-        assertTrue(ruleAnalyzer.searchPerformed("{\"output\":[{\"type\":\"reasoning\"},{\"type\":\"web_search_call\"}]}", "[]"));
-        assertTrue(ruleAnalyzer.searchPerformed("{\"references\":[{\"url\":\"https://a.com\"}],\"choices\":[]}", "[]"));
-        assertFalse(ruleAnalyzer.searchPerformed("{\"output\":[{\"type\":\"reasoning\"},{\"type\":\"message\"}]}", "[]"));
-        assertFalse(ruleAnalyzer.searchPerformed(null, null));
+        assertTrue(ruleAnalyzer.isSearchPerformed(null, "[{\"url\":\"https://a.com\"}]"));
+        assertTrue(ruleAnalyzer.isSearchPerformed("{\"output\":[{\"type\":\"reasoning\"},{\"type\":\"web_search_call\"}]}", "[]"));
+        assertTrue(ruleAnalyzer.isSearchPerformed("{\"references\":[{\"url\":\"https://a.com\"}],\"choices\":[]}", "[]"));
+        assertFalse(ruleAnalyzer.isSearchPerformed("{\"output\":[{\"type\":\"reasoning\"},{\"type\":\"message\"}]}", "[]"));
+        assertFalse(ruleAnalyzer.isSearchPerformed(null, null));
     }
 
     /** 我方发布优先于自有域名，其次标题提到目标、竞品；按网址去重并对照平台名称。 */

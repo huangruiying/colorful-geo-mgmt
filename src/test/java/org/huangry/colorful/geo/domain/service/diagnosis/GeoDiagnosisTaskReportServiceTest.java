@@ -92,7 +92,7 @@ class GeoDiagnosisTaskReportServiceTest {
         running.setId(3L);
         running.setStatus("RUNNING");
         when(reports.selectOne(any())).thenReturn(running);
-        assertSame(running, service.claimNext());
+        assertSame(running, service.claimNextReport());
         verify(reports, never()).update(isNull(), any());
 
         var pending = new GeoDiagnosisTaskReportEntity();
@@ -100,7 +100,7 @@ class GeoDiagnosisTaskReportServiceTest {
         pending.setStatus("PENDING");
         when(reports.selectOne(any())).thenReturn(null, pending);
         when(reports.update(isNull(), any())).thenReturn(1);
-        var claimed = service.claimNext();
+        var claimed = service.claimNextReport();
         assertEquals("RUNNING", claimed.getStatus());
         assertNotNull(claimed.getStartedAt());
     }
@@ -112,8 +112,8 @@ class GeoDiagnosisTaskReportServiceTest {
         analysis.setId(8L);
         when(analyses.update(isNull(), any())).thenReturn(0);
 
-        assertThrows(IllegalStateException.class, () -> service.saveAnalysis(analysis));
-        assertThrows(IllegalStateException.class, () -> service.failAnalysis(8L, "原因", "[]"));
+        assertThrows(IllegalStateException.class, () -> service.updateAnalysisSucceeded(analysis));
+        assertThrows(IllegalStateException.class, () -> service.updateAnalysisFailed(8L, "原因", "[]"));
     }
 
     @BeforeEach

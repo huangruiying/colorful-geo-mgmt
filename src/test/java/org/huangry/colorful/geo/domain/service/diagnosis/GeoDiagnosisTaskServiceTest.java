@@ -40,7 +40,7 @@ class GeoDiagnosisTaskServiceTest {
             return 2;
         });
         when(tasks.update(isNull(), any())).thenReturn(1);
-        service.restart(27L);
+        service.restartTask(27L);
         verify(tasks).update(isNull(), any());
         verify(results).update(isNull(), any());
     }
@@ -52,7 +52,7 @@ class GeoDiagnosisTaskServiceTest {
             var task = new GeoDiagnosisTaskEntity();
             task.setId(27L); task.setStatus(status);
             when(tasks.selectOne(any())).thenReturn(task);
-            assertThrows(IllegalArgumentException.class, () -> service.restart(27L));
+            assertThrows(IllegalArgumentException.class, () -> service.restartTask(27L));
         }
         verify(results, never()).update(isNull(), any());
         verify(tasks, never()).update(isNull(), any());
@@ -62,12 +62,12 @@ class GeoDiagnosisTaskServiceTest {
     @Test
     void shouldRejectMissingTaskAndEmptyRestart() {
         when(tasks.selectOne(any())).thenReturn(null);
-        assertThrows(NoSuchElementException.class, () -> service.restart(999L));
+        assertThrows(NoSuchElementException.class, () -> service.restartTask(999L));
         var task = new GeoDiagnosisTaskEntity();
         task.setId(27L); task.setStatus("FAILED");
         when(tasks.selectOne(any())).thenReturn(task);
         when(results.update(isNull(), any())).thenReturn(0);
-        assertThrows(IllegalArgumentException.class, () -> service.restart(27L));
+        assertThrows(IllegalArgumentException.class, () -> service.restartTask(27L));
         verify(tasks, never()).update(isNull(), any());
     }
 
@@ -120,7 +120,7 @@ class GeoDiagnosisTaskServiceTest {
     @Test
     void shouldFreezeAllIndependentSamplesWithoutCredentials() throws Exception {
         configure(2, 2, 3);
-        var task = service.create(new CreateDiagnosisTaskRequest(1L, "create-test"));
+        var task = service.createTask(new CreateDiagnosisTaskRequest(1L, "create-test"));
         assertEquals(12, inserted.size());
         assertEquals("PENDING", task.getStatus());
         assertTrue(inserted.stream().allMatch(row -> "PENDING".equals(row.getStatus())));
@@ -141,7 +141,7 @@ class GeoDiagnosisTaskServiceTest {
     @Test
     void shouldInitializeMaximumScaleInBoundedBatches() {
         configure(200, 20, 10);
-        service.create(new CreateDiagnosisTaskRequest(1L, "maximum-scale"));
+        service.createTask(new CreateDiagnosisTaskRequest(1L, "maximum-scale"));
         assertEquals(40000, inserted.size());
         assertEquals(160, batchSizes.size());
         assertTrue(batchSizes.stream().allMatch(size -> size == 250));
@@ -153,10 +153,10 @@ class GeoDiagnosisTaskServiceTest {
         configure(2, 2, 2);
         var original = new GeoDiagnosisTaskEntity(); original.setId(77L); original.setPlanId(1L);
         when(tasks.selectOne(any())).thenReturn(original);
-        assertSame(original, service.create(new CreateDiagnosisTaskRequest(1L, "existing")));
+        assertSame(original, service.createTask(new CreateDiagnosisTaskRequest(1L, "existing")));
         verify(tasks, never()).insert(any(GeoDiagnosisTaskEntity.class));
         verifyNoInteractions(results, projects);
-        assertThrows(IllegalArgumentException.class, () -> service.requireSamePlan(original, 2L));
+        assertThrows(IllegalArgumentException.class, () -> service.validateSamePlan(original, 2L));
     }
 
     /** 无效提交在读取配置前拒绝，避免意外创建任务。 */
@@ -165,7 +165,7 @@ class GeoDiagnosisTaskServiceTest {
         for (var request : List.of(new CreateDiagnosisTaskRequest(null, "a"),
                 new CreateDiagnosisTaskRequest(1L, ""), new CreateDiagnosisTaskRequest(1L, "含中文"),
                 new CreateDiagnosisTaskRequest(1L, "x".repeat(65)))) {
-            assertThrows(IllegalArgumentException.class, () -> service.create(request));
+            assertThrows(IllegalArgumentException.class, () -> service.createTask(request));
         }
         verifyNoInteractions(tasks, results, plans);
     }
@@ -175,13 +175,13 @@ class GeoDiagnosisTaskServiceTest {
     void shouldAllowCredentialRotationButRejectChangedConfiguration() {
         var channel = channel(1L);
         var sample = new GeoDiagnosisTaskResultEntity();
-        sample.setChannelId(1L); sample.setChannelSnapshot(JSON.toJSONString(snapshots.channel(channel),
+        sample.setChannelId(1L); sample.setChannelSnapshot(JSON.toJSONString(snapshots.buildChannelSnapshot(channel),
                 com.alibaba.fastjson.serializer.SerializerFeature.WriteMapNullValue));
         when(channels.selectById(1L)).thenReturn(channel);
         channel.setApiKey("rotated-secret");
-        assertSame(channel, service.prepareChannel(sample));
+        assertSame(channel, service.confirmTaskChannel(sample));
         channel.setMaxTokens(999);
-        assertThrows(IllegalArgumentException.class, () -> service.prepareChannel(sample));
+        assertThrows(IllegalArgumentException.class, () -> service.confirmTaskChannel(sample));
         verifyNoInteractions(results);
     }
 
@@ -190,15 +190,15 @@ class GeoDiagnosisTaskServiceTest {
     void shouldReadHistoricalSnapshotWithNullsAndEquivalentDecimals() {
         var channel = channel(1L);
         channel.setTemperature(0.3);
-        var frozen = JSON.toJSONString(snapshots.channel(channel),
+        var frozen = JSON.toJSONString(snapshots.buildChannelSnapshot(channel),
                 com.alibaba.fastjson.serializer.SerializerFeature.WriteMapNullValue).replace("0.3", "0.30");
         var sample = new GeoDiagnosisTaskResultEntity();
         sample.setChannelId(1L);
         sample.setChannelSnapshot(frozen);
         when(channels.selectById(1L)).thenReturn(channel);
-        assertSame(channel, service.prepareChannel(sample));
+        assertSame(channel, service.confirmTaskChannel(sample));
         channel.setTemperature(null);
-        assertThrows(IllegalArgumentException.class, () -> service.prepareChannel(sample));
+        assertThrows(IllegalArgumentException.class, () -> service.confirmTaskChannel(sample));
     }
 
     /** 引用是 Java record，落库后必须仍含链接和缺失位置，不能退化为空对象。 */
@@ -210,7 +210,7 @@ class GeoDiagnosisTaskServiceTest {
         var sample = new GeoDiagnosisTaskResultEntity();
         sample.setId(9L);
         when(results.update(any(), any())).thenReturn(1);
-        service.succeed(sample, response, 20);
+        service.updateResultSucceeded(sample, response, 20);
         var savedCitation = JSON.parseArray(sample.getCitations()).getJSONObject(0);
         assertEquals(citation.url(), savedCitation.getString("url"));
         assertEquals(citation.title(), savedCitation.getString("title"));
@@ -231,7 +231,7 @@ class GeoDiagnosisTaskServiceTest {
         for (int index = 0; index < counts.size(); index++) {
             clearInvocations(tasks);
             when(results.countStatuses(55L)).thenReturn(counts.get(index));
-            service.finish(55L);
+            service.finishTask(55L);
             var wrapper = org.mockito.ArgumentCaptor.forClass(
                     com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class);
             verify(tasks).update(isNull(), wrapper.capture());
@@ -247,7 +247,7 @@ class GeoDiagnosisTaskServiceTest {
     void shouldRejectFinishingTaskWithPendingOrRunningSamples() {
         for (String status : List.of("PENDING", "RUNNING")) {
             when(results.countStatuses(55L)).thenReturn(List.of(Map.of("status", status, "sample_count", 1L)));
-            assertThrows(IllegalStateException.class, () -> service.finish(55L));
+            assertThrows(IllegalStateException.class, () -> service.finishTask(55L));
         }
         verify(tasks, never()).update(any(), any());
     }

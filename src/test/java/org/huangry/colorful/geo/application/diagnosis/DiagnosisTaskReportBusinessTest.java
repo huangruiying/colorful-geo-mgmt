@@ -40,7 +40,7 @@ class DiagnosisTaskReportBusinessTest {
                 Map.of("report_id", 9L, "status", "SUCCEEDED", "analysis_count", 5L),
                 Map.of("report_id", 9L, "status", "FAILED", "analysis_count", 1L)));
 
-        var page = business.list(null, "RUNNING", 0, 10);
+        var page = business.listReports(null, "RUNNING", 0, 10);
 
         var item = page.items().get(0);
         assertEquals(1L, page.total());
@@ -60,19 +60,19 @@ class DiagnosisTaskReportBusinessTest {
         when(reports.selectById(9L)).thenReturn(report("{\"models\":[{\"mentionRate\":0.5}]}"));
         when(analyses.countStatuses(List.of(9L))).thenReturn(List.of());
 
-        var detail = business.detail(9L);
+        var detail = business.getReport(9L);
 
         assertEquals(0.5, detail.summary().getJSONArray("models").getJSONObject(0).getDouble("mentionRate"));
         assertEquals(0, detail.progress().total());
-        assertThrows(NoSuchElementException.class, () -> business.detail(99L));
+        assertThrows(NoSuchElementException.class, () -> business.getReport(99L));
     }
 
     /** 未选择任务、未知状态与越界分页在调用服务和查询前拒绝。 */
     @Test
     void shouldRejectInvalidInput() {
-        assertThrows(IllegalArgumentException.class, () -> business.create(0L));
-        assertThrows(IllegalArgumentException.class, () -> business.list(null, "DONE", 0, 10));
-        assertThrows(IllegalArgumentException.class, () -> business.list(null, null, 0, 101));
+        assertThrows(IllegalArgumentException.class, () -> business.createReport(0L));
+        assertThrows(IllegalArgumentException.class, () -> business.listReports(null, "DONE", 0, 10));
+        assertThrows(IllegalArgumentException.class, () -> business.listReports(null, null, 0, 101));
         verifyNoInteractions(service);
         verify(reports, never()).selectList(any());
     }

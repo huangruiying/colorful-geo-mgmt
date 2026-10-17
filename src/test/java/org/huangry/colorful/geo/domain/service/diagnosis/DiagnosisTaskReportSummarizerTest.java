@@ -25,7 +25,7 @@ class DiagnosisTaskReportSummarizerTest {
     /** 非品牌问题的可见度、覆盖率、稳定性，点名问题的正面率与推荐份额按约定口径计算，判定失败不计入。 */
     @Test
     void shouldComputeModelMetrics() {
-        JSONObject summary = summarizer.summarize(answers(), project, Map.of("价格偏高", "价格"), new JSONObject(), "v1");
+        JSONObject summary = summarizer.buildSummary(answers(), project, Map.of("价格偏高", "价格"), new JSONObject(), "v1");
 
         JSONObject sample = summary.getJSONObject("sample");
         assertEquals(7, sample.getIntValue("validAnswers"));
@@ -46,7 +46,7 @@ class DiagnosisTaskReportSummarizerTest {
     /** 保留意见按归一维度统计目标的缺点；选择标准与顾虑只统计非品牌且未提到目标的回答。 */
     @Test
     void shouldRankDimensionsWithinScope() {
-        JSONObject summary = summarizer.summarize(answers(), project, Map.of("价格偏高", "价格"), new JSONObject(), "v1");
+        JSONObject summary = summarizer.buildSummary(answers(), project, Map.of("价格偏高", "价格"), new JSONObject(), "v1");
 
         assertEquals("价格", summary.getJSONArray("reservations").getJSONObject(0).getString("dimension"));
         assertEquals(1, summary.getJSONArray("reservations").size());

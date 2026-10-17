@@ -21,7 +21,7 @@ class DiagnosisTaskResultAnalysisPromptTest {
     /** 目标统一为项目名，竞品简称归到预设名，对不上预设的为待确认产品，同一产品只保留一次。 */
     @Test
     void shouldNormalizeTargetAndCompetitorNames() {
-        var result = analysisPrompt.parse("""
+        var result = analysisPrompt.parseAnalysisResult("""
                 {"brands":[{"name":"能链团油","type":"TARGET","recommended":true,"rank":2,"strength":"PARALLEL"},
                   {"name":"支付宝","type":"COMPETITOR","recommended":true,"rank":null,"strength":"PASSING"},
                   {"name":"滴滴加油","type":"CANDIDATE","recommended":true,"rank":1,"strength":"PARALLEL"},
@@ -41,7 +41,7 @@ class DiagnosisTaskResultAnalysisPromptTest {
     /** 省略 Markdown 符号或把换行写成 \\n 的引用保留；改写、未知或缺失类型、维度胜负缺结果的观点丢弃，不中断解析。 */
     @Test
     void shouldKeepFormatDifferencesButDropFabricatedQuotes() {
-        var result = analysisPrompt.parse("""
+        var result = analysisPrompt.parseAnalysisResult("""
                 ```json
                 {"brands":[],"points":[
                   {"type":"SELECTION_CRITERION","dimension":"比价","content":"多平台比价","quote":"1. 多平台比价：建议同时装2-3个比较"},
@@ -61,8 +61,8 @@ class DiagnosisTaskResultAnalysisPromptTest {
     void shouldKeepSentimentOnlyForBrandQuestions() {
         String output = "{\"brands\":[],\"brandSentiment\":\"POSITIVE\",\"descriptionAccurate\":false,\"points\":[]}";
 
-        var brand = analysisPrompt.parse(output, answer, "BRAND", project);
-        var nonBrand = analysisPrompt.parse(output, answer, "NON_BRAND", project);
+        var brand = analysisPrompt.parseAnalysisResult(output, answer, "BRAND", project);
+        var nonBrand = analysisPrompt.parseAnalysisResult(output, answer, "NON_BRAND", project);
 
         assertEquals("POSITIVE", brand.brandSentiment());
         assertEquals(false, brand.descriptionAccurate());
@@ -73,8 +73,8 @@ class DiagnosisTaskResultAnalysisPromptTest {
     /** 输出不是 JSON 时明确失败，由执行器记为判定失败。 */
     @Test
     void shouldRejectNonJsonOutput() {
-        assertThrows(IllegalArgumentException.class, () -> analysisPrompt.parse("无法判断", answer, "NON_BRAND", project));
-        assertThrows(IllegalArgumentException.class, () -> analysisPrompt.parse("{brands:[", answer, "NON_BRAND", project));
+        assertThrows(IllegalArgumentException.class, () -> analysisPrompt.parseAnalysisResult("无法判断", answer, "NON_BRAND", project));
+        assertThrows(IllegalArgumentException.class, () -> analysisPrompt.parseAnalysisResult("{brands:[", answer, "NON_BRAND", project));
     }
 
     /** 点名问题附项目资料用于判断准确性，其他分组不附，避免模型用资料替代回答内容。 */

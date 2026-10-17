@@ -24,10 +24,10 @@ class MgmtDiagnosisTaskControllerTest {
         var mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
         mvc.perform(post("/diagnosis-tasks/27/restart")).andExpect(status().isOk());
-        verify(business).restart(27L);
-        when(business.restart(27L)).thenThrow(new IllegalArgumentException("任务执行中"));
+        verify(business).restartTask(27L);
+        when(business.restartTask(27L)).thenThrow(new IllegalArgumentException("任务执行中"));
         mvc.perform(post("/diagnosis-tasks/27/restart")).andExpect(status().isBadRequest());
-        when(business.restart(999L)).thenThrow(new NoSuchElementException("诊断任务不存在"));
+        when(business.restartTask(999L)).thenThrow(new NoSuchElementException("诊断任务不存在"));
         mvc.perform(post("/diagnosis-tasks/999/restart")).andExpect(status().isNotFound());
     }
 

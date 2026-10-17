@@ -45,36 +45,36 @@ class DiagnosisTaskReportWorkerTest {
     /** 首次生成冻结默认渠道；一条判定成功、一条模型失败继续执行，最后汇总并完成报告。 */
     @Test
     void shouldJudgeEachAnswerAndFinishDespiteSingleFailure() {
-        when(service.nextPendingAnalysis(9L)).thenReturn(analysis(1L), analysis(2L), null);
+        when(service.findNextPendingAnalysis(9L)).thenReturn(analysis(1L), analysis(2L), null);
         when(llmClient.query(any(), same(channel))).thenReturn(new LLMResponse("{}", List.of()))
                 .thenThrow(new LLMClientException("调用失败"));
-        when(analysisPrompt.parse(any(), any(), any(), any())).thenReturn(new DiagnosisTaskResultAnalysisPrompt.AnalysisResult(new JSONArray(), new JSONArray(), null, null));
+        when(analysisPrompt.parseAnalysisResult(any(), any(), any(), any())).thenReturn(new DiagnosisTaskResultAnalysisPrompt.AnalysisResult(new JSONArray(), new JSONArray(), null, null));
         when(service.loadAnswers(9L)).thenReturn(List.of(new ReportAnswer(succeeded(), new GeoDiagnosisTaskResultEntity())));
         when(summarizer.collectDimensions(any())).thenReturn(Set.of());
-        when(summarizer.summarize(any(), any(), any(), any(), any())).thenReturn(new JSONObject().fluentPut("sample", new JSONObject()));
+        when(summarizer.buildSummary(any(), any(), any(), any(), any())).thenReturn(new JSONObject().fluentPut("sample", new JSONObject()));
 
         ReflectionTestUtils.invokeMethod(worker, "generate", report());
 
         verify(service).freezeJudgeChannel(eq(9L), any(), eq(DiagnosisTaskResultAnalysisPrompt.PROMPT_VERSION));
-        verify(service).saveAnalysis(argThat(saved -> saved.getId() == 1L));
-        verify(service).failAnalysis(eq(2L), eq("判定模型不可用或未返回有效回答"), any());
-        verify(service).finish(eq(9L), contains("sample"));
-        verify(service, never()).fail(anyLong(), any());
+        verify(service).updateAnalysisSucceeded(argThat(saved -> saved.getId() == 1L));
+        verify(service).updateAnalysisFailed(eq(2L), eq("判定模型不可用或未返回有效回答"), any());
+        verify(service).finishReport(eq(9L), contains("sample"));
+        verify(service, never()).failReport(anyLong(), any());
     }
 
     /** 全部判定失败时报告失败，不调用维度归一与汇总。 */
     @Test
     void shouldFailReportWhenNoAnswerJudged() {
-        when(service.nextPendingAnalysis(9L)).thenReturn(null);
+        when(service.findNextPendingAnalysis(9L)).thenReturn(null);
         var failed = new GeoDiagnosisTaskResultAnalysisEntity();
         failed.setStatus("FAILED");
         when(service.loadAnswers(9L)).thenReturn(List.of(new ReportAnswer(failed, new GeoDiagnosisTaskResultEntity())));
 
         ReflectionTestUtils.invokeMethod(worker, "generate", report());
 
-        verify(service).fail(9L, "全部回答判定失败，无法生成报告");
-        verify(service, never()).finish(anyLong(), any());
-        verify(summarizer, never()).summarize(any(), any(), any(), any(), any());
+        verify(service).failReport(9L, "全部回答判定失败，无法生成报告");
+        verify(service, never()).finishReport(anyLong(), any());
+        verify(summarizer, never()).buildSummary(any(), any(), any(), any(), any());
     }
 
     /** 没有已启用渠道时报告直接失败，不进入判定。 */
@@ -84,8 +84,8 @@ class DiagnosisTaskReportWorkerTest {
 
         ReflectionTestUtils.invokeMethod(worker, "generate", report());
 
-        verify(service).fail(9L, "没有已启用的模型渠道，无法判定");
-        verify(service, never()).nextPendingAnalysis(anyLong());
+        verify(service).failReport(9L, "没有已启用的模型渠道，无法判定");
+        verify(service, never()).findNextPendingAnalysis(anyLong());
     }
 
     @BeforeEach
@@ -103,15 +103,15 @@ class DiagnosisTaskReportWorkerTest {
         ReflectionTestUtils.setField(worker, "channelService", mock(GeoLlmChannelService.class));
         channel.setChannelCode("analysisPrompt");
         when(router.selectDefaultChannel()).thenReturn(channel);
-        when(snapshots.channel(channel)).thenReturn(new JSONObject().fluentPut("id", 1));
-        when(snapshots.read(any())).thenAnswer(invocation -> JSON.parse(invocation.<String>getArgument(0)));
-        when(service.taskSnapshot(30L)).thenReturn(new JSONObject().fluentPut("project", new JSONObject().fluentPut("name", "团油")));
-        when(service.publishedUrls()).thenReturn(Set.of());
+        when(snapshots.buildChannelSnapshot(channel)).thenReturn(new JSONObject().fluentPut("id", 1));
+        when(snapshots.parseSnapshot(any())).thenAnswer(invocation -> JSON.parse(invocation.<String>getArgument(0)));
+        when(service.getTaskSnapshot(30L)).thenReturn(new JSONObject().fluentPut("project", new JSONObject().fluentPut("name", "团油")));
+        when(service.listPublishedUrls()).thenReturn(Set.of());
         var result = new GeoDiagnosisTaskResultEntity();
         result.setAnswerText("回答");
         result.setCitations("[]");
         result.setQuestionSnapshot("{\"text\":\"问题\",\"brandScope\":\"NON_BRAND\"}");
-        when(service.getResult(anyLong())).thenReturn(result);
+        when(service.getTaskResult(anyLong())).thenReturn(result);
         when(analysisPrompt.buildPrompt(any(), any(), any())).thenReturn("判定提示词");
     }
 

@@ -22,7 +22,7 @@ class MgmtDiagnosisTaskReportControllerTest {
     /** 生成报告返回 201 与判定进度；业务拒绝映射为 400 并带原因。 */
     @Test
     void shouldCreateReportOrExplainRejection() throws Exception {
-        when(business.create(30L)).thenReturn(new DiagnosisTaskReportResponse(9L, 30L, "加油诊断", "团油", "PENDING",
+        when(business.createReport(30L)).thenReturn(new DiagnosisTaskReportResponse(9L, 30L, "加油诊断", "团油", "PENDING",
                 new DiagnosisTaskReportResponse.ProgressResponse(70, 70, 0, 0), null, null, null, null, null, null, null))
                 .thenThrow(new IllegalArgumentException("该诊断任务已有报告正在生成，请等待完成"));
 
@@ -39,8 +39,8 @@ class MgmtDiagnosisTaskReportControllerTest {
     /** 不存在的报告 404；内部状态异常 500 且不透传原文。 */
     @Test
     void shouldMapMissingAndInternalFailures() throws Exception {
-        when(business.detail(99L)).thenThrow(new NoSuchElementException("诊断报告不存在"));
-        when(business.detail(98L)).thenThrow(new IllegalStateException("sql detail"));
+        when(business.getReport(99L)).thenThrow(new NoSuchElementException("诊断报告不存在"));
+        when(business.getReport(98L)).thenThrow(new IllegalStateException("sql detail"));
 
         mvc.perform(get("/diagnosis-reports/99")).andExpect(status().isNotFound());
         mvc.perform(get("/diagnosis-reports/98")).andExpect(status().isInternalServerError())
