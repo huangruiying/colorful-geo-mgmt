@@ -217,6 +217,7 @@
         byId("result-previous").disabled = resultPage === 0;
         byId("result-next").disabled = (resultPage + 1) * 20 >= result.total;
     }
+    /** 展示当前任务的回答及元数据；只渲染回答正文，失败原因和原始响应保留原文。 */
     async function loadAnswer(id, scroll) {
         const owner = taskId, revision = ++answerRevision;
         answerId = id;
@@ -235,7 +236,9 @@
         const question = document.createElement("p"); question.textContent = result.questionText;
         const state = document.createElement("p"); state.append(statusBadge(result.status));
         const body = document.createElement("div"); body.className = "answer-body";
-        body.textContent = result.status === "FAILED" ? result.errorMessage || "本次诊断失败" : result.answerText || "本次诊断尚未返回回答。";
+        // 失败原因保留原文；只有模型回答正文使用公共 Markdown 展示。
+        if (result.status === "FAILED") body.textContent = result.errorMessage || "本次诊断失败";
+        else MarkdownView.render(body, result.answerText || "本次诊断尚未返回回答。");
         content.append(question, state, body);
         const info = document.createElement("p"); info.className = "help";
         info.textContent = "实际模型：" + (result.modelName || "接口未提供") + " · 耗时：" + (result.durationMs == null ? "—" : result.durationMs + " ms") + " · 结束原因：" + (result.finishReason || "接口未提供");

@@ -112,10 +112,10 @@ async function deleteContentPublishRecord(record) {
     }
 }
 
-/** 详情展示最终稿快照，不再触发平台接口。 */
+/** 详情以 Markdown 展示最终稿快照，只改变视图，不触发平台接口或修改已发布内容。 */
 function openRecordDetail(record) {
     document.querySelector("#detail-title").textContent = `发布记录 #${record.id}`;
-    document.querySelector("#detail-content").textContent = record.publicationContent || "—";
+    MarkdownView.render(document.querySelector("#detail-content"), record.publicationContent || "—");
     const meta = document.querySelector("#detail-meta");
     meta.replaceChildren();
     [

@@ -206,6 +206,7 @@
         return box;
     }
 
+    /** 读取报告对应的完整回答，正文使用 Markdown，问题与错误提示保持原文。 */
     async function openAnswer(resultId) {
         show("answer-error", "");
         byId("answer-content").textContent = "正在加载…";
@@ -213,7 +214,7 @@
         try {
             const answer = await request("/diagnosis-tasks/" + report.diagnosisTaskId + "/results/" + resultId);
             byId("answer-note").textContent = (answer.channelName || "—") + " · 问题：" + (answer.questionText || "—");
-            byId("answer-content").textContent = answer.answerText || "无回答正文";
+            MarkdownView.render(byId("answer-content"), answer.answerText || "无回答正文");
         } catch (error) { byId("answer-content").textContent = ""; show("answer-error", error.message); }
     }
 

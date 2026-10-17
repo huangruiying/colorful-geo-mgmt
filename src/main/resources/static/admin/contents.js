@@ -145,8 +145,9 @@ async function openContentDetail(recordId) {
         currentDetail = await requestJson(`/content-optimize/detail/${recordId}`);
         const record = currentDetail.record;
         document.querySelector("#detail-title").textContent = record.title;
-        document.querySelector("#original-content").textContent = record.originalContent;
-        document.querySelector("#optimized-content").textContent = record.optimizedContent;
+        // 仅转换详情视图，预发布编辑框及实际提交仍使用接口原文。
+        MarkdownView.render(document.querySelector("#original-content"), record.originalContent);
+        MarkdownView.render(document.querySelector("#optimized-content"), record.optimizedContent);
         renderWarnings(record.warnings || []);
         renderCitations(record.citations || []);
         renderPublishRecords(currentDetail.publishRecords || []);
