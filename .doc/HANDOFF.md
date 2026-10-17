@@ -4,6 +4,12 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-17 修复报告 #5 回答中的 LaTeX 公式被当作 Markdown 标题：公共组件加入本地 KaTeX 0.19.0/texmath 1.0.0，使用 MathML 与 trust:false；四页资源版本 md2。只读确认任务 27 结果 210 的原文含 `\[...\]`。公式专用 5 项、原有页面 10 组检查通过，截图已检查。仅前端，不改回答存储与后端；静态资源同步 target/classes 供本地页面刷新。依赖与验证见 Markdown正文展示检查.md。
+
+- 2026-10-17 仅前端公共 Markdown 展示：新增 markdown-view.js/css 与固定版本本地 markdown-it 15.0.3（含 MIT 许可），接入诊断报告/任务回答、内容原文/优化稿、发布正文，共 5 处。错误提示、JSON、配置快照和编辑框保持原文，存储/提交/发布数据不变；四页组件依赖顺序及资源版本 20261017-md1 同步。6 个 JS 语法检查、Playwright 本地静态页面 10 组检查通过（含 6 组危险内容、原文保护、390px 长表格/代码），桌面和窄屏截图已检查，无 JS 异常。逐方法注释/架构审计及依赖来源见 Markdown正文展示检查.md。本次没有修改后端；原有未提交后端/报告改动保留。未重启业务服务、未真实数据接口联调、未提交。
+
+- 2026-10-17 按用户要求把本轮命名与注释的做法写入 `.claude/rules/project-conventions.md`：方法名带业务对象、动词按语义选（find/get/validate/confirm/update…Succeeded）、布尔方法前缀、同名对象带所属对象（TaskResult）、改名定位方法；新增“诊断模块术语与命名线”表（方案/任务/诊断结果/诊断报告/回答分析与类前缀、表名）；注释写实际效果、作用层级、前置条件与保留/清除内容，@param 用业务名称，Controller 与 Business 口径一致。同时把规则中残留的“采样”改为“重复执行”“同一次诊断”（含 comments/comment-java.md 示例）。已检查本地链接与表名一致性。
+
 - 2026-10-17 按 naming.md §3.2（动词 + 业务对象）统一诊断方法名（用户确认第一、二档，私有辅助方法未改）：`GeoDiagnosisTaskService` createTask/createResults/createResultBatch/validateSamePlan/restartTask/claimNextTask/claimNextResult（去掉旧术语“采样”）/confirmTaskChannel/updateResultSucceeded/updateResultFailed/finishTask/interruptTask/recoverInterruptedTasks；`GeoDiagnosisTaskReportService` getTaskResult/updateAnalysisSucceeded/updateAnalysisFailed/findNextPendingAnalysis/getTaskSnapshot/listPublishedUrls/claimNextReport/finishReport/failReport；`DiagnosisTaskResultRuleAnalyzer` containsAnyName/isSearchPerformed/listTargetNames/convertToStringList；`DiagnosisTaskSnapshots` buildPlanSnapshot/buildQuestionSnapshot/buildChannelSnapshot/parseSnapshot；`DiagnosisTaskResultAnalysisPrompt.parseAnalysisResult`、`DiagnosisTaskReportSummarizer.buildSummary`；三个 Business 与控制器公开方法带业务对象（createTask/restartTask、createReport/listReports/getReport、savePlan/getPlan/listPlans/generateQuestions，控制器与之同名，Plan 控制器 createPlan/updatePlan）。接口路径与行为不变。Maven 离线 compile 通过；诊断相关独立 JUnit 61 项全部通过。未提交。
 
 - 2026-10-17 命名统一（用户确认）：`DiagnosisTaskBusiness` 查询方法改为 listTasks / getTask / listTaskResults / getTaskResult；报告相关类随表与领域层统一为 TaskReport：`DiagnosisTaskReportBusiness`、`DiagnosisTaskReportResponse`、`MgmtDiagnosisTaskReportController`、`DiagnosisTaskReportWorker`、`DiagnosisTaskReportSummarizer`、`DiagnosisTaskReportStatus` 及对应测试（控制器测试为 MgmtDiagnosisTaskReportControllerTest）。接口路径 /diagnosis-reports 与页面“诊断报告”不变。Maven 离线 compile 通过，诊断相关独立 JUnit 58 项全部通过。未提交。
