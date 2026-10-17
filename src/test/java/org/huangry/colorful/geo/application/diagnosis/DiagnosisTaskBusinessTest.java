@@ -37,9 +37,9 @@ class DiagnosisTaskBusinessTest {
     void shouldAllowPartialFailureOnlyForTaskFilter() {
         when(tasks.selectCount(any())).thenReturn(0L);
         when(tasks.selectList(any())).thenReturn(List.of());
-        assertEquals(0L, business.list(null, "PARTIAL_FAILED", 0, 20).total());
+        assertEquals(0L, business.listTasks(null, "PARTIAL_FAILED", 0, 20).total());
         when(tasks.selectById(1L)).thenReturn(task());
-        assertThrows(IllegalArgumentException.class, () -> business.results(1L, "PARTIAL_FAILED", null, 0, 20));
+        assertThrows(IllegalArgumentException.class, () -> business.listTaskResults(1L, "PARTIAL_FAILED", null, 0, 20));
         verifyNoInteractions(results);
     }
 
@@ -48,10 +48,10 @@ class DiagnosisTaskBusinessTest {
     void shouldKeepOptionalAndInvalidStatusFilterBehavior() {
         when(tasks.selectCount(any())).thenReturn(0L);
         when(tasks.selectList(any())).thenReturn(List.of());
-        assertDoesNotThrow(() -> business.list(null, null, 0, 20));
-        assertDoesNotThrow(() -> business.list(null, " ", 0, 20));
+        assertDoesNotThrow(() -> business.listTasks(null, null, 0, 20));
+        assertDoesNotThrow(() -> business.listTasks(null, " ", 0, 20));
         for (String status : List.of("UNKNOWN", "pending", " PENDING ")) {
-            var exception = assertThrows(IllegalArgumentException.class, () -> business.list(null, status, 0, 20));
+            var exception = assertThrows(IllegalArgumentException.class, () -> business.listTasks(null, status, 0, 20));
             assertEquals("诊断状态筛选无效", exception.getMessage());
         }
     }
@@ -65,7 +65,7 @@ class DiagnosisTaskBusinessTest {
                 Map.of("channel_id", 5L, "status", "RUNNING", "sample_count", 2L),
                 Map.of("channel_id", 5L, "status", "SUCCEEDED", "sample_count", 3L),
                 Map.of("channel_id", 5L, "status", "FAILED", "sample_count", 4L)));
-        var response = business.detail(1L);
+        var response = business.getTask(1L);
         assertEquals("RUNNING", response.status());
         assertEquals(10L, response.progress().total());
         assertEquals(1L, response.progress().pending());
@@ -80,7 +80,7 @@ class DiagnosisTaskBusinessTest {
         when(tasks.selectById(1L)).thenReturn(task());
         when(results.countStatuses(1L)).thenReturn(List.of(
                 Map.of("channel_id", 5L, "status", "PARTIAL_FAILED", "sample_count", 1L)));
-        var exception = assertThrows(IllegalStateException.class, () -> business.detail(1L));
+        var exception = assertThrows(IllegalStateException.class, () -> business.getTask(1L));
         assertEquals("诊断状态损坏", exception.getMessage());
     }
 

@@ -53,7 +53,7 @@ public class MgmtDiagnosisTaskController {
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size) {
-        return diagnosisTaskBusiness.list(planId, status, page, size);
+        return diagnosisTaskBusiness.listTasks(planId, status, page, size);
     }
 
     /**
@@ -63,7 +63,7 @@ public class MgmtDiagnosisTaskController {
      */
     @GetMapping("/{id}")
     public DiagnosisTaskResponse detail(@PathVariable("id") long id) {
-        return diagnosisTaskBusiness.detail(id);
+        return diagnosisTaskBusiness.getTask(id);
     }
 
     /**
@@ -81,7 +81,7 @@ public class MgmtDiagnosisTaskController {
             @RequestParam(value = "channelId", required = false) Long channelId,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size) {
-        return diagnosisTaskBusiness.results(id, status, channelId, page, size);
+        return diagnosisTaskBusiness.listTaskResults(id, status, channelId, page, size);
     }
 
     /**
@@ -92,7 +92,7 @@ public class MgmtDiagnosisTaskController {
      */
     @GetMapping("/{id}/results/{resultId}")
     public DiagnosisTaskResponse.ResultResponse result(@PathVariable("id") long id, @PathVariable("resultId") long resultId) {
-        return diagnosisTaskBusiness.result(id, resultId);
+        return diagnosisTaskBusiness.getTaskResult(id, resultId);
     }
 
     /**

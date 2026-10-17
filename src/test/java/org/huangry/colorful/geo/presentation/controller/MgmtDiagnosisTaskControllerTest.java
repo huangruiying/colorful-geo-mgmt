@@ -37,8 +37,8 @@ class MgmtDiagnosisTaskControllerTest {
         var business = mock(DiagnosisTaskBusiness.class);
         var controller = new MgmtDiagnosisTaskController();
         ReflectionTestUtils.setField(controller, "diagnosisTaskBusiness", business);
-        when(business.detail(999L)).thenThrow(new NoSuchElementException("诊断任务不存在"));
-        when(business.result(1L, 2L)).thenThrow(new NoSuchElementException("诊断回答不存在或不属于该任务"));
+        when(business.getTask(999L)).thenThrow(new NoSuchElementException("诊断任务不存在"));
+        when(business.getTaskResult(1L, 2L)).thenThrow(new NoSuchElementException("诊断回答不存在或不属于该任务"));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
         mvc.perform(get("/diagnosis-tasks/999")).andExpect(status().isNotFound());

@@ -29,7 +29,7 @@ public class DiagnosisTaskBusiness {
      */
     public DiagnosisTaskResponse restart(long id) {
         service.restart(id);
-        return detail(id);
+        return getTask(id);
     }
 
     @Resource
@@ -68,7 +68,7 @@ public class DiagnosisTaskBusiness {
      * @param size 每页数量
      * @return 当前页任务及总数
      */
-    public PageResponse<DiagnosisTaskResponse> list(Long planId, String status, int page, int size) {
+    public PageResponse<DiagnosisTaskResponse> listTasks(Long planId, String status, int page, int size) {
         // 分页参数和状态不合法直接拒绝
         var pageQuery = new PageQuery(page, size);
         validateStatus(status, true);
@@ -88,7 +88,7 @@ public class DiagnosisTaskBusiness {
      * @param taskId 任务 ID
      * @return 详情及各渠道进度
      */
-    public DiagnosisTaskResponse detail(long taskId) {
+    public DiagnosisTaskResponse getTask(long taskId) {
         return response(requireTask(taskId), true);
     }
 
@@ -101,7 +101,7 @@ public class DiagnosisTaskBusiness {
      * @param size 每页数量
      * @return 当前页诊断结果及总数
      */
-    public PageResponse<DiagnosisTaskResponse.ResultResponse> results(long taskId, String status, Long channelId, int page, int size) {
+    public PageResponse<DiagnosisTaskResponse.ResultResponse> listTaskResults(long taskId, String status, Long channelId, int page, int size) {
         // 任务不存在或参数不合法直接拒绝
         requireTask(taskId);
         var pageQuery = new PageQuery(page, size);
@@ -132,7 +132,7 @@ public class DiagnosisTaskBusiness {
      * @param resultId 诊断结果 ID
      * @return 独立回答详情
      */
-    public DiagnosisTaskResponse.ResultResponse result(long taskId, long resultId) {
+    public DiagnosisTaskResponse.ResultResponse getTaskResult(long taskId, long resultId) {
         requireTask(taskId);
         GeoDiagnosisTaskResultEntity row = resultDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisTaskResultEntity>()
                 .eq(GeoDiagnosisTaskResultEntity::getId, resultId)
