@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#10233f">
     <title>发布记录 · GEO 管理平台</title>
-    <link rel="stylesheet" href="./styles.css">
-    <link rel="stylesheet" href="./contents.css">
+    <link rel="stylesheet" href="./styles.css?v=20261017-layout4">
+    <link rel="stylesheet" href="./styles/components.css?v=20261017-layout4">
     <link rel="stylesheet" href="./publications.css">
     <!-- 共用函数与调用方使用同一资源版本，避免浏览器混用缓存中的旧脚本。 -->
     <script src="./shared/http.js?v=20261017-http1" defer></script>
@@ -19,66 +19,13 @@
 <script src="./markdown-view.js?v=20261017-md2" defer></script>
     <script src="./publications.js?v=20261017-shared3" defer></script>
     <link rel="stylesheet" href="./markdown-view.css?v=20261017-md2">
+    <script src="./shared/navigation.js?v=20261017-layout4" defer></script>
 </head>
-<body>
+<body class="standard-page">
 <div class="app-shell">
-    <aside class="sidebar" aria-label="主导航">
-        <a class="brand" href="./contents.html?v=20261011-config3" aria-label="GEO 管理平台首页">
-            <span class="brand-mark" aria-hidden="true">G</span>
-            <span class="brand-copy"><strong>GEO 管理平台</strong><small>CONTENT OPERATIONS</small></span>
-        </a>
-        <nav class="navigation" aria-label="功能菜单">
-            <details class="navigation-group">
-                <summary class="navigation-group-label"><span class="navigation-icon" aria-hidden="true">◇</span><span>项目管理</span><span class="navigation-caret" aria-hidden="true">›</span></summary>
-                <div class="navigation-subitems">
-                    <a class="navigation-item" href="./project-create.html?v=20261011-config3"><span class="navigation-icon" aria-hidden="true">＋</span><span>项目创建</span></a>
-                    <a class="navigation-item" href="./projects.html?v=20261011-config3"><span class="navigation-icon" aria-hidden="true">▦</span><span>项目列表</span></a>
-                </div>
-            </details>
-            <details class="navigation-group">
-                <summary class="navigation-group-label">
-                    <span class="navigation-icon" aria-hidden="true">❖</span>
-                    <span>资产诊断</span>
-                    <span class="navigation-caret" aria-hidden="true">›</span>
-                </summary>
-                <div class="navigation-subitems">
-                    <a class="navigation-item" href="./diagnose.html?v=20261014-terms1">
-                        <span class="navigation-icon" aria-hidden="true">◉</span><span>诊断方案</span>
-                    </a>
-                    <a class="navigation-item" href="./diagnosis-tasks.html?v=20261014-terms1"><span class="navigation-icon" aria-hidden="true">▷</span><span>诊断任务</span></a>
-                    <a class="navigation-item" href="./history-report.html?v=20261014-terms1">
-                        <span class="navigation-icon" aria-hidden="true">▦</span><span>诊断报告</span>
-                    </a>
-                </div>
-            </details>
-<details class="navigation-group" open>
-                <summary class="navigation-group-label">
-                    <span class="navigation-icon" aria-hidden="true">▣</span>
-                    <span>内容投放</span>
-                    <span class="navigation-caret" aria-hidden="true">›</span>
-                </summary>
-                <div class="navigation-subitems">
-                    <a class="navigation-item" href="./contents.html?v=20261011-config3"><span class="navigation-icon" aria-hidden="true">▤</span><span>内容优化记录</span></a>
-                    <a class="navigation-item active" href="./publications.html?v=20261011-config3" aria-current="page"><span class="navigation-icon" aria-hidden="true">▧</span><span>发布记录</span></a>
-                    <a class="navigation-item" href="./effect-recovery.html?v=20261011-config3">
-                        <span class="navigation-icon" aria-hidden="true">↻</span><span>效果回收</span>
-                    </a>
-
-                </div>
-            </details>
-            <details class="navigation-group">
-                <summary class="navigation-group-label"><span class="navigation-icon" aria-hidden="true">⚙</span><span>基础配置</span><span class="navigation-caret" aria-hidden="true">›</span></summary>
-                <div class="navigation-subitems">
-                    <a class="navigation-item" href="./model-config.html?v=20261011-config3"><span class="navigation-icon" aria-hidden="true">＋</span><span>模型配置</span></a>
-                    <a class="navigation-item" href="./models.html?v=20261011-config3"><span class="navigation-icon" aria-hidden="true">▦</span><span>模型列表</span></a>
-                    <a class="navigation-item" href="./browser-login.html?v=20261011-config3"><span class="navigation-icon" aria-hidden="true">◈</span><span>浏览器登录管理</span></a>
-                </div>
-            </details>
-        </nav>
-        <div class="sidebar-footer">GEO 内容运营工作台</div>
-    </aside>
+    <aside class="sidebar" aria-label="主导航" data-admin-navigation></aside>
     <div class="main-area">
-        <header class="topbar"><div class="breadcrumb">内容投放 <span>/</span> <strong>发布记录</strong></div><div class="topbar-label">管理平台</div></header>
+        <header class="topbar"><div class="breadcrumb" aria-label="当前位置"></div><div class="topbar-label">管理平台</div></header>
         <main class="content">
             <div class="page-heading">
                 <div><p class="eyebrow">PUBLICATION HISTORY</p><h1>发布记录</h1><p class="page-description">查看每篇优化内容在各平台的预发布及实际发布状态。删除只清理本地记录，不会删除平台草稿或文章。</p></div>

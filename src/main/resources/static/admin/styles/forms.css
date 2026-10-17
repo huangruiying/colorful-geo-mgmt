@@ -1,0 +1,18 @@
+/* 项目与模型共用的资料表单、搜索和只读字段；宽字段由显式类控制。 */
+.form-section { margin-bottom: 22px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; padding: 24px; }
+.form-field { display: flex; flex-direction: column; gap: 10px; color: #304865; font-size: 13px; }
+.form-field em { font-style: normal; color: #8a99ac; font-size: 11px; margin-left: 5px; }
+.form-field input, .form-field textarea, .form-search input { width: 100%; padding: 12px; border: 1px solid #d7e1ed; border-radius: 7px; color: #263d5a; background: white; font: inherit; }
+.form-field textarea { resize: vertical; min-height: 92px; }
+.form-field input:focus, .form-field textarea:focus, .form-search input:focus { outline: 2px solid #bad4fb; border-color: #669ded; }
+.form-actions, .form-search { display: flex; gap: 12px; align-items: center; }
+.form-actions { justify-content: flex-end; }
+.form-search input { min-width: 220px; font-size: 13px; }
+.form-grid dt { color: #7a8da5; font-size: 12px; margin-bottom: 8px; }
+.form-grid dd { margin: 0; font-size: 13px; color: #263d5a; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
+.form-grid > div { min-width: 0; }
+.form-section[hidden] { display: none; }
+.form-grid > .form-field-wide { grid-column: 1 / -1; }
+@media (max-width: 800px) { .form-grid { grid-template-columns: 1fr; } .form-search { flex-wrap: wrap; } .panel-heading { align-items: flex-start; flex-wrap: wrap; } }
+.form-field select { padding:12px; border:1px solid #d7e1ed; border-radius:7px; font:inherit; color:#263d5a; background:white; }

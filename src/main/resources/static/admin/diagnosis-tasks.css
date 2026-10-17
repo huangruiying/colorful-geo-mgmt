@@ -1,39 +1,11 @@
-[hidden] { display:none !important; }
-.primary-button { background:#347de6; color:white; border:0; padding:12px 20px; border-radius:8px; cursor:pointer; font-weight:600; }
-.text-button { border:0; background:none; color:#2d6fce; padding:6px; cursor:pointer; }
-.inline-controls, .task-pagination, .task-actions, .result-heading { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-.inline-controls select, .task-field select { padding:9px 12px; border:1px solid #d5dfed; border-radius:8px; color:#19324e; background:white; font:inherit; max-width:100%; }
-.task-pagination, .task-actions { justify-content:flex-end; padding:16px 0; }
-.list-panel > .task-pagination { padding:16px 24px; }
-.notice { padding:12px 16px; border-radius:8px; margin-bottom:16px; line-height:1.6; }
-.notice.error { background:#fff1f0; color:#a13031; }
-.notice.success { background:#eaf8ef; color:#247348; }
-.help, .task-secondary { color:#73849b; font-size:13px; line-height:1.7; }
-.task-secondary { display:block; margin-top:4px; }
-.task-dialog { width:min(1080px,calc(100vw - 48px)); max-height:90vh; margin:auto; padding:0; border:0; border-radius:16px; color:#19324e; box-shadow:0 24px 80px #10233f40; }
-.task-create-dialog { width:min(650px,calc(100vw - 48px)); }
-.task-dialog:not([open]) { display:none; }
-.task-dialog[open] { display:flex; flex-direction:column; }
-.task-dialog::backdrop { background:#10233f80; }
-.task-dialog > .panel-heading { flex-shrink:0; }
-.task-detail-heading { min-width:0; }
 .task-header-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; flex-shrink:0; }
 .task-restart-note { margin:-8px 0 20px; color:#73849b; font-size:13px; line-height:1.6; }
 #task-detail-dialog .task-dialog-body > .task-overview { margin-top:0; }
 @media(max-width:540px) { #task-detail-dialog > .panel-heading { flex-wrap:wrap; } .task-header-actions { width:100%; } }
-.task-dialog-body { padding:24px; overflow-y:auto; min-height:0; overscroll-behavior:contain; }
-body.task-dialog-open { overflow:hidden; }
-.task-field { display:flex; flex-direction:column; gap:10px; font-weight:600; }
-.task-overview { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; padding:18px; background:#f7f9fd; border:1px solid #e0e7f1; border-radius:10px; margin:20px 0; }
-.task-overview div { min-width:0; }
-.task-overview span { display:block; color:#73849b; font-size:12px; margin-bottom:6px; }
-.task-overview strong { font-size:15px; overflow-wrap:anywhere; }
-.task-overview .wide { grid-column:1 / -1; }
 .task-channel-progress { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .channel-progress-item { padding:12px; border:1px solid #e0e7f1; border-radius:8px; font-size:14px; }
 .task-snapshot { margin:20px 0; }
 .task-snapshot { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.task-answer-dialog { width:min(900px,calc(100vw - 48px)); }
 .readonly-section { margin-bottom:24px; border:1px solid #e0e7f1; border-radius:12px; overflow:hidden; }
 .readonly-section h3 { margin:0; padding:14px 18px; background:#f4f7fc; font-size:15px; }
 .readonly-table { width:100%; table-layout:auto; }
@@ -52,9 +24,4 @@ body.task-dialog-open { overflow:hidden; }
 .result-table td:first-child { max-width:450px; white-space:normal; overflow-wrap:anywhere; }
 .answer-body { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.85; padding:16px 0; }
 #answer-content li { margin:8px 0; overflow-wrap:anywhere; }
-.task-status { display:inline-block; padding:4px 8px; border-radius:6px; background:#edf2f8; font-size:13px; white-space:nowrap; }
-.task-status[data-status=SUCCEEDED] { color:#247348; background:#eaf8ef; }
-.task-status[data-status=FAILED], .task-status[data-status=PARTIAL_FAILED] { color:#a13031; background:#fff1f0; }
-.task-status[data-status=RUNNING] { color:#245faa; background:#eaf2ff; }
-button:disabled { opacity:.55; cursor:default; }
-@media(max-width:700px) { .panel-heading, .page-heading, .result-heading { align-items:flex-start; flex-direction:column; gap:14px; } .task-dialog { width:calc(100vw - 20px); max-height:94vh; } .task-dialog > .panel-heading { flex-direction:row; align-items:center; padding:16px; } .task-dialog-body { padding:16px; } .task-overview { grid-template-columns:1fr; } .task-channel-progress { grid-template-columns:1fr; } .task-pagination { justify-content:center; } }
+@media(max-width:700px) { .result-heading { align-items:flex-start; flex-direction:column; gap:14px; } .task-channel-progress { grid-template-columns:1fr; } }

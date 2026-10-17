@@ -54,8 +54,6 @@ legend { padding:0 8px; font-weight:600; color:#19324e; }
 #plan-form .question-table select, #plan-form .question-table input:not([type=checkbox]) { padding:4px 6px; font-size:13px; }
 .question-pagination { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 0; flex-wrap:wrap; }
 #plan-form #question-page { width:auto; padding:7px; font-size:13px; }
-.text-button { border:0; background:none; color:#2d6fce; padding:6px; cursor:pointer; }
-.primary-button { background:#347de6; color:white; border:0; padding:12px 20px; border-radius:8px; cursor:pointer; font-weight:600; }
 button:disabled { opacity:.55; cursor:wait; }
 .muted, .help { color:#73849b; font-size:13px; font-weight:normal; line-height:1.7; }
 .help { margin:10px 0 0; }
