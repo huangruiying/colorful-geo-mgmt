@@ -42,7 +42,7 @@ public class DiagnosisTaskSnapshots {
 	 * @param channels  已校验渠道
 	 * @return 不含认证信息的完整快照
 	 */
-	public JSONObject plan(GeoDiagnosisPlanEntity plan, GeoProjectInfoEntity project,
+	public JSONObject buildPlanSnapshot(GeoDiagnosisPlanEntity plan, GeoProjectInfoEntity project,
 	                       List<GeoDiagnosisPlanQuestionEntity> questions, List<GeoLlmChannelEntity> channels) {
 		// 1. 固定快照版本与方案诊断次数，保留本轮任务创建时的方案信息
 		JSONObject root = new JSONObject(true);
@@ -62,10 +62,10 @@ public class DiagnosisTaskSnapshots {
 		// 3. 分别冻结问题和渠道，沿用各自的字段选择及地址处理规则
 		var questionArray = new JSONArray();
 		root.put("questions", questionArray);
-		questions.forEach(question -> questionArray.add(question(question)));
+		questions.forEach(question -> questionArray.add(buildQuestionSnapshot(question)));
 		var channelArray = new JSONArray();
 		root.put("channels", channelArray);
-		channels.forEach(channel -> channelArray.add(channel(channel)));
+		channels.forEach(channel -> channelArray.add(buildChannelSnapshot(channel)));
 		return root;
 	}
 
@@ -76,7 +76,7 @@ public class DiagnosisTaskSnapshots {
 	 * @param question 来源问题
 	 * @return 单题快照
 	 */
-	public JSONObject question(GeoDiagnosisPlanQuestionEntity question) {
+	public JSONObject buildQuestionSnapshot(GeoDiagnosisPlanQuestionEntity question) {
 		JSONObject node = new JSONObject(true);
 		node.fluentPut("id", question.getId()).fluentPut("sortOrder", question.getSortOrder()).fluentPut("text", question.getQuestionText())
 				.fluentPut("source", question.getSource()).fluentPut("intent", question.getIntent())
@@ -93,7 +93,7 @@ public class DiagnosisTaskSnapshots {
 	 * @return 渠道快照及地址摘要
 	 * @throws IllegalArgumentException 渠道指定的策略 Bean 未注册，无法确定调用协议
 	 */
-	public JSONObject channel(GeoLlmChannelEntity channel) {
+	public JSONObject buildChannelSnapshot(GeoLlmChannelEntity channel) {
 		// 1. 显式选择渠道字段，独立 API Key 不进入快照；完整地址以摘要保留变化线索
 		JSONObject node = new JSONObject(true);
 		node.fluentPut("id", channel.getId()).fluentPut("channelCode", channel.getChannelCode())
@@ -119,7 +119,7 @@ public class DiagnosisTaskSnapshots {
 	 * @return JSON 对象、数组或标量；JSON 字面量 null 返回 Java null
 	 * @throws IllegalStateException 输入为空或 JSON 格式损坏
 	 */
-	public Object read(String value) {
+	public Object parseSnapshot(String value) {
 		// 空输入不是有效的历史快照；JSON 字面量 null 则保留原值语义
 		if (value == null || value.isBlank()) {
 			throw new IllegalStateException("诊断快照为空");

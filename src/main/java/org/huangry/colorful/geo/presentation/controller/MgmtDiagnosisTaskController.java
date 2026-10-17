@@ -25,18 +25,18 @@ public class MgmtDiagnosisTaskController {
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public DiagnosisTaskResponse create(@RequestBody CreateDiagnosisTaskRequest request) {
-        return diagnosisTaskBusiness.create(request);
+    public DiagnosisTaskResponse createTask(@RequestBody CreateDiagnosisTaskRequest request) {
+        return diagnosisTaskBusiness.createTask(request);
     }
 
     /**
-     * 将当前已结束任务的非成功结果重新排队，不创建新任务或直接调用模型。
-     * @param id 当前任务 ID
-     * @return 重新排队后的任务详情
+     * 重置失败或部分失败的任务：非成功的诊断结果改回待执行，成功结果保留；不创建新任务，也不在接口中直接调用模型。
+     * @param id 诊断任务 ID
+     * @return 重置后的任务详情
      */
     @PostMapping("/{id}/restart")
-    public DiagnosisTaskResponse restart(@PathVariable("id") long id) {
-        return diagnosisTaskBusiness.restart(id);
+    public DiagnosisTaskResponse restartTask(@PathVariable("id") long id) {
+        return diagnosisTaskBusiness.restartTask(id);
     }
 
     /**
@@ -48,7 +48,7 @@ public class MgmtDiagnosisTaskController {
      * @return 当前页任务及总数
      */
     @GetMapping
-    public PageResponse<DiagnosisTaskResponse> list(
+    public PageResponse<DiagnosisTaskResponse> listTasks(
             @RequestParam(value = "planId", required = false) Long planId,
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -62,7 +62,7 @@ public class MgmtDiagnosisTaskController {
      * @return 任务详情
      */
     @GetMapping("/{id}")
-    public DiagnosisTaskResponse detail(@PathVariable("id") long id) {
+    public DiagnosisTaskResponse getTask(@PathVariable("id") long id) {
         return diagnosisTaskBusiness.getTask(id);
     }
 
@@ -76,7 +76,7 @@ public class MgmtDiagnosisTaskController {
      * @return 当前页诊断结果及总数
      */
     @GetMapping("/{id}/results")
-    public PageResponse<DiagnosisTaskResponse.ResultResponse> results(@PathVariable("id") long id,
+    public PageResponse<DiagnosisTaskResponse.ResultResponse> listTaskResults(@PathVariable("id") long id,
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "channelId", required = false) Long channelId,
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -91,7 +91,7 @@ public class MgmtDiagnosisTaskController {
      * @return 回答详情
      */
     @GetMapping("/{id}/results/{resultId}")
-    public DiagnosisTaskResponse.ResultResponse result(@PathVariable("id") long id, @PathVariable("resultId") long resultId) {
+    public DiagnosisTaskResponse.ResultResponse getTaskResult(@PathVariable("id") long id, @PathVariable("resultId") long resultId) {
         return diagnosisTaskBusiness.getTaskResult(id, resultId);
     }
 

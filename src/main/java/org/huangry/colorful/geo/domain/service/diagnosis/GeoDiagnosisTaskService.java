@@ -46,7 +46,7 @@ public class GeoDiagnosisTaskService {
      * @return 新任务或相同提交已创建的任务
      */
     @Transactional
-    public GeoDiagnosisTaskEntity create(CreateDiagnosisTaskRequest request) {
+    public GeoDiagnosisTaskEntity createTask(CreateDiagnosisTaskRequest request) {
         // 1. 校验提交并锁定方案，和方案编辑共用主行锁，避免快照集合混杂。
         if (request == null || request.planId() == null || request.planId() <= 0
                 || request.requestId() == null || !request.requestId().matches("[A-Za-z0-9_-]{1,64}")) {
@@ -59,7 +59,7 @@ public class GeoDiagnosisTaskService {
         }
         GeoDiagnosisTaskEntity existing = findByRequest(request.requestId());
         if (existing != null) {
-            requireSamePlan(existing, request.planId());
+            validateSamePlan(existing, request.planId());
             return existing;
         }
         GeoProjectInfoEntity project = projectDao.selectOne(new LambdaQueryWrapper<GeoProjectInfoEntity>()
@@ -87,13 +87,13 @@ public class GeoDiagnosisTaskService {
         task.setRequestId(request.requestId());
         task.setPlanId(plan.getId());
         task.setProjectId(project.getId());
-        task.setPlanSnapshot(JSON.toJSONString(snapshots.plan(plan, project, questions, channels), SerializerFeature.WriteMapNullValue));
+        task.setPlanSnapshot(JSON.toJSONString(snapshots.buildPlanSnapshot(plan, project, questions, channels), SerializerFeature.WriteMapNullValue));
         task.setStatus(DiagnosisTaskStatus.PENDING.name());
         if (taskDao.insert(task) != 1) {
             throw new IllegalStateException("诊断任务创建失败");
         }
         // 3. 每 250 条批量落库；唯一键固定本轮问题、渠道和重复序号。
-        insertSamples(task.getId(), questions, channels, plan.getRepeatCount());
+        createResults(task.getId(), questions, channels, plan.getRepeatCount());
         return taskDao.selectById(task.getId());
     }
 
@@ -104,15 +104,15 @@ public class GeoDiagnosisTaskService {
      * @param channels 渠道集合
      * @param repeatCount 每题每渠道次数
      */
-    private void insertSamples(long taskId, List<GeoDiagnosisPlanQuestionEntity> questions,
+    private void createResults(long taskId, List<GeoDiagnosisPlanQuestionEntity> questions,
             List<GeoLlmChannelEntity> channels, int repeatCount) {
         // 1. 每个渠道只序列化一次，显式保留空值，所有诊断结果复用同一冻结配置
         Map<Long, String> channelJson = new HashMap<>();
-        channels.forEach(channel -> channelJson.put(channel.getId(), JSON.toJSONString(snapshots.channel(channel), SerializerFeature.WriteMapNullValue)));
+        channels.forEach(channel -> channelJson.put(channel.getId(), JSON.toJSONString(snapshots.buildChannelSnapshot(channel), SerializerFeature.WriteMapNullValue)));
         List<GeoDiagnosisTaskResultEntity> batch = new ArrayList<>(250);
         // 2. 按问题、渠道、重复序号组装独立诊断，问题快照不附带项目背景
         for (GeoDiagnosisPlanQuestionEntity question : questions) {
-            String questionJson = JSON.toJSONString(snapshots.question(question), SerializerFeature.WriteMapNullValue);
+            String questionJson = JSON.toJSONString(snapshots.buildQuestionSnapshot(question), SerializerFeature.WriteMapNullValue);
             for (GeoLlmChannelEntity channel : channels) {
                 for (int repeat = 1; repeat <= repeatCount; repeat++) {
                     GeoDiagnosisTaskResultEntity sample = new GeoDiagnosisTaskResultEntity();
@@ -127,7 +127,7 @@ public class GeoDiagnosisTaskService {
                     batch.add(sample);
                     // 3. 满批即写入创建事务，唯一键固定单次诊断标识，异常由外层事务回滚
                     if (batch.size() == 250) {
-                        persistBatch(batch);
+                        createResultBatch(batch);
                         batch.clear();
                     }
                 }
@@ -135,7 +135,7 @@ public class GeoDiagnosisTaskService {
         }
         // 收尾写入不足一批的剩余待执行诊断，避免丢失最后一组结果
         if (!batch.isEmpty()) {
-            persistBatch(batch);
+            createResultBatch(batch);
         }
     }
 
@@ -143,7 +143,7 @@ public class GeoDiagnosisTaskService {
      * 插入数量异常同样回滚创建事务。
      * @param batch 一批诊断结果
      */
-    private void persistBatch(List<GeoDiagnosisTaskResultEntity> batch) {
+    private void createResultBatch(List<GeoDiagnosisTaskResultEntity> batch) {
         if (resultDao.insertSamples(batch) != batch.size()) {
             throw new IllegalStateException("诊断结果初始化失败");
         }
@@ -164,7 +164,7 @@ public class GeoDiagnosisTaskService {
      * @param task 已创建任务
      * @param planId 本次方案
      */
-    public void requireSamePlan(GeoDiagnosisTaskEntity task, Long planId) {
+    public void validateSamePlan(GeoDiagnosisTaskEntity task, Long planId) {
         if (!Objects.equals(task.getPlanId(), planId)) {
             throw new IllegalArgumentException("提交标识已用于其他方案，请重新发起诊断");
         }
@@ -175,7 +175,7 @@ public class GeoDiagnosisTaskService {
      * @param taskId 当前任务 ID
      */
     @Transactional
-    public void restart(long taskId) {
+    public void restartTask(long taskId) {
         // 1. 锁住主任务，与后台领取和并发重新发起串行；活动任务不能重置。
         var task = taskDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisTaskEntity>()
                 .eq(GeoDiagnosisTaskEntity::getId, taskId).last("FOR UPDATE"));
@@ -221,7 +221,7 @@ public class GeoDiagnosisTaskService {
      * @return 本次领取的任务，没有排队任务时为空
      */
     @Transactional
-    public GeoDiagnosisTaskEntity claimNext() {
+    public GeoDiagnosisTaskEntity claimNextTask() {
         // 锁定最早排队的任务，终态和执行中的任务不重复领取
         GeoDiagnosisTaskEntity task = taskDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisTaskEntity>()
                 .eq(GeoDiagnosisTaskEntity::getStatus, DiagnosisTaskStatus.PENDING.name())
@@ -243,7 +243,7 @@ public class GeoDiagnosisTaskService {
      * @return 诊断结果或空
      */
     @Transactional
-    public GeoDiagnosisTaskResultEntity claimSample(long taskId) {
+    public GeoDiagnosisTaskResultEntity claimNextResult(long taskId) {
         // 1. 按冻结的诊断结果顺序锁定一条待执行记录，没有剩余待执行诊断时结束领取
         GeoDiagnosisTaskResultEntity result = resultDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisTaskResultEntity>()
                 .eq(GeoDiagnosisTaskResultEntity::getTaskId, taskId)
@@ -269,12 +269,12 @@ public class GeoDiagnosisTaskService {
      * @param sample 冻结的诊断结果
      * @return 本次调用的渠道实体，仅在服务端使用
      */
-    public GeoLlmChannelEntity prepareChannel(GeoDiagnosisTaskResultEntity sample) {
+    public GeoLlmChannelEntity confirmTaskChannel(GeoDiagnosisTaskResultEntity sample) {
         // 读取原渠道，再以同一解析规则还原双方配置用于比较
         GeoLlmChannelEntity channel = channelDao.selectById(sample.getChannelId());
         // 双方统一解析整数与小数，保留显式空值，避免更换 JSON 库后误判历史配置变化。
-        var current = (JSONObject) snapshots.read(JSON.toJSONString(snapshots.channel(channel), SerializerFeature.WriteMapNullValue));
-        var frozen = (JSONObject) snapshots.read(sample.getChannelSnapshot());
+        var current = (JSONObject) snapshots.parseSnapshot(JSON.toJSONString(snapshots.buildChannelSnapshot(channel), SerializerFeature.WriteMapNullValue));
+        var frozen = (JSONObject) snapshots.parseSnapshot(sample.getChannelSnapshot());
         // 配置不同则拒绝执行，只输出字段名；密钥不在快照中，轮换不影响比较
         if (!current.equals(frozen)) {
             List<String> changed = new ArrayList<>();
@@ -298,7 +298,7 @@ public class GeoDiagnosisTaskService {
      * @param durationMs 调用耗时
      */
     @Transactional
-    public void succeed(GeoDiagnosisTaskResultEntity sample, LLMResponse response, long durationMs) {
+    public void updateResultSucceeded(GeoDiagnosisTaskResultEntity sample, LLMResponse response, long durationMs) {
         // 1. 显式映射引用 record，Fastjson 1.x 不识别其访问器，避免序列化为空对象
         var citations = new ArrayList<JSONObject>();
         for (var citation : response.getCitations()) {
@@ -331,7 +331,7 @@ public class GeoDiagnosisTaskService {
      * @param durationMs 已消耗时间
      */
     @Transactional
-    public void fail(GeoDiagnosisTaskResultEntity sample, String reason, long durationMs) {
+    public void updateResultFailed(GeoDiagnosisTaskResultEntity sample, String reason, long durationMs) {
         // 仅允许执行中的诊断结果进入失败终态，不覆盖已经保存的成功或失败结果
         int changed = resultDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisTaskResultEntity>()
                 .eq(GeoDiagnosisTaskResultEntity::getId, sample.getId())
@@ -351,7 +351,7 @@ public class GeoDiagnosisTaskService {
      * @param taskId 本轮任务
      */
     @Transactional
-    public void finish(long taskId) {
+    public void finishTask(long taskId) {
         // 1. 汇总诊断结果终态；仍有待执行或执行中记录时拒绝结束整轮任务
         long succeeded = 0;
         long failed = 0;
@@ -384,7 +384,7 @@ public class GeoDiagnosisTaskService {
      * @param reason 已脱敏的本地中断原因
      */
     @Transactional
-    public void interrupt(long taskId, String reason) {
+    public void interruptTask(long taskId, String reason) {
         // 先终止未完成的诊断，已保存的成功或失败结果保持原样
         resultDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisTaskResultEntity>()
                 .eq(GeoDiagnosisTaskResultEntity::getTaskId, taskId)
@@ -393,19 +393,19 @@ public class GeoDiagnosisTaskService {
                 .set(GeoDiagnosisTaskResultEntity::getErrorMessage, reason)
                 .set(GeoDiagnosisTaskResultEntity::getFinishedAt, LocalDateTime.now()));
         // 再根据所有诊断结果汇总整轮终态，不把整轮状态直接当作单条结果状态
-        finish(taskId);
+        finishTask(taskId);
     }
 
     /**
      * 仅在取得唯一执行锁后调用，恢复此前实例中断的任务。
      */
     @Transactional
-    public void recoverInterrupted() {
+    public void recoverInterruptedTasks() {
         // 只恢复此前已领取的任务，待执行与已经结束的任务不在恢复范围内
         for (GeoDiagnosisTaskEntity task : taskDao.selectList(new LambdaQueryWrapper<GeoDiagnosisTaskEntity>()
                 .eq(GeoDiagnosisTaskEntity::getStatus, DiagnosisTaskStatus.RUNNING.name()))) {
             // 将状态不确定且未完成的诊断收尾为失败，保留已有回答，避免重复计费
-            interrupt(task.getId(), "执行服务中断，未完成的诊断不自动重发；可重新发起整轮诊断");
+            interruptTask(task.getId(), "执行服务中断，未完成的诊断不自动重发；可重新发起整轮诊断");
         }
     }
 }

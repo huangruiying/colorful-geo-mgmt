@@ -24,24 +24,24 @@ public class MgmtDiagnosisPlanController {
 	 */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public DiagnosisPlanResponse create(@RequestBody SaveDiagnosisPlanRequest request) {
-		return business.save(null, request);
+	public DiagnosisPlanResponse createPlan(@RequestBody SaveDiagnosisPlanRequest request) {
+		return business.savePlan(null, request);
 	}
 
 	/**
 	 * 修改方案的配置和问题集合，不改变任何诊断任务。
 	 */
 	@PutMapping("/{id}")
-	public DiagnosisPlanResponse update(@PathVariable("id") long id, @RequestBody SaveDiagnosisPlanRequest request) {
-		return business.save(id, request);
+	public DiagnosisPlanResponse updatePlan(@PathVariable("id") long id, @RequestBody SaveDiagnosisPlanRequest request) {
+		return business.savePlan(id, request);
 	}
 
 	/**
 	 * 返回可编辑的完整方案。
 	 */
 	@GetMapping("/{id}")
-	public DiagnosisPlanResponse detail(@PathVariable("id") long id) {
-		return business.detail(id);
+	public DiagnosisPlanResponse getPlan(@PathVariable("id") long id) {
+		return business.getPlan(id);
 	}
 
 	/**
@@ -53,17 +53,17 @@ public class MgmtDiagnosisPlanController {
 	 * @return 当前页方案及总数
 	 */
 	@GetMapping
-	public PageResponse<DiagnosisPlanBusiness.PlanPageItem> list(@RequestParam(value = "keyword", required = false) String keyword,
+	public PageResponse<DiagnosisPlanBusiness.PlanPageItem> listPlans(@RequestParam(value = "keyword", required = false) String keyword,
 	                                           @RequestParam(value = "page", defaultValue = "0") int page, @RequestParam(value = "size", defaultValue = "20") int size) {
-		return business.list(keyword, page, size);
+		return business.listPlans(keyword, page, size);
 	}
 
 	/**
 	 * 返回待确认的问题，生成成功也不会自动落库。
 	 */
 	@PostMapping("/generate-questions")
-	public List<DiagnosisQuestion> generate(@RequestBody GenerateDiagnosisQuestionsRequest request) {
-		return business.generate(request);
+	public List<DiagnosisQuestion> generateQuestions(@RequestBody GenerateDiagnosisQuestionsRequest request) {
+		return business.generateQuestions(request);
 	}
 
 	/**

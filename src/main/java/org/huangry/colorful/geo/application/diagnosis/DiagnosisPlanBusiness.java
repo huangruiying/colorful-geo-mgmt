@@ -23,7 +23,7 @@ public class DiagnosisPlanBusiness {
     private QuestionGenerateService questionGenerateService;
 
     /** 显式映射页面已确认的集合；校验与事务落库交由领域服务。 */
-    public DiagnosisPlanResponse save(Long id, SaveDiagnosisPlanRequest request) {
+    public DiagnosisPlanResponse savePlan(Long id, SaveDiagnosisPlanRequest request) {
         // 1. 请求只提供可维护字段，ID 由路径或数据库决定。
         GeoDiagnosisPlanEntity plan = new GeoDiagnosisPlanEntity();
         plan.setId(id);
@@ -44,7 +44,7 @@ public class DiagnosisPlanBusiness {
     }
 
     /** 缺失方案返回明确错误，详情包含整个问题集合。 */
-    public DiagnosisPlanResponse detail(long id) {
+    public DiagnosisPlanResponse getPlan(long id) {
         var plan = planService.getById(id);
         if (plan == null) throw new NoSuchElementException("诊断方案不存在");
         return toResponse(plan);
@@ -58,7 +58,7 @@ public class DiagnosisPlanBusiness {
      * @param size 每页条数，上限 100
      * @return 当前页方案及总数
      */
-    public PageResponse<PlanPageItem> list(String keyword, int page, int size) {
+    public PageResponse<PlanPageItem> listPlans(String keyword, int page, int size) {
         // 1. 分页参数和关键词越界直接拒绝，避免一次查询过多记录
         var pageQuery = new PageQuery(page, size, keyword);
         // 2. 按名称筛选查询当前页方案和总数，关键词通过绑定参数传入
@@ -79,7 +79,7 @@ public class DiagnosisPlanBusiness {
     }
 
     /** 候选仅返回给页面，不修改已保存方案或用户现有集合。 */
-    public List<DiagnosisQuestion> generate(GenerateDiagnosisQuestionsRequest request) {
+    public List<DiagnosisQuestion> generateQuestions(GenerateDiagnosisQuestionsRequest request) {
         var project = request.projectId() == null ? null : projectService.getById(request.projectId());
         if (project == null) throw new IllegalArgumentException("请选择有效项目");
         return questionGenerateService.generate(project, request.channelCode(), request.count(), request.language())

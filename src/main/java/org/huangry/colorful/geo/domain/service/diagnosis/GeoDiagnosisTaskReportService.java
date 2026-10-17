@@ -101,7 +101,7 @@ public class GeoDiagnosisTaskReportService {
      * @return 已处于 RUNNING 的报告，没有可处理的报告时为 null
      */
     @Transactional
-    public GeoDiagnosisTaskReportEntity claimNext() {
+    public GeoDiagnosisTaskReportEntity claimNextReport() {
         // 1. 中断后续跑：剩余待判定记录保持 PENDING，继续处理即可
         GeoDiagnosisTaskReportEntity running = reportDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisTaskReportEntity>()
                 .eq(GeoDiagnosisTaskReportEntity::getStatus, DiagnosisTaskReportStatus.RUNNING.name())
@@ -150,7 +150,7 @@ public class GeoDiagnosisTaskReportService {
      * @param reportId 报告 ID
      * @return 待判定记录，没有剩余时为 null
      */
-    public GeoDiagnosisTaskResultAnalysisEntity nextPendingAnalysis(long reportId) {
+    public GeoDiagnosisTaskResultAnalysisEntity findNextPendingAnalysis(long reportId) {
         return analysisDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisTaskResultAnalysisEntity>()
                 .eq(GeoDiagnosisTaskResultAnalysisEntity::getReportId, reportId)
                 .eq(GeoDiagnosisTaskResultAnalysisEntity::getStatus, DiagnosisTaskResultAnalysisStatus.PENDING.name())
@@ -163,7 +163,7 @@ public class GeoDiagnosisTaskReportService {
      * @throws IllegalStateException 记录不处于待判定状态，未保存
      */
     @Transactional
-    public void saveAnalysis(GeoDiagnosisTaskResultAnalysisEntity analysis) {
+    public void updateAnalysisSucceeded(GeoDiagnosisTaskResultAnalysisEntity analysis) {
         int changed = analysisDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisTaskResultAnalysisEntity>()
                 .eq(GeoDiagnosisTaskResultAnalysisEntity::getId, analysis.getId())
                 .eq(GeoDiagnosisTaskResultAnalysisEntity::getStatus, DiagnosisTaskResultAnalysisStatus.PENDING.name())
@@ -186,7 +186,7 @@ public class GeoDiagnosisTaskReportService {
      * @throws IllegalStateException 记录不处于待判定状态，未保存
      */
     @Transactional
-    public void failAnalysis(long analysisId, String reason, String sources) {
+    public void updateAnalysisFailed(long analysisId, String reason, String sources) {
         int changed = analysisDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisTaskResultAnalysisEntity>()
                 .eq(GeoDiagnosisTaskResultAnalysisEntity::getId, analysisId)
                 .eq(GeoDiagnosisTaskResultAnalysisEntity::getStatus, DiagnosisTaskResultAnalysisStatus.PENDING.name())
@@ -204,7 +204,7 @@ public class GeoDiagnosisTaskReportService {
      * @param summary 冻结的汇总 JSON
      */
     @Transactional
-    public void finish(long reportId, String summary) {
+    public void finishReport(long reportId, String summary) {
         reportDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisTaskReportEntity>()
                 .eq(GeoDiagnosisTaskReportEntity::getId, reportId)
                 .eq(GeoDiagnosisTaskReportEntity::getStatus, DiagnosisTaskReportStatus.RUNNING.name())
@@ -219,7 +219,7 @@ public class GeoDiagnosisTaskReportService {
      * @param reason 脱敏后的失败原因
      */
     @Transactional
-    public void fail(long reportId, String reason) {
+    public void failReport(long reportId, String reason) {
         reportDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisTaskReportEntity>()
                 .eq(GeoDiagnosisTaskReportEntity::getId, reportId)
                 .eq(GeoDiagnosisTaskReportEntity::getStatus, DiagnosisTaskReportStatus.RUNNING.name())
@@ -234,7 +234,7 @@ public class GeoDiagnosisTaskReportService {
      * @return 诊断结果
      * @throws NoSuchElementException 诊断结果不存在
      */
-    public GeoDiagnosisTaskResultEntity getResult(long resultId) {
+    public GeoDiagnosisTaskResultEntity getTaskResult(long resultId) {
         GeoDiagnosisTaskResultEntity result = resultDao.selectById(resultId);
         if (result == null) {
             throw new NoSuchElementException("诊断结果不存在");
@@ -248,19 +248,19 @@ public class GeoDiagnosisTaskReportService {
      * @return 任务快照 JSON
      * @throws NoSuchElementException 诊断任务不存在
      */
-    public JSONObject taskSnapshot(long taskId) {
+    public JSONObject getTaskSnapshot(long taskId) {
         GeoDiagnosisTaskEntity task = taskDao.selectById(taskId);
         if (task == null) {
             throw new NoSuchElementException("诊断任务不存在");
         }
-        return (JSONObject) snapshots.read(task.getPlanSnapshot());
+        return (JSONObject) snapshots.parseSnapshot(task.getPlanSnapshot());
     }
 
     /**
      * 读取我方已公开发布内容的链接，用于判断来源是否为我方发布。
      * @return 去除首尾空白的公开链接集合
      */
-    public Set<String> publishedUrls() {
+    public Set<String> listPublishedUrls() {
         Set<String> urls = new HashSet<>();
         for (ContentPublishRecordEntity record : publishRecordDao.selectList(new LambdaQueryWrapper<ContentPublishRecordEntity>()
                 .isNotNull(ContentPublishRecordEntity::getPublishedUrl).select(ContentPublishRecordEntity::getPublishedUrl))) {

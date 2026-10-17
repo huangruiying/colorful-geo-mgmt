@@ -23,12 +23,12 @@ import java.util.*;
 @Service
 public class DiagnosisTaskBusiness {
     /**
-     * 重新排队当前任务的非成功结果并回读实时进度。
-     * @param id 当前任务 ID
-     * @return 同一个任务的详情，后台可能已经领取执行
+     * 重置失败或部分失败的任务：非成功的诊断结果改回待执行并清空旧数据，成功结果保留，任务回到待执行由后台重新领取。
+     * @param id 诊断任务 ID
+     * @return 重置后的任务详情；后台可能已开始执行
      */
-    public DiagnosisTaskResponse restart(long id) {
-        service.restart(id);
+    public DiagnosisTaskResponse restartTask(long id) {
+        service.restartTask(id);
         return getTask(id);
     }
 
@@ -46,16 +46,16 @@ public class DiagnosisTaskBusiness {
      * @param request 方案与提交标识
      * @return 已持久化任务
      */
-    public DiagnosisTaskResponse create(CreateDiagnosisTaskRequest request) {
+    public DiagnosisTaskResponse createTask(CreateDiagnosisTaskRequest request) {
         GeoDiagnosisTaskEntity task;
         try {
-            task = service.create(request);
+            task = service.createTask(request);
         } catch (DuplicateKeyException exception) {
             task = request == null ? null : service.findByRequest(request.requestId());
             if (task == null) {
                 throw exception;
             }
-            service.requireSamePlan(task, request.planId());
+            service.validateSamePlan(task, request.planId());
         }
         return response(task, true);
     }
@@ -164,7 +164,7 @@ public class DiagnosisTaskBusiness {
      */
     private DiagnosisTaskResponse response(GeoDiagnosisTaskEntity task, boolean detail) {
         // 1. 回读冻结配置并汇总诊断结果状态，未知状态明确失败
-        JSONObject snapshot = (JSONObject) snapshots.read(task.getPlanSnapshot());
+        JSONObject snapshot = (JSONObject) snapshots.parseSnapshot(task.getPlanSnapshot());
         Map<Long, long[]> counts = new LinkedHashMap<>();
         long[] total = new long[5];
         for (Map<String, Object> row : resultDao.countStatuses(task.getId())) {
@@ -210,14 +210,14 @@ public class DiagnosisTaskBusiness {
      */
     private DiagnosisTaskResponse.ResultResponse resultResponse(GeoDiagnosisTaskResultEntity row) {
         // 回读问题和渠道对象，保留本次诊断创建时的内容
-        JSONObject question = (JSONObject) snapshots.read(row.getQuestionSnapshot());
-        JSONObject channel = (JSONObject) snapshots.read(row.getChannelSnapshot());
+        JSONObject question = (JSONObject) snapshots.parseSnapshot(row.getQuestionSnapshot());
+        JSONObject channel = (JSONObject) snapshots.parseSnapshot(row.getChannelSnapshot());
         // 引用和用量保留原 JSON 结构，缺失时不构造默认数据
         return new DiagnosisTaskResponse.ResultResponse(row.getId(), row.getTaskId(), row.getQuestionSortOrder(),
                 question.getString("text"), question, row.getChannelId(), channel.getString("channelName"), channel,
                 row.getRepeatIndex(), row.getStatus(), row.getAnswerText(),
-                row.getCitations() == null ? null : snapshots.read(row.getCitations()), row.getModelName(),
-                row.getUsageInfo() == null ? null : snapshots.read(row.getUsageInfo()), row.getDurationMs(),
+                row.getCitations() == null ? null : snapshots.parseSnapshot(row.getCitations()), row.getModelName(),
+                row.getUsageInfo() == null ? null : snapshots.parseSnapshot(row.getUsageInfo()), row.getDurationMs(),
                 row.getFinishReason(), row.getRawResponse(), row.getErrorMessage(), row.getStartedAt(), row.getFinishedAt());
     }
 
