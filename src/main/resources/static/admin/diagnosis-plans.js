@@ -23,27 +23,13 @@
     };
     const normalize = text => text.normalize("NFKC").toLocaleLowerCase().replace(/\s+/g, "");
     const markDirty = () => { dirty = true; message("plan-success", ""); };
-    async function request(path, options = {}) {
-        const response = await fetch(path, {cache:"no-store", headers:{"Content-Type":"application/json"}, ...options});
-        let result;
-        try { result = await response.json(); } catch { throw new Error("服务响应异常，请重试"); }
-        if (!response.ok) throw new Error(result.detail || "操作失败，请检查输入或服务状态");
-        return result;
-    }
+    const request = window.AdminHttp.requestJson;
+    const allItems = window.AdminPagination.listAll;
     function button(text, action, className = "text-button") {
         const element = document.createElement("button");
         element.type = "button"; element.className = className; element.textContent = text;
         element.addEventListener("click", action);
         return element;
-    }
-    // 下拉选项读取完整分页结果，不能把第一页误认为全部项目或渠道。
-    async function allItems(path) {
-        const items = [];
-        for (let current = 0; ; current++) {
-            const result = await request(path + "?page=" + current + "&size=100");
-            items.push(...result.items);
-            if (items.length >= result.total || !result.items.length) return items;
-        }
     }
     async function loadOptions() {
         const [projects, models] = await Promise.all([allItems("/projects"), allItems("/llm-channels")]);

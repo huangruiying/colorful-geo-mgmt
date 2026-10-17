@@ -1,5 +1,6 @@
 // 独立 Playwright 登录页：只展示平台状态和扫码截图，不读取或展示数据库 Cookie。
 const baseUrl = '/admin/browser-login/platforms';
+const request = window.AdminHttp.requestJson;
 const platformRows = document.getElementById('platform-rows');
 const notice = document.getElementById('notice');
 const loginTask = document.getElementById('login-task');
@@ -31,20 +32,6 @@ let cancelPending = false;
 let loginMode = 'qr';
 let pollAbortController = null;
 
-async function request(path, options = {}) {
-    const response = await fetch(baseUrl + path, {
-        ...options,
-        cache: 'no-store',
-        headers: options.body ? { 'Content-Type': 'application/json' } : undefined
-    });
-    if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.detail || `请求失败（${response.status}）`);
-    }
-    const body = await response.text();
-    return body ? JSON.parse(body) : null;
-}
-
 function showNotice(message) {
     notice.textContent = message;
     notice.hidden = !message;
@@ -75,9 +62,10 @@ function renderLoginSummary(platforms) {
     document.getElementById('unknown-count').textContent = connected.length - loggedIn - notLoggedIn;
 }
 
+/** 读取平台登录状态和支持的方式，更新列表及概览；不读取数据库会话内容。 */
 async function loadPlatforms() {
     try {
-        const platforms = await request('/login-statuses');
+        const platforms = await request(baseUrl + '/login-statuses');
         platformNames = Object.fromEntries(platforms.map(platform => [platform.platformType, platform.platformName]));
         platformLoginMethods = Object.fromEntries(platforms.map(platform =>
             [platform.platformType, platform.loginMethods || []]));
@@ -207,7 +195,7 @@ async function switchLoginMode(mode) {
     setLoginBusy(true);
     loginFeedback.textContent = '正在取消上一次登录…';
     try {
-        await request(`/${activePlatform}/login/cancel`, { method: 'POST' });
+        await request(`${baseUrl}/${activePlatform}/login/cancel`, { method: 'POST' });
         loginFeedback.textContent = mode === 'sms' ? '请输入手机号并获取验证码。' : '请输入账号和密码。';
     } catch (error) {
         loginFeedback.textContent = error.message;
@@ -297,6 +285,7 @@ loginScreenshot.addEventListener('error', () => {
     scanPlaceholderText.textContent = '扫码图片加载失败，请点击“刷新扫码图片”重试。';
 });
 
+/** 在选定平台开启登录页；旧读取失效后展示新进度，扫码模式才启动结果轮询。 */
 async function startLogin(platform, scanMethod = 'PLATFORM_APP', requestedMode) {
     if (loginBusy) return;
     if ((scanMethod === 'WECHAT' || scanMethod === 'QQ') && platformAgreementLinks[platform]
@@ -349,7 +338,7 @@ async function startLogin(platform, scanMethod = 'PLATFORM_APP', requestedMode) 
         });
         if (mode === 'qr') params.set('scanMethod', scanMethod);
         const scanQuery = `?${params}`;
-        const progress = await request(`/${platform}/login${scanQuery}`, { method: 'POST' });
+        const progress = await request(`${baseUrl}/${platform}/login${scanQuery}`, { method: 'POST' });
         if (generation !== loginGeneration) return;
         loginPageFailed = false;
         renderProgress(progress);
@@ -371,6 +360,7 @@ async function startLogin(platform, scanMethod = 'PLATFORM_APP', requestedMode) 
     }
 }
 
+/** 串行提交登录交互，保留协议勾选要求；发码后不提前轮询登录结果。 */
 async function submitLoginAction(path, payload) {
     if (!activePlatform || loginBusy) return;
     if (platformAgreementLinks[activePlatform] && !document.getElementById('agree-to-platform-terms').checked) {
@@ -386,7 +376,7 @@ async function submitLoginAction(path, payload) {
     loginFeedback.textContent = `正在操作${platformNames[activePlatform] || activePlatform}登录页…`;
     loginFeedback.classList.toggle('login-feedback-error', false);
     try {
-        renderProgress(await request(`/${activePlatform}/login/${path}`, {
+        renderProgress(await request(`${baseUrl}/${activePlatform}/login/${path}`, {
             method: 'POST', body: JSON.stringify(payload)
         }));
         // 发码本身不代表开始登录；提交验证码或密码后才查询本次登录结果。
@@ -399,6 +389,7 @@ async function submitLoginAction(path, payload) {
     }
 }
 
+/** 读取当前登录结果；取消信号和登录代次共同防止旧扫码结果回填。 */
 async function refreshLogin() {
     if (!activePlatform || polling) return;
     const platform = activePlatform;
@@ -406,7 +397,7 @@ async function refreshLogin() {
     polling = true;
     pollAbortController = new AbortController();
     try {
-        const progress = await request(`/${platform}/scan/login/result`, { signal: pollAbortController.signal });
+        const progress = await request(`${baseUrl}/${platform}/scan/login/result`, { signal: pollAbortController.signal });
         if (activePlatform === platform && generation === loginGeneration) renderProgress(progress);
     } catch (error) {
         if (error.name === 'AbortError' || generation !== loginGeneration) return;
@@ -423,9 +414,10 @@ async function refreshScanImage() {
     if (activePlatform) await startLogin(activePlatform, activeScanMethod, loginMode);
 }
 
+/** 核验指定平台已保存的登录态，显示结果并刷新列表，不自动发起登录。 */
 async function checkLogin(platform) {
     try {
-        const result = await request(`/${platform}/check`, { method: 'POST' });
+        const result = await request(`${baseUrl}/${platform}/check`, { method: 'POST' });
         showNotice(`${result.platformName}：${statusText(result.status)}`);
         await loadPlatforms();
     } catch (error) {
@@ -433,12 +425,13 @@ async function checkLogin(platform) {
     }
 }
 
+/** 仅检测已登录平台；操作结束恢复按钮，结果仍以服务端核验为准。 */
 async function checkLoggedInPlatforms() {
     const button = document.getElementById('check-logged-in-platforms');
     button.disabled = true;
     button.classList.add('is-loading');
     try {
-        const checked = await request('/logged-in/check', { method: 'POST' });
+        const checked = await request(baseUrl + '/logged-in/check', { method: 'POST' });
         await loadPlatforms();
         showNotice(checked.length
             ? `已检测 ${checked.length} 个已登录平台：${checked.map(platform => `${platform.platformName} ${statusText(platform.status)}`).join('、')}`
@@ -451,6 +444,7 @@ async function checkLoggedInPlatforms() {
     }
 }
 
+/** 先关闭本页登录窗口和读取，再请求服务端清理本次登录；已有登录态保留。 */
 async function cancelLogin() {
     if (!activePlatform || cancelPending) return;
     const platform = activePlatform;
@@ -466,7 +460,7 @@ async function cancelLogin() {
     loginScreenshot.removeAttribute('src');
     showNotice('正在关闭本次登录…');
     try {
-        await request(`/${platform}/login/cancel`, { method: 'POST' });
+        await request(`${baseUrl}/${platform}/login/cancel`, { method: 'POST' });
         showNotice('已取消本次登录；数据库中已有登录态未删除。');
     } catch (error) {
         showNotice(`窗口已关闭，但服务端登录任务取消失败：${error.message}`);

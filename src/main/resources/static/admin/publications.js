@@ -1,9 +1,7 @@
 /** 发布记录列表：展示本地状态和平台结果，删除只作用于本地记录。 */
-const publishStatusLabels = {
-    INITIALIZED: "待预发布", PRE_PUBLISHING: "预发布中", PRE_PUBLISHED: "预发布成功",
-    PUBLISHING: "实际发布中", PUBLISHED: "实际发布成功",
-    PRE_PUBLISH_FAILED: "预发布失败", PUBLISH_FAILED: "实际发布失败", CANCELLED: "已取消"
-};
+const publishStatusLabels = window.PublishStatus.labels;
+const requestJson = window.AdminHttp.requestJson;
+const formatDate = window.AdminFormat.dateTime;
 const pageSize = 20;
 let currentPage = 0;
 const recordRows = document.querySelector("#record-rows");
@@ -16,14 +14,6 @@ document.querySelector("#next-page").addEventListener("click", () => loadContent
 document.querySelector("#close-detail").addEventListener("click", () => detailDialog.close());
 document.querySelector("#close-detail-bottom").addEventListener("click", () => detailDialog.close());
 loadContentPublishRecords(0);
-
-/** 接口失败时读取 ProblemDetail；删除成功的 204 响应没有正文。 */
-async function requestJson(path, options = {}) {
-    const response = await fetch(path, {headers: {Accept: "application/json"}, cache: "no-store", ...options});
-    const body = response.status === 204 ? null : await response.json().catch(() => null);
-    if (!response.ok) throw new Error(body?.detail || `接口返回 HTTP ${response.status}`);
-    return body;
-}
 
 /** 分页读取发布表；当前页删空时退回上一页。 */
 async function loadContentPublishRecords(page) {
@@ -133,18 +123,6 @@ function openRecordDetail(record) {
     detailDialog.showModal();
 }
 
-/** URL 只允许 HTTP(S)（safeWebUrl 定义在 url-utils.js），平台返回值不直接拼入 HTML。 */
-function appendWebLink(container, url, label) {
-    const href = safeWebUrl(url);
-    if (!href) return;
-    const link = document.createElement("a");
-    link.href = href;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = label;
-    container.append(link);
-}
-
 function appendText(container, value) {
     const line = document.createElement("div");
     line.textContent = value;
@@ -176,6 +154,3 @@ function showNotice(message, error) {
     pageNotice.hidden = false;
 }
 
-function formatDate(value) {
-    return value ? new Date(value).toLocaleString("zh-CN", {hour12: false}) : "—";
-}

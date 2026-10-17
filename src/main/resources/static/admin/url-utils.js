@@ -1,9 +1,5 @@
 /**
- * 管理后台共用的 URL 辅助函数。
- *
- * <p>此前 safeWebUrl / appendHashParam 只写在 contents.js 里，publications.js 直接引用导致
- * 「appendHashParam is not defined」。收敛到本文件（两个页面都在各自脚本前以 defer 引入），
- * 作为唯一实现来源，避免再次漂移。</p>
+ * 管理后台网页链接与平台草稿入口；调用方先加载此脚本，不拼接原始 HTML。
  */
 
 /** 只允许网页协议进入可点击链接，避免平台或模型返回可执行的 URL。 */
@@ -27,15 +23,21 @@ function draftEntry(record) {
 /** 将平台草稿入口展示为普通链接，不创建额外的查看流程。 */
 function appendDraftEntry(container, record) {
     const entry = draftEntry(record);
-    const href = safeWebUrl(entry.url);
-    if (!href) return;
+    const link = appendWebLink(container, entry.url, entry.label);
+    if (link) link.title = entry.title || "打开平台草稿";
+}
+
+/** 添加仅允许 HTTP(S) 的独立窗口链接；无效地址返回 null，调用方决定是否显示纯文本。 */
+function appendWebLink(container, url, label) {
+    const href = safeWebUrl(url);
+    if (!href) return null;
     const link = document.createElement("a");
     link.href = href;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.textContent = entry.label;
-    link.title = entry.title || "打开平台草稿";
+    link.textContent = label;
     container.append(link);
+    return link;
 }
 
 /** 为「打开草稿」链接补上平台草稿 ID。

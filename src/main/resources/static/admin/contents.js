@@ -1,9 +1,7 @@
 /** 内容工作台：优化稿入库后，在预发布弹窗确认最终稿并创建逐平台草稿。 */
-const publishStatusLabels = {
-    INITIALIZED: "待预发布", PRE_PUBLISHING: "预发布中", PRE_PUBLISHED: "预发布成功",
-    PUBLISHING: "实际发布中", PUBLISHED: "实际发布成功",
-    PRE_PUBLISH_FAILED: "预发布失败", PUBLISH_FAILED: "实际发布失败", CANCELLED: "已取消"
-};
+const publishStatusLabels = window.PublishStatus.labels;
+const requestJson = window.AdminHttp.requestJson;
+const formatDate = window.AdminFormat.dateTime;
 const pageSize = 20;
 let currentPage = 0;
 let currentDetail = null;
@@ -28,20 +26,6 @@ document.querySelectorAll("[data-close]").forEach(button => button.addEventListe
     document.getElementById(button.dataset.close).close();
 }));
 loadContentRecords(0);
-
-/** 只接收 JSON 结果；接口失败优先显示可读的业务说明。 */
-async function requestJson(path, options = {}) {
-    const response = await fetch(path, {
-        ...options,
-        headers: {Accept: "application/json", ...(options.body ? {"Content-Type": "application/json"} : {})},
-        cache: "no-store"
-    });
-    const body = await response.json().catch(() => null);
-    if (!response.ok) {
-        throw new Error(body?.detail || `接口返回 HTTP ${response.status}`);
-    }
-    return body;
-}
 
 /** 分页加载摘要，正文只在用户查看详情时读取。 */
 async function loadContentRecords(page) {
@@ -273,15 +257,13 @@ function renderCitations(citations) {
     const node = document.querySelector("#optimization-citations");
     node.hidden = citations.length === 0;
     node.replaceChildren(...citations.map(citation => {
-        const url = safeWebUrl(citation.url);
-        const element = document.createElement(url ? "a" : "span");
-        element.textContent = citation.title || citation.url || "未命名引用";
-        if (url) {
-            element.href = url;
-            element.target = "_blank";
-            element.rel = "noopener noreferrer";
-        }
-        return element;
+        const item = document.createElement("span");
+        const title = citation.title || citation.url || "未命名引用";
+        // 无有效网页地址时仍保留引用名称，不生成可执行链接。
+        const link = appendWebLink(item, citation.url, title);
+        if (link) return link;
+        item.textContent = title;
+        return item;
     }));
 }
 
@@ -302,11 +284,6 @@ function showEmptyRows(message) {
     cell.textContent = message;
     row.append(cell);
     recordRows.replaceChildren(row);
-}
-
-function formatDate(value) {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", {hour12: false});
 }
 
 function showMessage(node, message, type) {
