@@ -5,7 +5,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskResultAnalysisPrompt;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskResultRuleAnalyzer;
-import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisReportSummarizer;
+import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskReportSummarizer;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService.ReportAnswer;
@@ -32,11 +32,11 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /** 报告生成编排：冻结默认判定渠道、逐条判定、失败不重试继续下一条、全部判定后汇总；不连接数据库与模型。 */
-class DiagnosisReportWorkerTest {
-    private final DiagnosisReportWorker worker = new DiagnosisReportWorker();
+class DiagnosisTaskReportWorkerTest {
+    private final DiagnosisTaskReportWorker worker = new DiagnosisTaskReportWorker();
     private final GeoDiagnosisTaskReportService service = mock(GeoDiagnosisTaskReportService.class);
     private final DiagnosisTaskResultAnalysisPrompt analysisPrompt = mock(DiagnosisTaskResultAnalysisPrompt.class);
-    private final DiagnosisReportSummarizer summarizer = mock(DiagnosisReportSummarizer.class);
+    private final DiagnosisTaskReportSummarizer summarizer = mock(DiagnosisTaskReportSummarizer.class);
     private final LLMClient llmClient = mock(LLMClient.class);
     private final LLMStrategyRouter router = mock(LLMStrategyRouter.class);
     private final DiagnosisTaskSnapshots snapshots = mock(DiagnosisTaskSnapshots.class);

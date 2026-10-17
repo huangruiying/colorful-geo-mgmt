@@ -23,8 +23,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /** 报告列表与详情的组装：名称取自任务快照、判定进度按状态汇总、汇总只在详情返回、输入校验。 */
-class DiagnosisReportBusinessTest {
-    private final DiagnosisReportBusiness business = new DiagnosisReportBusiness();
+class DiagnosisTaskReportBusinessTest {
+    private final DiagnosisTaskReportBusiness business = new DiagnosisTaskReportBusiness();
     private final GeoDiagnosisTaskReportService service = mock(GeoDiagnosisTaskReportService.class);
     private final GeoDiagnosisTaskReportDao reports = mock(GeoDiagnosisTaskReportDao.class);
     private final GeoDiagnosisTaskResultAnalysisDao analyses = mock(GeoDiagnosisTaskResultAnalysisDao.class);

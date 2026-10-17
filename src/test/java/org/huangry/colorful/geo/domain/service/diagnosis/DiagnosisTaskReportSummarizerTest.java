@@ -18,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * 汇总口径：以一个模型的 7 条回答（含 1 条判定失败）逐项核对。
  * <p>非品牌 4 条：Q1 两次（一次首推、一次未提及）、Q2 两次（一次排第 3 被推荐、一次提及未推荐）；点名 2 条：正面、负面。</p>
  */
-class DiagnosisReportSummarizerTest {
-    private final DiagnosisReportSummarizer summarizer = summarizer();
+class DiagnosisTaskReportSummarizerTest {
+    private final DiagnosisTaskReportSummarizer summarizer = summarizer();
     private final JSONObject project = JSON.parseObject("{\"name\":\"团油\",\"aliases\":[\"能链团油\"],\"competitors\":[\"易加油\"]}");
 
     /** 非品牌问题的可见度、覆盖率、稳定性，点名问题的正面率与推荐份额按约定口径计算，判定失败不计入。 */
@@ -106,8 +106,8 @@ class DiagnosisReportSummarizerTest {
     }
 
     /** @return 注入规则与快照组件的汇总器 */
-    private static DiagnosisReportSummarizer summarizer() {
-        var summarizer = new DiagnosisReportSummarizer();
+    private static DiagnosisTaskReportSummarizer summarizer() {
+        var summarizer = new DiagnosisTaskReportSummarizer();
         ReflectionTestUtils.setField(summarizer, "ruleAnalyzer", new DiagnosisTaskResultRuleAnalyzer());
         ReflectionTestUtils.setField(summarizer, "snapshots", new DiagnosisTaskSnapshots());
         return summarizer;
