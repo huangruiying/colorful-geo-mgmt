@@ -1,0 +1,1943 @@
+{
+  "viewportWidths": [
+    1440,
+    390
+  ],
+  "properties": [
+    "fontSize",
+    "padding",
+    "backgroundColor",
+    "minWidth",
+    "minHeight",
+    "width",
+    "borderRadius"
+  ],
+  "before": {
+    "projects@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "220px",
+        "auto",
+        "220px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ]
+    },
+    "project-create@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "84px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "88px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "526px",
+        "7px"
+      ]
+    },
+    "models@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "220px",
+        "auto",
+        "220px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "1200px",
+        "0px",
+        "1200px",
+        "0px"
+      ]
+    },
+    "model-config@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "108px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "88px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "526px",
+        "7px"
+      ]
+    },
+    "diagnose@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "104px",
+        "8px"
+      ],
+      ".text-button": [
+        "14px",
+        "6px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "auto",
+        "0px"
+      ],
+      "main input": [
+        "16px",
+        "11px 12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "201px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "1080px",
+        "16px"
+      ],
+      "openDialog": [
+        "1080px",
+        "900px",
+        "0px",
+        "16px"
+      ]
+    },
+    "diagnosis-tasks@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "104px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "650px",
+        "16px"
+      ],
+      "openDialog": [
+        "650px",
+        "900px",
+        "0px",
+        "16px"
+      ]
+    },
+    "history-report@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "136px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "650px",
+        "16px"
+      ],
+      "openDialog": [
+        "650px",
+        "900px",
+        "0px",
+        "16px"
+      ]
+    },
+    "contents@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "560px",
+        "12px"
+      ],
+      "openDialog": [
+        "560px",
+        "860px",
+        "0px",
+        "12px"
+      ]
+    },
+    "publications@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "1040px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "940px",
+        "12px"
+      ],
+      "openDialog": [
+        "940px",
+        "860px",
+        "0px",
+        "12px"
+      ]
+    },
+    "browser-login@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      "main input": [
+        "13.3333px",
+        "9px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "100%",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "24px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "900px",
+        "14px"
+      ],
+      "openDialog": [
+        "900px",
+        "900px",
+        "24px",
+        "14px"
+      ]
+    },
+    "effect-recovery@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ]
+    },
+    "projects@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "220px",
+        "auto",
+        "278px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "760px",
+        "0px",
+        "760px",
+        "0px"
+      ]
+    },
+    "project-create@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "84px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "88px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "308px",
+        "7px"
+      ]
+    },
+    "models@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "220px",
+        "auto",
+        "278px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "1200px",
+        "0px",
+        "1200px",
+        "0px"
+      ]
+    },
+    "model-config@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "108px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "88px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "308px",
+        "7px"
+      ]
+    },
+    "diagnose@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "84.9844px",
+        "8px"
+      ],
+      ".text-button": [
+        "14px",
+        "6px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "auto",
+        "0px"
+      ],
+      "main input": [
+        "16px",
+        "11px 12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "201px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "540px",
+        "0px",
+        "540px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "370px",
+        "16px"
+      ],
+      "openDialog": [
+        "352px",
+        "940px",
+        "0px",
+        "16px"
+      ]
+    },
+    "diagnosis-tasks@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "104px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "540px",
+        "0px",
+        "540px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "370px",
+        "16px"
+      ],
+      "openDialog": [
+        "352px",
+        "940px",
+        "0px",
+        "16px"
+      ]
+    },
+    "history-report@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "136px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "540px",
+        "0px",
+        "540px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "370px",
+        "16px"
+      ],
+      "openDialog": [
+        "352px",
+        "940px",
+        "0px",
+        "16px"
+      ]
+    },
+    "contents@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "760px",
+        "0px",
+        "760px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "362px",
+        "12px"
+      ],
+      "openDialog": [
+        "352px",
+        "860px",
+        "0px",
+        "12px"
+      ]
+    },
+    "publications@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "1040px",
+        "0px",
+        "1040px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "362px",
+        "12px"
+      ],
+      "openDialog": [
+        "352px",
+        "860px",
+        "0px",
+        "12px"
+      ]
+    },
+    "browser-login@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      "main input": [
+        "13.3333px",
+        "9px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "100%",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "680px",
+        "0px",
+        "680px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "24px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "358px",
+        "14px"
+      ],
+      "openDialog": [
+        "352px",
+        "900px",
+        "24px",
+        "14px"
+      ]
+    },
+    "effect-recovery@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "540px",
+        "0px",
+        "540px",
+        "0px"
+      ]
+    }
+  },
+  "after": {
+    "projects@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "220px",
+        "auto",
+        "220px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ]
+    },
+    "project-create@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "84px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "88px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "526px",
+        "7px"
+      ]
+    },
+    "models@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "220px",
+        "auto",
+        "220px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "1200px",
+        "0px",
+        "1200px",
+        "0px"
+      ]
+    },
+    "model-config@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "108px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "88px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "526px",
+        "7px"
+      ]
+    },
+    "diagnose@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "104px",
+        "8px"
+      ],
+      ".text-button": [
+        "14px",
+        "6px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "auto",
+        "0px"
+      ],
+      "main input": [
+        "16px",
+        "11px 12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "201px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "1080px",
+        "16px"
+      ],
+      "openDialog": [
+        "1080px",
+        "900px",
+        "0px",
+        "16px"
+      ]
+    },
+    "diagnosis-tasks@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "104px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "650px",
+        "16px"
+      ],
+      "openDialog": [
+        "650px",
+        "900px",
+        "0px",
+        "16px"
+      ]
+    },
+    "history-report@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "136px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "650px",
+        "16px"
+      ],
+      "openDialog": [
+        "650px",
+        "900px",
+        "0px",
+        "16px"
+      ]
+    },
+    "contents@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "560px",
+        "12px"
+      ],
+      "openDialog": [
+        "560px",
+        "860px",
+        "0px",
+        "12px"
+      ]
+    },
+    "publications@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "1040px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "940px",
+        "12px"
+      ],
+      "openDialog": [
+        "940px",
+        "860px",
+        "0px",
+        "12px"
+      ]
+    },
+    "browser-login@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      "main input": [
+        "13.3333px",
+        "9px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "100%",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "24px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "900px",
+        "14px"
+      ],
+      "openDialog": [
+        "900px",
+        "900px",
+        "24px",
+        "14px"
+      ]
+    },
+    "effect-recovery@1440": {
+      ".sidebar": [
+        "16px",
+        "27px 15px 20px",
+        "rgb(16, 35, 63)",
+        "auto",
+        "1000px",
+        "240px",
+        "0px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "1122px",
+        "0px"
+      ]
+    },
+    "projects@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "220px",
+        "auto",
+        "278px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "760px",
+        "0px",
+        "760px",
+        "0px"
+      ]
+    },
+    "project-create@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "84px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "88px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "308px",
+        "7px"
+      ]
+    },
+    "models@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "220px",
+        "auto",
+        "278px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "1200px",
+        "0px",
+        "1200px",
+        "0px"
+      ]
+    },
+    "model-config@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "108px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "88px",
+        "7px"
+      ],
+      "main input": [
+        "13px",
+        "12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "308px",
+        "7px"
+      ]
+    },
+    "diagnose@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "84.9844px",
+        "8px"
+      ],
+      ".text-button": [
+        "14px",
+        "6px",
+        "rgba(0, 0, 0, 0)",
+        "0px",
+        "0px",
+        "auto",
+        "0px"
+      ],
+      "main input": [
+        "16px",
+        "11px 12px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "201px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "540px",
+        "0px",
+        "540px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "370px",
+        "16px"
+      ],
+      "openDialog": [
+        "352px",
+        "940px",
+        "0px",
+        "16px"
+      ]
+    },
+    "diagnosis-tasks@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "104px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "540px",
+        "0px",
+        "540px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "370px",
+        "16px"
+      ],
+      "openDialog": [
+        "352px",
+        "940px",
+        "0px",
+        "16px"
+      ]
+    },
+    "history-report@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "16px",
+        "12px 20px",
+        "rgb(52, 125, 230)",
+        "auto",
+        "auto",
+        "136px",
+        "8px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "540px",
+        "0px",
+        "540px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "370px",
+        "16px"
+      ],
+      "openDialog": [
+        "352px",
+        "940px",
+        "0px",
+        "16px"
+      ]
+    },
+    "contents@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".primary-button": [
+        "12px",
+        "0px 17px",
+        "rgb(54, 121, 220)",
+        "auto",
+        "39px",
+        "99.1875px",
+        "8px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "760px",
+        "0px",
+        "760px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "362px",
+        "12px"
+      ],
+      "openDialog": [
+        "352px",
+        "860px",
+        "0px",
+        "12px"
+      ]
+    },
+    "publications@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      ".text-button": [
+        "11px",
+        "7px 10px",
+        "rgb(255, 255, 255)",
+        "auto",
+        "auto",
+        "55px",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "1040px",
+        "0px",
+        "1040px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "0px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "362px",
+        "12px"
+      ],
+      "openDialog": [
+        "352px",
+        "860px",
+        "0px",
+        "12px"
+      ]
+    },
+    "browser-login@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      "main input": [
+        "13.3333px",
+        "9px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "100%",
+        "7px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "680px",
+        "0px",
+        "680px",
+        "0px"
+      ],
+      "dialog": [
+        "16px",
+        "24px",
+        "rgb(255, 255, 255)",
+        "0px",
+        "0px",
+        "358px",
+        "14px"
+      ],
+      "openDialog": [
+        "352px",
+        "900px",
+        "24px",
+        "14px"
+      ]
+    },
+    "effect-recovery@390": {
+      ".sidebar": [
+        "16px",
+        "14px 16px 12px",
+        "rgb(16, 35, 63)",
+        "0px",
+        "0px",
+        "390px",
+        "0px"
+      ],
+      "main table": [
+        "16px",
+        "0px",
+        "rgba(0, 0, 0, 0)",
+        "540px",
+        "0px",
+        "540px",
+        "0px"
+      ]
+    }
+  }
+}
