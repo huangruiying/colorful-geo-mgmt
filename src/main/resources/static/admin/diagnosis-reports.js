@@ -7,25 +7,24 @@
     const intentLabels = {RECOMMENDATION:"推荐选择", PROBLEM_SOLVING:"解决问题", COMPARISON:"对比", PURCHASE:"购买决策", TECHNICAL:"技术细节", AWARENESS:"了解认知"};
     // 子 Tab 与诊断报告全景一致；③–⑥ 的判定数据已保存，汇总与展示后续接入
     const tabs = [["overview", "① 诊断概览"], ["visibility", "② 可见度与推荐"], ["brand", "③ 品牌认知"], ["competitor", "④ 竞品对比"], ["source", "⑤ 引用与内容"], ["advice", "⑥ 优化建议"]];
-    let page = 0, listTimer = null, detailTimer = null, listRevision = 0, detailRevision = 0;
+    let page = 0, reportId = null, answerId = null;
     let report = null, activeTab = "overview", creating = false;
+    const request = window.AdminHttp.requestJson;
+    const answerRequests = window.AdminAsync.createRequestScope();
+    const createRequests = window.AdminAsync.createRequestScope();
     const active = status => status === "PENDING" || status === "RUNNING";
     const time = value => value?.replace("T", " ") || "—";
     const percent = value => value == null ? "—" : (value * 100).toFixed(1) + "%";
     const show = (id, text) => { byId(id).textContent = text; byId(id).hidden = !text; };
+    const listPoller = window.AdminAsync.createPoller(readReportList, error => show("report-error", error.message));
+    const detailPoller = window.AdminAsync.createPoller(readReportDetail, error => show("detail-error", error.message));
+    const loadList = listPoller.refresh;
     const element = (tag, className, text) => {
         const node = document.createElement(tag);
         if (className) node.className = className;
         if (text != null) node.textContent = text;
         return node;
     };
-    async function request(path, options = {}) {
-        const response = await fetch(path, {cache:"no-store", headers:{"Content-Type":"application/json"}, ...options});
-        let body;
-        try { body = await response.json(); } catch { throw new Error("服务响应异常，请刷新后重试"); }
-        if (!response.ok) throw new Error(body.detail || "操作失败，请检查输入或服务状态");
-        return body;
-    }
     function statusBadge(status) {
         const span = element("span", "task-status", labels[status] || status);
         span.dataset.status = status;
@@ -57,13 +56,13 @@
         return node;
     }
 
-    async function loadList() {
-        clearTimeout(listTimer);
-        const revision = ++listRevision;
+    /** 当前筛选页的数据才可写入列表；生成中的报告继续刷新，失败不再静默停止。 */
+    async function readReportList(ticket) {
         const query = new URLSearchParams({page, size:10});
         if (byId("filter-status").value) query.set("status", byId("filter-status").value);
-        const result = await request("/diagnosis-reports?" + query);
-        if (revision !== listRevision) return;
+        const result = await request("/diagnosis-reports?" + query, {signal:ticket.signal});
+        if (!ticket.isCurrent()) return false;
+        show("report-error", "");
         const rows = byId("report-list"); rows.replaceChildren();
         if (!result.items.length) {
             const cell = rows.insertRow().insertCell(); cell.colSpan = 6; cell.className = "table-message";
@@ -84,48 +83,55 @@
         byId("report-page-info").textContent = "第 " + (page + 1) + " 页 · 共 " + result.total + " 份";
         byId("report-previous").disabled = page === 0;
         byId("report-next").disabled = (page + 1) * 10 >= result.total;
-        // 有报告在生成时定期刷新进度
-        if (result.items.some(item => active(item.status))) listTimer = setTimeout(() => loadList().catch(() => {}), 3000);
+        return result.items.some(item => active(item.status));
     }
 
-    async function openCreate(preselectedTaskId) {
+    /** 读取全部候选任务；关闭窗口或再次打开时，旧候选请求不再回填。 */
+    const openCreate = preselectedTaskId => createRequests.run(async ticket => {
         show("create-error", "");
         const select = byId("create-task");
+        select.disabled = true; byId("submit-create").disabled = true;
         select.replaceChildren(new Option("正在加载…", ""));
-        createDialog.showModal();
-        const result = await request("/diagnosis-tasks?page=0&size=100");
+        if (!createDialog.open) createDialog.showModal();
+        document.body.classList.add("task-dialog-open");
+        const items = await window.AdminPagination.listAll("/diagnosis-tasks", {signal:ticket.signal});
+        if (!ticket.isCurrent() || !createDialog.open) return;
         // 只有已结束且有成功回答的任务才能生成报告，与服务端校验一致
-        const tasks = result.items.filter(task => task.status === "SUCCEEDED" || task.status === "PARTIAL_FAILED");
+        const tasks = items.filter(task => task.status === "SUCCEEDED" || task.status === "PARTIAL_FAILED");
         select.replaceChildren(new Option(tasks.length ? "请选择诊断任务" : "暂无可生成报告的诊断任务", ""));
         for (const task of tasks) {
             select.add(new Option("#" + task.id + " · " + (task.planName || "—") + " · " + (task.projectName || "—")
                 + " · 成功 " + task.progress.succeeded + " 条 · " + time(task.createdAt), task.id));
         }
         if (preselectedTaskId && tasks.some(task => String(task.id) === preselectedTaskId)) select.value = preselectedTaskId;
-    }
+        select.disabled = false; byId("submit-create").disabled = !tasks.length;
+    });
 
+    /** 打开指定报告，先取消旧详情与回答，避免不同报告之间共享未完成读取。 */
     async function openDetail(id) {
-        clearTimeout(detailTimer);
-        report = null; activeTab = "overview"; show("detail-error", "");
+        detailPoller.stop(); answerRequests.cancel(); answerDialog.close();
+        reportId = id; report = null; activeTab = "overview"; show("detail-error", "");
         byId("report-detail-title").textContent = "诊断报告 #" + id;
         byId("report-panel").replaceChildren(element("p", "help", "正在加载…"));
         if (!detailDialog.open) detailDialog.showModal();
-        await refreshDetail(id);
+        document.body.classList.add("task-dialog-open");
+        await detailPoller.refresh();
     }
 
-    async function refreshDetail(id) {
-        clearTimeout(detailTimer);
-        const revision = ++detailRevision;
-        const detail = await request("/diagnosis-reports/" + id);
-        if (revision !== detailRevision || !detailDialog.open) return;
+    /** 只更新仍打开的当前报告；读取完成后由公共轮询按报告状态决定是否继续。 */
+    async function readReportDetail(ticket) {
+        if (!detailDialog.open) return false;
+        const id = reportId;
+        const detail = await request("/diagnosis-reports/" + id, {signal:ticket.signal});
+        if (!ticket.isCurrent() || reportId !== id || !detailDialog.open) return false;
+        show("detail-error", "");
         report = detail;
         const judge = detail.judgeChannel ? (detail.judgeChannel.channelName || "—") + " · " + (detail.judgeChannel.modelName || "—") : "未开始";
         byId("report-detail-note").textContent = (detail.planName || "—") + " / " + (detail.projectName || "—") + " · 诊断任务 #" + detail.diagnosisTaskId
             + " · 判定模型：" + judge + " · " + (labels[detail.status] || detail.status);
         renderTabs();
         renderPanel();
-        // 生成中每 3 秒刷新判定进度，完成后停止
-        if (active(detail.status)) detailTimer = setTimeout(() => refreshDetail(id).catch(error => show("detail-error", error.message)), 3000);
+        return active(detail.status);
     }
 
     function renderTabs() {
@@ -207,25 +213,41 @@
     }
 
     /** 读取报告对应的完整回答，正文使用 Markdown，问题与错误提示保持原文。 */
-    async function openAnswer(resultId) {
+    const openAnswer = resultId => answerRequests.run(async ticket => {
+        const owner = reportId, taskId = report.diagnosisTaskId;
+        answerId = resultId;
         show("answer-error", "");
         byId("answer-content").textContent = "正在加载…";
-        answerDialog.showModal();
+        byId("answer-note").textContent = "";
+        if (!answerDialog.open) answerDialog.showModal();
         try {
-            const answer = await request("/diagnosis-tasks/" + report.diagnosisTaskId + "/results/" + resultId);
+            const answer = await request("/diagnosis-tasks/" + taskId + "/results/" + resultId, {signal:ticket.signal});
+            if (!ticket.isCurrent() || reportId !== owner || !detailDialog.open || !answerDialog.open) return;
             byId("answer-note").textContent = (answer.channelName || "—") + " · 问题：" + (answer.questionText || "—");
             MarkdownView.render(byId("answer-content"), answer.answerText || "无回答正文");
-        } catch (error) { byId("answer-content").textContent = ""; show("answer-error", error.message); }
-    }
+        } catch (error) {
+            if (ticket.isCurrent() && answerDialog.open && reportId === owner) {
+                byId("answer-content").textContent = ""; show("answer-error", error.message);
+            }
+        }
+    });
 
     byId("report-filters").addEventListener("submit", event => { event.preventDefault(); page = 0; loadList().catch(error => show("report-error", error.message)); });
     byId("report-previous").addEventListener("click", () => { page--; loadList().catch(error => show("report-error", error.message)); });
     byId("report-next").addEventListener("click", () => { page++; loadList().catch(error => show("report-error", error.message)); });
     byId("new-report").addEventListener("click", () => openCreate(null).catch(error => show("create-error", error.message)));
-    byId("close-create").addEventListener("click", () => createDialog.close());
-    byId("cancel-create").addEventListener("click", () => createDialog.close());
-    byId("close-detail").addEventListener("click", () => { clearTimeout(detailTimer); detailDialog.close(); });
+    byId("close-create").addEventListener("click", () => { if (!creating) createDialog.close(); });
+    byId("cancel-create").addEventListener("click", () => { if (!creating) createDialog.close(); });
+    byId("close-detail").addEventListener("click", () => detailDialog.close());
     byId("close-answer").addEventListener("click", () => answerDialog.close());
+    window.AdminDialogs.bind([createDialog, detailDialog, answerDialog], {
+        canClose:dialog => dialog !== createDialog || !creating,
+        onClose:dialog => {
+            if (dialog === createDialog) createRequests.cancel();
+            if (dialog === detailDialog) { detailPoller.stop(); answerRequests.cancel(); answerDialog.close(); reportId = null; report = null; }
+            if (dialog === answerDialog) { answerRequests.cancel(); answerId = null; }
+        }
+    });
     byId("create-report-form").addEventListener("submit", async event => {
         event.preventDefault();
         if (creating || !byId("create-task").value) return;
@@ -242,5 +264,14 @@
 
     // 从诊断任务详情跳转时带 diagnosisTaskId，直接打开生成对话框并选中该任务
     const preselected = new URLSearchParams(location.search).get("diagnosisTaskId");
+    window.addEventListener("pagehide", () => { listPoller.stop(); detailPoller.stop(); answerRequests.cancel(); createRequests.cancel(); });
+    // 后退恢复时为仍打开的窗口重新读取；取消等待没有终止服务端生成。
+    window.addEventListener("pageshow", event => {
+        if (!event.persisted) return;
+        loadList();
+        if (detailDialog.open) detailPoller.refresh();
+        if (answerDialog.open && answerId != null) openAnswer(answerId);
+        if (createDialog.open) openCreate(byId("create-task").value).catch(error => show("create-error", error.message));
+    });
     loadList().then(() => preselected ? openCreate(preselected) : null).catch(error => show("report-error", error.message));
 })();
