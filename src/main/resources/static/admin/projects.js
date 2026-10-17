@@ -1,14 +1,9 @@
 "use strict";
 (() => {
-    const version = "20261010-project1";
+    const version = "20261017-http1";
+    const request = window.AdminHttp.requestJson;
     const error = document.getElementById("project-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
-    async function request(path, options = {}) {
-        const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.detail || "项目操作失败，请稍后重试");
-        return body;
-    }
     const form = document.getElementById("project-form");
     if (form) {
         form.addEventListener("submit", async event => {

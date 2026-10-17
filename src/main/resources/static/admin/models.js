@@ -1,14 +1,8 @@
 "use strict";
 (() => {
-    const version = "20261017-keyurl2", error = document.getElementById("model-error");
+    const version = "20261017-http1", error = document.getElementById("model-error");
+    const request = window.AdminHttp.requestJson;
     const showError = message => { error.textContent = message; error.hidden = !message; };
-    async function request(path, options = {}) {
-        const response = await fetch(path, {cache: "no-store", headers: {"Content-Type": "application/json"}, ...options});
-        let body;
-        try { body = await response.json(); } catch { throw new Error("服务返回异常，请稍后重试"); }
-        if (!response.ok) throw new Error(body.detail || "模型配置操作失败，请稍后重试");
-        return body;
-    }
     const form = document.getElementById("model-form"), rawId = new URLSearchParams(location.search).get("id");
     if (form) {
         const button = document.getElementById("save-model");

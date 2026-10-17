@@ -56,7 +56,13 @@ public class GeoDiagnosisTaskReportService {
     private DiagnosisTaskSnapshots snapshots;
 
     /**
-     * 为已结束的诊断任务创建一份待生成的报告，并为每条有效回答建立待判定记录。
+     * 为已结束的诊断任务创建一份待生成的报告，并为每条有效回答建立待判定记录；不调用模型，判定与汇总由 DiagnosisTaskReportWorker 后台完成。
+     * <p>写入（同一事务，任一步失败整体回滚）：
+     * <ul>
+     *   <li>geo_diagnosis_task_report：新增 1 条，status = PENDING，判定渠道与汇总留空；</li>
+     *   <li>geo_diagnosis_task_result_analysis：每条有效回答新增 1 条，status = PENDING，判定字段留空。</li>
+     * </ul>
+     * 有效回答：geo_diagnosis_task_result 中 status = SUCCEEDED 且结束原因不是 length（未被截断）。</p>
      * @param taskId 诊断任务 ID
      * @return 回读后的新报告，状态为 PENDING
      * @throws NoSuchElementException 诊断任务不存在
@@ -64,7 +70,7 @@ public class GeoDiagnosisTaskReportService {
      */
     @Transactional
     public GeoDiagnosisTaskReportEntity createReport(long taskId) {
-        // 1. 锁住诊断任务，与重新发起、后台领取及并发生成串行；只有结束且有成功结果的任务才能分析
+        // 1. 锁住 geo_diagnosis_task 中的该任务，与重新发起、后台领取及并发生成串行；只有全部成功或部分失败的任务才能分析
         GeoDiagnosisTaskEntity task = taskDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisTaskEntity>()
                 .eq(GeoDiagnosisTaskEntity::getId, taskId).last("FOR UPDATE"));
         if (task == null) {
@@ -73,14 +79,14 @@ public class GeoDiagnosisTaskReportService {
         if (!List.of(DiagnosisTaskStatus.SUCCEEDED.name(), DiagnosisTaskStatus.PARTIAL_FAILED.name()).contains(task.getStatus())) {
             throw new IllegalArgumentException("诊断任务尚未结束或全部失败，无法生成报告");
         }
-        // 2. 同一任务同时只允许一份报告在生成，避免重复判定计费
+        // 2. 查 geo_diagnosis_task_report，同一任务同时只允许一份报告处于 PENDING 或 RUNNING，避免重复判定计费
         boolean generating = reportDao.exists(new LambdaQueryWrapper<GeoDiagnosisTaskReportEntity>()
                 .eq(GeoDiagnosisTaskReportEntity::getTaskId, taskId)
                 .in(GeoDiagnosisTaskReportEntity::getStatus, DiagnosisTaskReportStatus.PENDING.name(), DiagnosisTaskReportStatus.RUNNING.name()));
         if (generating) {
             throw new IllegalArgumentException("该诊断任务已有报告正在生成，请等待完成");
         }
-        // 3. 创建报告，并按口径为成功且未截断的回答建立待判定记录；没有有效回答时整体回滚
+        // 3. 写入报告，再从 geo_diagnosis_task_result 选出有效回答批量写入待判定记录；没有有效回答时整体回滚
         GeoDiagnosisTaskReportEntity report = new GeoDiagnosisTaskReportEntity();
         report.setTaskId(taskId);
         report.setStatus(DiagnosisTaskReportStatus.PENDING.name());
@@ -91,7 +97,7 @@ public class GeoDiagnosisTaskReportService {
             throw new IllegalArgumentException("该诊断任务没有可分析的有效回答");
         }
         log.info("诊断报告已创建 reportId={}, taskId={}, analysisCount={}", report.getId(), taskId, analysisCount);
-        // 4. 回读数据库生成的时间字段
+        // 4. 回读报告，取数据库生成的时间字段
         return reportDao.selectById(report.getId());
     }
 

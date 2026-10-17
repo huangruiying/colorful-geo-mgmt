@@ -209,7 +209,7 @@ test('登录页打开失败时在弹窗显示原因并允许重试', async () =>
         if (url.includes('/XIAOHONGSHU/login?') && failOnce) {
             failOnce = false;
             return Promise.resolve({ ok: false, status: 400,
-                json: async () => ({ message: '小红书加载二维码失败，请检查网络后重试' }) });
+                json: async () => ({ detail: '小红书加载二维码失败，请检查网络后重试' }) });
         }
         return originalFetch(url, options);
     };
