@@ -14,7 +14,7 @@ public class GeoDiagnosisTaskReportEntity {
     private Long id;
     /** 所属诊断任务 ID；同一任务可多次生成报告，旧报告保留。 */
     private Long taskId;
-    /** 报告生成状态，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisReportStatus} 的枚举名称。 */
+    /** 报告生成状态，保存 {@link org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskReportStatus} 的枚举名称。 */
     private String status;
     /** JSON 字符串：判定所用渠道（默认渠道，即已启用渠道中分数最高者）的非敏感配置，不保存凭据；开始判定时写入。 */
     private String judgeChannelSnapshot;

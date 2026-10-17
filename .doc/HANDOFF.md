@@ -4,6 +4,8 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-17 命名统一（用户确认）：`DiagnosisTaskBusiness` 查询方法改为 listTasks / getTask / listTaskResults / getTaskResult；报告相关类随表与领域层统一为 TaskReport：`DiagnosisTaskReportBusiness`、`DiagnosisTaskReportResponse`、`MgmtDiagnosisTaskReportController`、`DiagnosisTaskReportWorker`、`DiagnosisTaskReportSummarizer`、`DiagnosisTaskReportStatus` 及对应测试（控制器测试为 MgmtDiagnosisTaskReportControllerTest）。接口路径 /diagnosis-reports 与页面“诊断报告”不变。Maven 离线 compile 通过，诊断相关独立 JUnit 58 项全部通过。未提交。
+
 - 2026-10-17 诊断报告接口改用 `diagnosisTaskId`（用户确认，避免以后与导出等其他任务混淆）：生成报告改为 `POST /diagnosis-reports/diagnosis-tasks/{diagnosisTaskId}`，删除 `CreateDiagnosisReportRequest`；列表筛选 `?diagnosisTaskId=`；`DiagnosisReportResponse`、`ResultResponse` 的 `taskId` 字段改为 `diagnosisTaskId`，注释写明对应 `geo_diagnosis_task.id` 等表字段；前端 `diagnosis-reports.js`、`diagnosis-tasks.js` 同步（版本 20261017-diagnosis-task-id）。内部变量、实体字段 `taskId` 与数据库列 `task_id` 不变。测试 367 项 366 通过（原有路由测试）。
   023 后真实写入验证（用户已重启 8010 为新代码）：方案 23 新建诊断任务 37（requestId `qa-rename-023-20261017043315`），5 条千问采样全部成功；生成报告 6（改名前接口创建，重启后新代码续跑完成），5 条能链 claude 判定全部成功，summary 7 个部分写入；库内 task/task_result/task_report/task_result_analysis 四表行与关联均正确，新列表筛选 `diagnosisTaskId=37` 返回报告 6。测试数据保留未清理。新生成接口仅单测覆盖，未用真实请求调用。未提交。
 
