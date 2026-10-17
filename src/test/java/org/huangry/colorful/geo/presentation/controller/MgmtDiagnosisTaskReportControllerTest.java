@@ -1,7 +1,7 @@
 package org.huangry.colorful.geo.presentation.controller;
 
-import org.huangry.colorful.geo.application.diagnosis.DiagnosisReportBusiness;
-import org.huangry.colorful.geo.application.diagnosis.model.DiagnosisReportResponse;
+import org.huangry.colorful.geo.application.diagnosis.DiagnosisTaskReportBusiness;
+import org.huangry.colorful.geo.application.diagnosis.model.DiagnosisTaskReportResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -15,15 +15,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /** 报告接口契约：生成返回 201，校验失败 400，缺失 404，内部异常不透传。 */
-class DiagnosisReportControllerTest {
-    private final DiagnosisReportBusiness business = mock(DiagnosisReportBusiness.class);
+class MgmtDiagnosisTaskReportControllerTest {
+    private final DiagnosisTaskReportBusiness business = mock(DiagnosisTaskReportBusiness.class);
     private final MockMvc mvc = createMvc();
 
     /** 生成报告返回 201 与判定进度；业务拒绝映射为 400 并带原因。 */
     @Test
     void shouldCreateReportOrExplainRejection() throws Exception {
-        when(business.create(30L)).thenReturn(new DiagnosisReportResponse(9L, 30L, "加油诊断", "团油", "PENDING",
-                new DiagnosisReportResponse.ProgressResponse(70, 70, 0, 0), null, null, null, null, null, null, null))
+        when(business.create(30L)).thenReturn(new DiagnosisTaskReportResponse(9L, 30L, "加油诊断", "团油", "PENDING",
+                new DiagnosisTaskReportResponse.ProgressResponse(70, 70, 0, 0), null, null, null, null, null, null, null))
                 .thenThrow(new IllegalArgumentException("该诊断任务已有报告正在生成，请等待完成"));
 
         mvc.perform(post("/diagnosis-reports/diagnosis-tasks/30"))
@@ -49,8 +49,8 @@ class DiagnosisReportControllerTest {
 
     /** @return 注入模拟业务的独立 MVC */
     private MockMvc createMvc() {
-        var controller = new MgmtDiagnosisReportController();
-        ReflectionTestUtils.setField(controller, "diagnosisReportBusiness", business);
+        var controller = new MgmtDiagnosisTaskReportController();
+        ReflectionTestUtils.setField(controller, "diagnosisTaskReportBusiness", business);
         return MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
