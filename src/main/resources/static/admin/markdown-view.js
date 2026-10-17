@@ -3,6 +3,10 @@
 (() => {
     // 禁止原始 HTML；保留普通换行，不启用智能标点转换或自动识别裸链接。
     const parser = window.markdownit({html:false, breaks:true, linkify:false, typographer:false});
+    // 先识别公式，避免公式中的独立减号被 Markdown 误认为标题；代码块不参与公式解析。
+    // 只输出浏览器原生 MathML，无需远程字体；禁止公式中的 HTML、外链和图片命令。
+    parser.use(window.texmath, {engine:window.katex, delimiters:["brackets", "dollars"],
+        katexOptions:{output:"mathml", trust:false, strict:"ignore", throwOnError:false, maxExpand:1000, maxSize:20}});
     const validateLink = parser.validateLink.bind(parser);
     /** 只允许网页、邮件和页面内链接；沿用解析器对混淆协议的原有校验。 */
     parser.validateLink = url => {
@@ -39,7 +43,7 @@
         container.classList.add("markdown-body");
         container.classList.remove("markdown-plain-fallback");
         try {
-            // HTML 仅来自禁用原始 HTML 的固定解析器，不接受自定义 HTML 或渲染插件。
+            // HTML 仅来自固定的 Markdown 与公式解析器，不接受正文中的原始 HTML。
             container.innerHTML = parser.render(source);
         } catch {
             container.textContent = source;

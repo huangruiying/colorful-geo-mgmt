@@ -24,4 +24,9 @@
 .markdown-body a { color:#2d6fce; text-decoration:underline; text-underline-offset:3px; }
 .markdown-body img { max-width:100%; height:auto; }
 .markdown-body hr { border:0; border-top:1px solid #dce4ef; margin:20px 0; }
+/* 公式使用原生 MathML，长公式在正文内部滚动，不扩大弹窗。 */
+.markdown-body eq { display:inline; }
+.markdown-body eqn { display:block; overflow-x:auto; max-width:100%; margin:16px 0; padding:8px 0; }
+.markdown-body eqn math { min-width:max-content; }
+.markdown-body .eqno { position:relative; }
 @media(max-width:700px) { .markdown-body h1 { font-size:21px; } .markdown-body h2 { font-size:19px; } .markdown-body pre { padding:12px; } }
