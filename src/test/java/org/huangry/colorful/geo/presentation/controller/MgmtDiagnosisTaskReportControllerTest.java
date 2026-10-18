@@ -1,6 +1,7 @@
 package org.huangry.colorful.geo.presentation.controller;
 
 import org.huangry.colorful.geo.application.diagnosis.DiagnosisTaskReportBusiness;
+import org.huangry.colorful.geo.application.diagnosis.DiagnosisTaskReportSupplementBusiness;
 import org.huangry.colorful.geo.application.diagnosis.model.DiagnosisTaskReportResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -14,9 +15,10 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** 报告接口契约：生成返回 201，校验失败 400，缺失 404，内部异常不透传。 */
+/** 报告接口契约：生成返回 201，补全返回 200，校验失败 400，缺失 404，内部异常不透传。 */
 class MgmtDiagnosisTaskReportControllerTest {
     private final DiagnosisTaskReportBusiness business = mock(DiagnosisTaskReportBusiness.class);
+    private final DiagnosisTaskReportSupplementBusiness supplementBusiness = mock(DiagnosisTaskReportSupplementBusiness.class);
     private final MockMvc mvc = createMvc();
 
     /** 生成报告返回 201 与判定进度；业务拒绝映射为 400 并带原因。 */
@@ -36,6 +38,18 @@ class MgmtDiagnosisTaskReportControllerTest {
                 .andExpect(jsonPath("$.detail").value("该诊断任务已有报告正在生成，请等待完成"));
     }
 
+    /** 补全返回补全后的报告；已补全等业务拒绝映射为 400 并带原因。 */
+    @Test
+    void shouldSupplementReportOrExplainRejection() throws Exception {
+        when(supplementBusiness.supplementReport(9L)).thenReturn(new DiagnosisTaskReportResponse(9L, 30L, "加油诊断", "团油", "SUCCEEDED",
+                new DiagnosisTaskReportResponse.ProgressResponse(70, 0, 70, 0), null, "v1", null, null, null, null, null))
+                .thenThrow(new IllegalArgumentException("该报告内容完整，无需补全"));
+
+        mvc.perform(post("/diagnosis-reports/9/supplement")).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(9));
+        mvc.perform(post("/diagnosis-reports/9/supplement")).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("该报告内容完整，无需补全"));
+    }
+
     /** 不存在的报告 404；内部状态异常 500 且不透传原文。 */
     @Test
     void shouldMapMissingAndInternalFailures() throws Exception {
@@ -51,6 +65,7 @@ class MgmtDiagnosisTaskReportControllerTest {
     private MockMvc createMvc() {
         var controller = new MgmtDiagnosisTaskReportController();
         ReflectionTestUtils.setField(controller, "diagnosisTaskReportBusiness", business);
+        ReflectionTestUtils.setField(controller, "diagnosisTaskReportSupplementBusiness", supplementBusiness);
         return MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }

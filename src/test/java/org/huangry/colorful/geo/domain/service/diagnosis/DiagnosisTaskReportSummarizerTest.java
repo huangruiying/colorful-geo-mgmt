@@ -4,6 +4,11 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService.ReportAnswer;
+import org.huangry.colorful.geo.domain.service.diagnosis.report.ReportBrandSummarizer;
+import org.huangry.colorful.geo.domain.service.diagnosis.report.ReportCompetitorSummarizer;
+import org.huangry.colorful.geo.domain.service.diagnosis.report.ReportIssueSummarizer;
+import org.huangry.colorful.geo.domain.service.diagnosis.report.ReportSourceSummarizer;
+import org.huangry.colorful.geo.domain.service.diagnosis.report.ReportVisibilitySummarizer;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultAnalysisEntity;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultEntity;
 import org.junit.jupiter.api.Test;
@@ -61,13 +66,14 @@ class DiagnosisTaskReportSummarizerTest {
     /** 维度归一只收集三类观点；归一结果缺项或损坏时保持原名。 */
     @Test
     void shouldCollectAndParseDimensions() {
-        Set<String> dimensions = summarizer.collectDimensions(answers());
+        var dimensionPrompt = new DiagnosisTaskReportDimensionPrompt();
+        Set<String> dimensions = dimensionPrompt.collectDimensions(answers());
         assertEquals(Set.of("价格偏高", "性价比", "油品"), dimensions);
 
-        Map<String, String> mapping = summarizer.parseDimensionMapping("{\"价格偏高\":\"价格\"}", dimensions);
+        Map<String, String> mapping = dimensionPrompt.parseDimensionMapping("{\"价格偏高\":\"价格\"}", dimensions);
         assertEquals("价格", mapping.get("价格偏高"));
         assertEquals("油品", mapping.get("油品"));
-        assertEquals("性价比", summarizer.parseDimensionMapping("不是 JSON", dimensions).get("性价比"));
+        assertEquals("性价比", dimensionPrompt.parseDimensionMapping("不是 JSON", dimensions).get("性价比"));
     }
 
     /** ③ 品牌认知：点名问题的情感分布、描述准确率、正负面点与错误信息清单。 */
@@ -81,6 +87,7 @@ class DiagnosisTaskReportSummarizerTest {
                 "[{\"type\":\"NEGATIVE\",\"dimension\":\"收费\",\"quote\":\"要收会员费\"},{\"type\":\"FACT_ERROR\",\"content\":\"团油不收会员费\",\"quote\":\"要收会员费\"}]",
                 "NEGATIVE", "SUCCEEDED");
         negative.analysis().setDescriptionAccurate(false);
+        negative.analysis().setSources("[" + source("https://zhihu.com/q/9", "知乎", "OTHER") + "]");
 
         JSONObject brand = summarizer.buildSummary(List.of(positive, negative), project, Map.of(), new JSONObject(), "v1").getJSONObject("brand");
 
@@ -90,6 +97,9 @@ class DiagnosisTaskReportSummarizerTest {
         assertEquals(0, model.getIntValue("neutral"));
         assertEquals(1, model.getIntValue("negative"));
         assertEquals(0.5, model.getDouble("accurateRate"));
+        assertEquals(0.5, model.getDouble("sellingPointRate"));
+        JSONObject negativeSource = brand.getJSONArray("negativeSources").getJSONObject(0);
+        assertEquals(List.of("知乎", 1), List.of(negativeSource.getString("platform"), negativeSource.getIntValue("count")));
         assertEquals("优惠", brand.getJSONArray("positives").getJSONObject(0).getString("dimension"));
         assertEquals("收费", brand.getJSONArray("negatives").getJSONObject(0).getString("dimension"));
         assertEquals("加油优惠", brand.getJSONArray("sellingPoints").getJSONObject(0).getString("dimension"));
@@ -120,6 +130,12 @@ class DiagnosisTaskReportSummarizerTest {
         assertEquals(0.5, rival.getDouble("mentionRate"));
         assertEquals(0.5, rival.getDouble("recommendRate"));
         assertEquals(0.25, rival.getDouble("firstChoiceRate"));
+        // 只有 Q1 第 1 次回答里两者都被推荐且有排名：目标第 1、易加油第 2
+        JSONObject headToHead = competitor.getJSONArray("headToHead").getJSONObject(0);
+        assertEquals(List.of(1L, 1L, 0L), List.of(headToHead.getLongValue("sameAnswers"), headToHead.getLongValue("targetAhead"), headToHead.getLongValue("competitorAhead")));
+        assertEquals(1.0, headToHead.getDouble("winRate"));
+        // 推荐类意图里两者推荐率都是 50%，竞品没有更高，不算竞品优势场景
+        assertTrue(competitor.getJSONArray("advantageScenes").isEmpty());
         JSONObject price = competitor.getJSONArray("dimensions").getJSONObject(0);
         assertEquals(List.of("价格", 1, 0), List.of(price.getString("dimension"), price.getIntValue("win"), price.getIntValue("lose")));
         JSONObject reason = competitor.getJSONArray("competitorReasons").getJSONObject(0);
@@ -150,6 +166,36 @@ class DiagnosisTaskReportSummarizerTest {
         assertEquals(List.of("知乎", 3L), List.of(topPlatform.getString("platform"), topPlatform.getLongValue("count")));
         assertEquals(List.of("https://tuanyou.com/a", "https://mp.weixin.qq.com/s/1"),
                 source.getJSONArray("ownLinks").stream().map(row -> ((JSONObject) row).getString("url")).toList());
+        // Q1 两次回答都推荐了易加油，它们引用的 4 个网址都算竞品依靠的来源
+        assertEquals(4, source.getJSONArray("competitorLinks").size());
+        // 性价比被 Q1 第 2 次、Q2 第 1 次两条回答提到，只有前者引用了我方发布内容
+        JSONObject valueForMoney = source.getJSONArray("contentGaps").getJSONObject(0);
+        assertEquals(List.of("性价比", 2, 1), List.of(valueForMoney.getString("dimension"), valueForMoney.getIntValue("answers"), valueForMoney.getIntValue("ownCitedAnswers")));
+    }
+
+    /** ⑥ 规则问题：按阈值从各部分挑出问题，按加入顺序编号，并带上可追溯的证据。 */
+    @Test
+    void shouldListIssuesWithEvidence() {
+        JSONArray issues = summarizer.buildSummary(answers(), project, Map.of("价格偏高", "价格"), new JSONObject(), "v1").getJSONArray("issues");
+
+        // 提及率 75%、竞品推荐率不高于目标、没有来源，只命中保留意见与两个没被我方内容覆盖的用户关注点
+        assertEquals(List.of("P1:RESERVATION", "P2:CONTENT_GAP", "P3:CONTENT_GAP"), issues.stream()
+                .map(issue -> ((JSONObject) issue).getString("id") + ":" + ((JSONObject) issue).getString("type")).toList());
+        assertEquals("被推荐时常附带缺点：价格", issues.getJSONObject(0).getString("title"));
+        assertEquals("c", issues.getJSONObject(0).getJSONArray("evidence").getJSONObject(0).getString("quote"));
+    }
+
+    /** ⑥ 规则问题：模型在非品牌问题里从不提到目标时，记为提及率低与问题未覆盖，证据为对应问题。 */
+    @Test
+    void shouldReportLowMentionWithQuestionEvidence() {
+        List<ReportAnswer> answers = List.of(answer(1, 1, "NON_BRAND", "推荐易加油", "[]", "[]", null, "SUCCEEDED"),
+                answer(2, 1, "NON_BRAND", "推荐易加油", "[]", "[]", null, "SUCCEEDED"));
+
+        JSONArray issues = summarizer.buildSummary(answers, project, Map.of(), new JSONObject(), "v1").getJSONArray("issues");
+
+        assertEquals(List.of("LOW_MENTION", "MISSED_QUESTIONS"), issues.stream().map(issue -> ((JSONObject) issue).getString("type")).toList());
+        assertEquals("能链 claude · claude 有 2 道非品牌问题从未提到目标", issues.getJSONObject(1).getString("title"));
+        assertEquals("问题1", issues.getJSONObject(1).getJSONArray("evidence").getJSONObject(0).getString("question"));
     }
 
     /** @return 规则归类后的一条来源 JSON */
@@ -186,7 +232,7 @@ class DiagnosisTaskReportSummarizerTest {
         result.setAnswerText(text);
         result.setCitations("[]");
         result.setChannelSnapshot("{\"id\":6,\"channelName\":\"能链 claude\",\"modelName\":\"claude\"}");
-        result.setQuestionSnapshot("{\"brandScope\":\"" + brandScope + "\",\"intent\":\"RECOMMENDATION\"}");
+        result.setQuestionSnapshot("{\"text\":\"问题" + question + "\",\"brandScope\":\"" + brandScope + "\",\"intent\":\"RECOMMENDATION\"}");
         var analysis = new GeoDiagnosisTaskResultAnalysisEntity();
         analysis.setStatus(status);
         analysis.setBrands(brands);
@@ -195,11 +241,29 @@ class DiagnosisTaskReportSummarizerTest {
         return new ReportAnswer(analysis, result);
     }
 
-    /** @return 注入规则与快照组件的汇总器 */
+    /** @return 按 Spring 注入关系手工组装的汇总器：入口类加各页签的汇总类，均使用真实实现 */
     private static DiagnosisTaskReportSummarizer summarizer() {
+        var ruleAnalyzer = new DiagnosisTaskResultRuleAnalyzer();
+        var ranking = new DiagnosisTaskReportDimensionRanking();
+        ReflectionTestUtils.setField(ranking, "diagnosisTaskResultRuleAnalyzer", ruleAnalyzer);
+        var visibility = new ReportVisibilitySummarizer();
+        ReflectionTestUtils.setField(visibility, "diagnosisTaskReportDimensionRanking", ranking);
+        var brand = new ReportBrandSummarizer();
+        ReflectionTestUtils.setField(brand, "diagnosisTaskReportDimensionRanking", ranking);
+        var competitor = new ReportCompetitorSummarizer();
+        ReflectionTestUtils.setField(competitor, "diagnosisTaskResultRuleAnalyzer", ruleAnalyzer);
+        ReflectionTestUtils.setField(competitor, "diagnosisTaskReportDimensionRanking", ranking);
+        var source = new ReportSourceSummarizer();
+        ReflectionTestUtils.setField(source, "diagnosisTaskReportDimensionRanking", ranking);
+
         var summarizer = new DiagnosisTaskReportSummarizer();
-        ReflectionTestUtils.setField(summarizer, "ruleAnalyzer", new DiagnosisTaskResultRuleAnalyzer());
-        ReflectionTestUtils.setField(summarizer, "snapshots", new DiagnosisTaskSnapshots());
+        ReflectionTestUtils.setField(summarizer, "diagnosisTaskResultRuleAnalyzer", ruleAnalyzer);
+        ReflectionTestUtils.setField(summarizer, "diagnosisTaskSnapshots", new DiagnosisTaskSnapshots());
+        ReflectionTestUtils.setField(summarizer, "reportVisibilitySummarizer", visibility);
+        ReflectionTestUtils.setField(summarizer, "reportBrandSummarizer", brand);
+        ReflectionTestUtils.setField(summarizer, "reportCompetitorSummarizer", competitor);
+        ReflectionTestUtils.setField(summarizer, "reportSourceSummarizer", source);
+        ReflectionTestUtils.setField(summarizer, "reportIssueSummarizer", new ReportIssueSummarizer());
         return summarizer;
     }
 }

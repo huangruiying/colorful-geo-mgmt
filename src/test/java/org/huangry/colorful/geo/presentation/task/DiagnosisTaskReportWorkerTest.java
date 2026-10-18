@@ -3,6 +3,9 @@ package org.huangry.colorful.geo.presentation.task;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskReportAdvicePrompt;
+import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskReportDimensionPrompt;
+import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskReportLlmAnalyzer;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskResultAnalysisPrompt;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskResultRuleAnalyzer;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskReportSummarizer;
@@ -24,14 +27,13 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.sql.Connection;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** 报告生成编排：冻结默认判定渠道、逐条判定、失败不重试继续下一条、全部判定后汇总；不连接数据库与模型。 */
+/** 报告生成编排：冻结默认判定渠道、逐条判定、失败不重试继续下一条、全部判定后汇总并生成优化建议；不连接数据库与模型。 */
 class DiagnosisTaskReportWorkerTest {
     private final DiagnosisTaskReportWorker worker = new DiagnosisTaskReportWorker();
     private final GeoDiagnosisTaskReportService service = mock(GeoDiagnosisTaskReportService.class);
@@ -42,7 +44,7 @@ class DiagnosisTaskReportWorkerTest {
     private final DiagnosisTaskSnapshots snapshots = mock(DiagnosisTaskSnapshots.class);
     private final GeoLlmChannelEntity channel = new GeoLlmChannelEntity();
 
-    /** 首次生成冻结默认渠道；一条判定成功、一条模型失败继续执行，最后汇总并完成报告。 */
+    /** 首次生成冻结默认渠道；一条判定成功、一条模型失败继续执行，最后汇总并完成报告；优化建议调用也失败时只记在 advice 上。 */
     @Test
     void shouldJudgeEachAnswerAndFinishDespiteSingleFailure() {
         when(service.findNextPendingAnalysis(9L)).thenReturn(analysis(1L), analysis(2L), null);
@@ -50,16 +52,35 @@ class DiagnosisTaskReportWorkerTest {
                 .thenThrow(new LLMClientException("调用失败"));
         when(analysisPrompt.parseAnalysisResult(any(), any(), any(), any())).thenReturn(new DiagnosisTaskResultAnalysisPrompt.AnalysisResult(new JSONArray(), new JSONArray(), null, null));
         when(service.loadAnswers(9L)).thenReturn(List.of(new ReportAnswer(succeeded(), new GeoDiagnosisTaskResultEntity())));
-        when(summarizer.collectDimensions(any())).thenReturn(Set.of());
-        when(summarizer.buildSummary(any(), any(), any(), any(), any())).thenReturn(new JSONObject().fluentPut("sample", new JSONObject()));
+        when(summarizer.buildSummary(any(), any(), any(), any(), any())).thenReturn(summaryWithOneIssue());
 
         ReflectionTestUtils.invokeMethod(worker, "generate", report());
 
         verify(service).freezeJudgeChannel(eq(9L), any(), eq(DiagnosisTaskResultAnalysisPrompt.PROMPT_VERSION));
         verify(service).updateAnalysisSucceeded(argThat(saved -> saved.getId() == 1L));
         verify(service).updateAnalysisFailed(eq(2L), eq("判定模型不可用或未返回有效回答"), any());
-        verify(service).finishReport(eq(9L), contains("sample"));
+        verify(service).finishReport(eq(9L), argThat(summary -> JSON.parseObject(summary).getJSONObject("advice").getString("status").equals("FAILED")));
         verify(service, never()).failReport(anyLong(), any());
+    }
+
+    /** 汇总后调用一次模型写建议，只保留引用了已知问题编号的条目，随汇总一起冻结。 */
+    @Test
+    void shouldFreezeAdviceGeneratedFromIssues() {
+        when(service.findNextPendingAnalysis(9L)).thenReturn(null);
+        when(service.loadAnswers(9L)).thenReturn(List.of(new ReportAnswer(succeeded(), new GeoDiagnosisTaskResultEntity())));
+        when(summarizer.buildSummary(any(), any(), any(), any(), any())).thenReturn(summaryWithOneIssue());
+        when(llmClient.query(any(), same(channel))).thenReturn(new LLMResponse("""
+                {"findings":[{"content":"千问很少提到目标","issueIds":["P1"]},{"content":"编造的结论","issueIds":["P9"]}],
+                 "actions":[{"title":"补充场景内容","category":"FILL_CONTENT_GAP","content":"写一篇","evidenceStatus":"INFERRED","issueIds":["P1"]}]}
+                """, List.of()));
+
+        ReflectionTestUtils.invokeMethod(worker, "generate", report());
+
+        verify(service).finishReport(eq(9L), argThat(summary -> {
+            JSONObject advice = JSON.parseObject(summary).getJSONObject("advice");
+            return advice.getString("status").equals("SUCCEEDED") && advice.getJSONArray("findings").size() == 1
+                    && advice.getJSONArray("actions").getJSONObject(0).getString("title").equals("补充场景内容");
+        }));
     }
 
     /** 全部判定失败时报告失败，不调用维度归一与汇总。 */
@@ -93,11 +114,16 @@ class DiagnosisTaskReportWorkerTest {
         Connection lease = mock(Connection.class);
         when(lease.isValid(anyInt())).thenReturn(true);
         ReflectionTestUtils.setField(worker, "lease", lease);
-        ReflectionTestUtils.setField(worker, "service", service);
-        ReflectionTestUtils.setField(worker, "ruleAnalyzer", new DiagnosisTaskResultRuleAnalyzer());
-        ReflectionTestUtils.setField(worker, "analysisPrompt", analysisPrompt);
-        ReflectionTestUtils.setField(worker, "summarizer", summarizer);
-        ReflectionTestUtils.setField(worker, "snapshots", snapshots);
+        ReflectionTestUtils.setField(worker, "geoDiagnosisTaskReportService", service);
+        ReflectionTestUtils.setField(worker, "diagnosisTaskResultRuleAnalyzer", new DiagnosisTaskResultRuleAnalyzer());
+        ReflectionTestUtils.setField(worker, "diagnosisTaskResultAnalysisPrompt", analysisPrompt);
+        ReflectionTestUtils.setField(worker, "diagnosisTaskReportSummarizer", summarizer);
+        var llmAnalyzer = new DiagnosisTaskReportLlmAnalyzer();
+        ReflectionTestUtils.setField(llmAnalyzer, "llmClient", llmClient);
+        ReflectionTestUtils.setField(llmAnalyzer, "diagnosisTaskReportDimensionPrompt", new DiagnosisTaskReportDimensionPrompt());
+        ReflectionTestUtils.setField(llmAnalyzer, "diagnosisTaskReportAdvicePrompt", new DiagnosisTaskReportAdvicePrompt());
+        ReflectionTestUtils.setField(worker, "diagnosisTaskReportLlmAnalyzer", llmAnalyzer);
+        ReflectionTestUtils.setField(worker, "diagnosisTaskSnapshots", snapshots);
         ReflectionTestUtils.setField(worker, "llmClient", llmClient);
         ReflectionTestUtils.setField(worker, "router", router);
         ReflectionTestUtils.setField(worker, "channelService", mock(GeoLlmChannelService.class));
@@ -113,6 +139,13 @@ class DiagnosisTaskReportWorkerTest {
         result.setQuestionSnapshot("{\"text\":\"问题\",\"brandScope\":\"NON_BRAND\"}");
         when(service.getTaskResult(anyLong())).thenReturn(result);
         when(analysisPrompt.buildPrompt(any(), any(), any())).thenReturn("判定提示词");
+    }
+
+    /** @return 只含一个规则问题 P1 的汇总 */
+    private JSONObject summaryWithOneIssue() {
+        JSONArray issues = new JSONArray();
+        issues.add(new JSONObject().fluentPut("id", "P1").fluentPut("title", "千问很少提到目标"));
+        return new JSONObject().fluentPut("sample", new JSONObject()).fluentPut("issues", issues);
     }
 
     /** @return 待生成的报告，尚未冻结判定渠道 */
