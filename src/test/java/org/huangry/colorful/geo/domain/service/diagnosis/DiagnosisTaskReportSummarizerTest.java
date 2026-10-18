@@ -1,6 +1,7 @@
 package org.huangry.colorful.geo.domain.service.diagnosis;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService.ReportAnswer;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultAnalysisEntity;
@@ -8,6 +9,7 @@ import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTas
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,6 +68,94 @@ class DiagnosisTaskReportSummarizerTest {
         assertEquals("价格", mapping.get("价格偏高"));
         assertEquals("油品", mapping.get("油品"));
         assertEquals("性价比", summarizer.parseDimensionMapping("不是 JSON", dimensions).get("性价比"));
+    }
+
+    /** ③ 品牌认知：点名问题的情感分布、描述准确率、正负面点与错误信息清单。 */
+    @Test
+    void shouldSummarizeBrandPerceptionFromBrandQuestions() {
+        ReportAnswer positive = answer(3, 1, "BRAND", "团油优惠多", "[]",
+                "[{\"type\":\"POSITIVE\",\"dimension\":\"优惠\",\"quote\":\"优惠多\"},{\"type\":\"SELLING_POINT_COVERED\",\"dimension\":\"加油优惠\",\"quote\":\"优惠多\"}]",
+                "POSITIVE", "SUCCEEDED");
+        positive.analysis().setDescriptionAccurate(true);
+        ReportAnswer negative = answer(4, 1, "BRAND", "团油要收会员费", "[]",
+                "[{\"type\":\"NEGATIVE\",\"dimension\":\"收费\",\"quote\":\"要收会员费\"},{\"type\":\"FACT_ERROR\",\"content\":\"团油不收会员费\",\"quote\":\"要收会员费\"}]",
+                "NEGATIVE", "SUCCEEDED");
+        negative.analysis().setDescriptionAccurate(false);
+
+        JSONObject brand = summarizer.buildSummary(List.of(positive, negative), project, Map.of(), new JSONObject(), "v1").getJSONObject("brand");
+
+        JSONObject model = brand.getJSONArray("models").getJSONObject(0);
+        assertEquals(2, model.getIntValue("brandAnswers"));
+        assertEquals(1, model.getIntValue("positive"));
+        assertEquals(0, model.getIntValue("neutral"));
+        assertEquals(1, model.getIntValue("negative"));
+        assertEquals(0.5, model.getDouble("accurateRate"));
+        assertEquals("优惠", brand.getJSONArray("positives").getJSONObject(0).getString("dimension"));
+        assertEquals("收费", brand.getJSONArray("negatives").getJSONObject(0).getString("dimension"));
+        assertEquals("加油优惠", brand.getJSONArray("sellingPoints").getJSONObject(0).getString("dimension"));
+        assertEquals("团油不收会员费", brand.getJSONArray("factErrors").getJSONObject(0).getString("content"));
+    }
+
+    /** ④ 竞品对比：目标与竞品同口径（非品牌问题）比较；对比问题统计维度胜负、竞品推荐理由与新出现的产品。 */
+    @Test
+    void shouldCompareTargetWithCompetitors() {
+        List<ReportAnswer> answers = new ArrayList<>(answers());
+        answers.add(answer(6, 1, "COMPARISON", "团油和易加油各有优势",
+                "[{\"name\":\"团油\",\"type\":\"TARGET\",\"recommended\":true},{\"name\":\"易加油\",\"type\":\"COMPETITOR\",\"recommended\":true},"
+                        + "{\"name\":\"小桔加油\",\"type\":\"CANDIDATE\",\"recommended\":true}]",
+                "[{\"type\":\"DIMENSION_RESULT\",\"brand\":\"易加油\",\"dimension\":\"价格\",\"outcome\":\"WIN\",\"quote\":\"e\"},"
+                        + "{\"type\":\"DIMENSION_RESULT\",\"brand\":\"易加油\",\"dimension\":\"油站数量\",\"outcome\":\"LOSE\",\"quote\":\"f\"},"
+                        + "{\"type\":\"RECOMMEND_REASON\",\"brand\":\"易加油\",\"dimension\":\"油站多\",\"quote\":\"g\"}]",
+                null, "SUCCEEDED"));
+
+        JSONObject competitor = summarizer.buildSummary(answers, project, Map.of(), new JSONObject(), "v1").getJSONObject("competitor");
+
+        // 非品牌 4 条：易加油出现在 Q1 两次回答中，两次都被推荐，其中一次排第一
+        JSONArray brands = competitor.getJSONArray("brands");
+        JSONObject target = brands.getJSONObject(0);
+        JSONObject rival = brands.getJSONObject(1);
+        assertTrue(target.getBooleanValue("target"));
+        assertEquals(0.75, target.getDouble("mentionRate"));
+        assertEquals("易加油", rival.getString("brandName"));
+        assertEquals(0.5, rival.getDouble("mentionRate"));
+        assertEquals(0.5, rival.getDouble("recommendRate"));
+        assertEquals(0.25, rival.getDouble("firstChoiceRate"));
+        JSONObject price = competitor.getJSONArray("dimensions").getJSONObject(0);
+        assertEquals(List.of("价格", 1, 0), List.of(price.getString("dimension"), price.getIntValue("win"), price.getIntValue("lose")));
+        JSONObject reason = competitor.getJSONArray("competitorReasons").getJSONObject(0);
+        assertEquals("油站多", reason.getString("dimension"));
+        assertEquals("易加油", reason.getJSONArray("examples").getJSONObject(0).getString("brand"));
+        JSONObject candidate = competitor.getJSONArray("candidates").getJSONObject(0);
+        assertEquals(List.of("小桔加油", 1, 1), List.of(candidate.getString("name"), candidate.getIntValue("mentions"), candidate.getIntValue("recommended")));
+    }
+
+    /** ⑤ 引用与内容：来源归类不依赖判定，判定失败的回答也计入；比率的分母为带来源的回答。 */
+    @Test
+    void shouldAnalyzeSourcesIncludingJudgeFailedAnswers() {
+        List<ReportAnswer> answers = answers();
+        answers.get(0).analysis().setSources("[" + source("https://tuanyou.com/a", "官网", "OWNED") + "," + source("https://zhihu.com/q/1", "知乎", "OTHER") + "]");
+        answers.get(1).analysis().setSources("[" + source("https://mp.weixin.qq.com/s/1", "微信公众号", "PUBLISHED") + "," + source("https://zhihu.com/q/2", "知乎", "OTHER") + "]");
+        answers.get(6).analysis().setSources("[" + source("https://zhihu.com/q/1", "知乎", "OTHER") + "]");
+
+        JSONObject source = summarizer.buildSummary(answers, project, Map.of(), new JSONObject(), "v1").getJSONObject("source");
+
+        JSONObject model = source.getJSONArray("models").getJSONObject(0);
+        assertEquals(7, model.getIntValue("answers"));
+        assertEquals(3, model.getIntValue("withSources"));
+        assertEquals(0.4286, model.getDouble("sourceCoverage"));
+        assertEquals(0.3333, model.getDouble("ownedRate"));
+        assertEquals(0.3333, model.getDouble("publishedRate"));
+        assertEquals(0.0, model.getDouble("thirdPartyRate"));
+        JSONObject topPlatform = source.getJSONArray("platforms").getJSONObject(0).getJSONArray("platforms").getJSONObject(0);
+        assertEquals(List.of("知乎", 3L), List.of(topPlatform.getString("platform"), topPlatform.getLongValue("count")));
+        assertEquals(List.of("https://tuanyou.com/a", "https://mp.weixin.qq.com/s/1"),
+                source.getJSONArray("ownLinks").stream().map(row -> ((JSONObject) row).getString("url")).toList());
+    }
+
+    /** @return 规则归类后的一条来源 JSON */
+    private String source(String url, String platform, String sourceType) {
+        return new JSONObject(true).fluentPut("url", url).fluentPut("title", "标题").fluentPut("platform", platform)
+                .fluentPut("sourceType", sourceType).toJSONString();
     }
 
     /** @return 一个模型的 7 条回答，第 7 条判定失败 */

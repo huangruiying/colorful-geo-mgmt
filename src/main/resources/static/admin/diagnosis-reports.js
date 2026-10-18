@@ -5,8 +5,10 @@
     const labels = {PENDING:"待生成", RUNNING:"生成中", SUCCEEDED:"已完成", FAILED:"失败"};
     const strengthLabels = {FIRST_CHOICE:"首推", STRONG:"强推", PARALLEL:"并列", PASSING:"顺带一提", WITH_RESERVATION:"附带缺点", NOT_RECOMMENDED:"不推荐"};
     const intentLabels = {RECOMMENDATION:"推荐选择", PROBLEM_SOLVING:"解决问题", COMPARISON:"对比", PURCHASE:"购买决策", TECHNICAL:"技术细节", AWARENESS:"了解认知"};
-    // 子 Tab 与诊断报告全景一致；③–⑥ 的判定数据已保存，汇总与展示后续接入
+    const sourceTypeLabels = {OWNED:"官网", PUBLISHED:"我方发布"};
+    // 子 Tab 与诊断报告全景一致；①–⑤ 已接入，⑥ 优化建议尚无生成逻辑
     const tabs = [["overview", "① 诊断概览"], ["visibility", "② 可见度与推荐"], ["brand", "③ 品牌认知"], ["competitor", "④ 竞品对比"], ["source", "⑤ 引用与内容"], ["advice", "⑥ 优化建议"]];
+    const readyTabs = ["overview", "visibility", "brand", "competitor", "source"];
     let page = 0, reportId = null, answerId = null;
     let report = null, activeTab = "overview", creating = false;
     const request = window.AdminHttp.requestJson;
@@ -139,7 +141,7 @@
         for (const [key, title] of tabs) {
             const tab = element("button", "report-tab", title); tab.type = "button"; tab.setAttribute("role", "tab");
             tab.setAttribute("aria-selected", String(key === activeTab));
-            tab.dataset.pending = String(!["overview", "visibility"].includes(key));
+            tab.dataset.pending = String(!readyTabs.includes(key));
             tab.addEventListener("click", () => { activeTab = key; renderTabs(); renderPanel(); });
             container.append(tab);
         }
@@ -155,9 +157,15 @@
             panel.append(progress);
             return;
         }
-        if (activeTab === "overview") renderOverview(panel, report.summary);
-        else if (activeTab === "visibility") renderVisibility(panel, report.summary);
-        else panel.append(element("div", "report-progress", "本部分待接入：所需的判定数据已随本报告保存，后续版本补充汇总与展示。"));
+        const summary = report.summary;
+        if (activeTab === "overview") renderOverview(panel, summary);
+        else if (activeTab === "visibility") renderVisibility(panel, summary);
+        else if (activeTab === "advice") panel.append(element("div", "report-progress", "本部分待接入：优化建议需要基于 ②–⑤ 的结果另行生成，尚未实现。"));
+        // 汇总在报告完成时冻结，③–⑤ 上线前生成的报告没有对应数据，不重算旧报告
+        else if (!summary[activeTab]) panel.append(element("div", "report-progress", "该报告生成于此部分上线之前，没有对应数据；重新生成报告后可查看。"));
+        else if (activeTab === "brand") renderBrand(panel, summary.brand);
+        else if (activeTab === "competitor") renderCompetitor(panel, summary.competitor);
+        else renderSource(panel, summary.source);
     }
 
     function renderOverview(panel, summary) {
@@ -194,22 +202,80 @@
             intentLabels[row.intent] || row.intent, row.channelName, row.answers, percent(row.mentionRate), percent(row.recommendRate)]), 2)));
     }
 
-    function dimensionList(title, help, rows) {
+    /** ③ 品牌认知：只看点名问题，模型怎么评价目标、描述对不对。 */
+    function renderBrand(panel, brand) {
+        panel.append(section("各模型评价（点名问题）", "情感按回答计数；描述准确率只统计判定给出了对错的回答，依据是项目资料。",
+            table(["模型", "点名回答", "正面", "中性", "负面", "描述准确率"], brand.models.map(model => [
+                model.channelName + " · " + model.modelName, model.brandAnswers, model.positive, model.neutral, model.negative, percent(model.accurateRate)]))));
+        const lists = element("div", "report-dimensions");
+        lists.append(dimensionList("正面点", "继续强化的优势", brand.positives),
+            dimensionList("负面点", "需要回应或纠正", brand.negatives),
+            dimensionList("提到的卖点", "模型已经知道的核心卖点", brand.sellingPoints));
+        panel.append(section("正面点、负面点与卖点", "按归一后的维度统计次数，附回答原文。", lists));
+        panel.append(section("错误信息清单", "与项目资料不符的描述，资料没写的内容不判对错。", quoteList(brand.factErrors.map(error => ({
+            title:error.content, quote:error.quote, channelName:error.channelName, resultId:error.resultId})))));
+    }
+
+    /** ④ 竞品对比：目标与预设竞品同口径比较，再看对比问题里各维度谁赢。 */
+    function renderCompetitor(panel, competitor) {
+        panel.append(section("目标与竞品（非品牌问题）", "与 ② 的口径相同，分母为该模型的非品牌回答；对比问题点了竞品的名，不计入提及率。",
+            table(["模型", "品牌", "提及率", "推荐率", "首推率"], competitor.brands.map(row => [
+                row.channelName + " · " + row.modelName, row.brandName + (row.target ? "（目标）" : ""),
+                percent(row.mentionRate), percent(row.recommendRate), percent(row.firstChoiceRate)]), 2)));
+        const lists = element("div", "report-dimensions");
+        lists.append(dimensionList("分维度胜负（对比问题）", "目标相对竞品在各维度上的结果", competitor.dimensions,
+                row => "赢 " + row.win + " · 输 " + row.lose + " · 平 " + row.tie),
+            dimensionList("竞品被推荐的理由", "只取回答里明确写出的理由", competitor.competitorReasons));
+        panel.append(section("对比维度与竞品理由", "按归一后的维度统计，附回答原文。", lists));
+        panel.append(section("新出现的同类产品", "不在预设竞品里、回答中出现过的产品，可考虑加入竞品。",
+            table(["产品", "出现回答数", "被推荐回答数"], competitor.candidates.map(row => [row.name, row.mentions, row.recommended]))));
+    }
+
+    /** ⑤ 引用与内容：模型引用了哪些来源，官网和我方发布的内容有没有被用上。 */
+    function renderSource(panel, source) {
+        panel.append(section("各模型来源情况", "来源覆盖率 = 带来源回答 ÷ 全部回答；各类引用率的分母为带来源回答。各平台“引用”含义不同，只在同类平台之间比较。",
+            table(["模型", "回答", "带来源", "来源覆盖率", "引用官网", "引用我方发布", "引用提到目标的第三方", "引用提到竞品的内容"], source.models.map(model => [
+                model.channelName + " · " + model.modelName, model.answers, model.withSources, percent(model.sourceCoverage),
+                percent(model.ownedRate), percent(model.publishedRate), percent(model.thirdPartyRate), percent(model.competitorRate)]))));
+        panel.append(section("各模型常引用的平台", "按被引用次数排序，每个模型最多 10 个。", table(["模型", "平台", "引用次数"],
+            source.platforms.flatMap(row => row.platforms.map(platform => [row.channelName, platform.platform, platform.count])), 2)));
+        panel.append(section("被引用的我方链接", "官网域名下的页面，以及与发布记录一致的链接；按生成报告时的发布记录判断。",
+            table(["链接", "标题", "类型", "引用回答数"], source.ownLinks.map(link => [link.url, link.title || "—", sourceTypeLabels[link.sourceType] || link.sourceType, link.count]), 3)));
+    }
+
+    /** 维度排行：describe 决定每行右侧的计数写法，示例中有品牌时一并展示。 */
+    function dimensionList(title, help, rows, describe = row => row.count + " 次") {
         const box = element("div", "report-dimension-list");
         box.append(element("h4", null, title), element("p", "help", help));
         if (!rows.length) box.append(element("p", "report-empty", "暂无"));
         for (const row of rows) {
             const item = element("div", "report-dimension");
-            item.append(element("strong", null, row.dimension), element("span", "count", row.count + " 次"));
-            for (const example of row.examples) {
-                const quote = element("p", "report-quote", "“" + example.quote + "” — " + example.channelName);
-                const open = element("button", "text-button", "看回答"); open.type = "button";
-                open.addEventListener("click", () => openAnswer(example.resultId));
-                quote.append(open); item.append(quote);
-            }
+            item.append(element("strong", null, row.dimension), element("span", "count", describe(row)));
+            for (const example of row.examples) item.append(quoteLine(example.quote, example.channelName + (example.brand ? " · " + example.brand : ""), example.resultId));
             box.append(item);
         }
         return box;
+    }
+
+    /** 逐条清单（如错误信息）：每条一个标题加一句原文。 */
+    function quoteList(rows) {
+        const box = element("div", "report-dimension-list");
+        if (!rows.length) box.append(element("p", "report-empty", "暂无"));
+        for (const row of rows) {
+            const item = element("div", "report-dimension");
+            item.append(element("strong", null, row.title || "—"), quoteLine(row.quote, row.channelName, row.resultId));
+            box.append(item);
+        }
+        return box;
+    }
+
+    /** 一句原文加「看回答」按钮，点开对应的完整回答。 */
+    function quoteLine(quote, from, resultId) {
+        const line = element("p", "report-quote", "“" + quote + "” — " + from);
+        const open = element("button", "text-button", "看回答"); open.type = "button";
+        open.addEventListener("click", () => openAnswer(resultId));
+        line.append(open);
+        return line;
     }
 
     /** 读取报告对应的完整回答，正文使用 Markdown，问题与错误提示保持原文。 */
