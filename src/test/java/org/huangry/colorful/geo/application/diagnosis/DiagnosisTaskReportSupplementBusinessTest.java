@@ -43,7 +43,6 @@ class DiagnosisTaskReportSupplementBusinessTest {
                 .fluentPut("sample", new JSONObject().fluentPut("validAnswers", 99)).fluentPut("brand", new JSONObject())
                 .fluentPut("competitor", new JSONObject()).fluentPut("source", new JSONObject()).fluentPut("issues", new JSONArray()));
         when(llmAnalyzer.generateAdvice(any(), any(), same(channel), eq(9L))).thenReturn(new JSONObject().fluentPut("status", "NO_ISSUES"));
-        when(reportService.updateReportSummarySupplemented(eq(9L), any())).thenReturn(true);
 
         business.supplementReport(9L);
 
@@ -60,7 +59,9 @@ class DiagnosisTaskReportSupplementBusinessTest {
     @Test
     void shouldRejectMissingUnfinishedOrSupplementedReport() {
         when(reportDao.selectById(8L)).thenReturn(report("RUNNING", null));
-        when(reportDao.selectById(7L)).thenReturn(report("SUCCEEDED", "{\"sample\":{},\"issues\":[]}"));
+        JSONObject complete = new JSONObject();
+        DiagnosisTaskReportSummarizer.SUMMARY_PARTS.forEach(part -> complete.put(part, new JSONObject()));
+        when(reportDao.selectById(7L)).thenReturn(report("SUCCEEDED", complete.toJSONString()));
 
         assertThrows(NoSuchElementException.class, () -> business.supplementReport(99L));
         assertEquals("只有已完成的报告可以补全", assertThrows(IllegalArgumentException.class, () -> business.supplementReport(8L)).getMessage());
@@ -68,17 +69,34 @@ class DiagnosisTaskReportSupplementBusinessTest {
         verifyNoInteractions(llmAnalyzer);
     }
 
-    /** 判定渠道已删除时不换用其他模型；另一次补全先完成时不覆盖。 */
+    /** 判定渠道已删除时不换用其他模型，也不调用模型。 */
     @Test
-    void shouldRejectDeletedChannelOrConcurrentSupplement() {
+    void shouldRejectDeletedJudgeChannel() {
         when(reportDao.selectById(9L)).thenReturn(report("SUCCEEDED", "{\"sample\":{}}"));
-        when(summarizer.buildSummary(any(), any(), any(), any(), any())).thenReturn(new JSONObject().fluentPut("issues", new JSONArray()));
-        when(llmAnalyzer.generateAdvice(any(), any(), any(), anyLong())).thenReturn(new JSONObject().fluentPut("status", "NO_ISSUES"));
-        when(reportService.updateReportSummarySupplemented(eq(9L), any())).thenReturn(false);
-
-        assertEquals("该报告已补全，请刷新后查看", assertThrows(IllegalArgumentException.class, () -> business.supplementReport(9L)).getMessage());
         when(channelService.getById(6L)).thenReturn(null);
+
         assertTrue(assertThrows(IllegalArgumentException.class, () -> business.supplementReport(9L)).getMessage().contains("判定渠道已被删除"));
+        verifyNoInteractions(llmAnalyzer);
+    }
+
+    /** 只缺建议时只补建议；建议不缺时不调用模型写建议，已有部分保持原样。 */
+    @Test
+    void shouldSupplementOnlyMissingParts() {
+        JSONObject frozen = new JSONObject();
+        DiagnosisTaskReportSummarizer.SUMMARY_PARTS.stream().filter(part -> !part.equals("brand"))
+                .forEach(part -> frozen.put(part, new JSONObject().fluentPut("frozen", true)));
+        when(reportDao.selectById(9L)).thenReturn(report("SUCCEEDED", frozen.toJSONString()));
+        when(summarizer.buildSummary(any(), any(), any(), any(), any())).thenReturn(new JSONObject()
+                .fluentPut("brand", new JSONObject().fluentPut("recalculated", true)).fluentPut("issues", new JSONObject().fluentPut("recalculated", true)));
+
+        business.supplementReport(9L);
+
+        ArgumentCaptor<String> saved = ArgumentCaptor.forClass(String.class);
+        verify(reportService).updateReportSummarySupplemented(eq(9L), saved.capture());
+        JSONObject summary = JSON.parseObject(saved.getValue());
+        assertTrue(summary.getJSONObject("brand").getBooleanValue("recalculated"));
+        assertTrue(summary.getJSONObject("issues").getBooleanValue("frozen"));
+        verify(llmAnalyzer, never()).generateAdvice(any(), any(), any(), anyLong());
     }
 
     /** 同一份报告补全期间再次补全被拒绝；补全结束后释放，可以再次进入。 */
@@ -87,7 +105,6 @@ class DiagnosisTaskReportSupplementBusinessTest {
         when(reportDao.selectById(9L)).thenReturn(report("SUCCEEDED", "{\"sample\":{}}"));
         when(summarizer.buildSummary(any(), any(), any(), any(), any())).thenReturn(new JSONObject().fluentPut("issues", new JSONArray()));
         when(llmAnalyzer.generateAdvice(any(), any(), any(), anyLong())).thenReturn(new JSONObject().fluentPut("status", "NO_ISSUES"));
-        when(reportService.updateReportSummarySupplemented(eq(9L), any())).thenReturn(true);
         // 第一次补全调用模型期间，同一份报告再次请求补全
         when(llmAnalyzer.normalizeDimensions(any(), any(), anyLong())).thenAnswer(invocation -> {
             assertEquals("该报告正在补全，请稍候", assertThrows(IllegalArgumentException.class, () -> business.supplementReport(9L)).getMessage());

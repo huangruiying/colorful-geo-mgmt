@@ -25,7 +25,7 @@ class MgmtDiagnosisTaskReportControllerTest {
     @Test
     void shouldCreateReportOrExplainRejection() throws Exception {
         when(business.createReport(30L)).thenReturn(new DiagnosisTaskReportResponse(9L, 30L, "加油诊断", "团油", "PENDING",
-                new DiagnosisTaskReportResponse.ProgressResponse(70, 70, 0, 0), null, null, null, null, null, null, null))
+                new DiagnosisTaskReportResponse.ProgressResponse(70, 70, 0, 0), null, null, null, null, null, null, null, null))
                 .thenThrow(new IllegalArgumentException("该诊断任务已有报告正在生成，请等待完成"));
 
         mvc.perform(post("/diagnosis-reports/diagnosis-tasks/30"))
@@ -42,7 +42,7 @@ class MgmtDiagnosisTaskReportControllerTest {
     @Test
     void shouldSupplementReportOrExplainRejection() throws Exception {
         when(supplementBusiness.supplementReport(9L)).thenReturn(new DiagnosisTaskReportResponse(9L, 30L, "加油诊断", "团油", "SUCCEEDED",
-                new DiagnosisTaskReportResponse.ProgressResponse(70, 0, 70, 0), null, "v1", null, null, null, null, null))
+                new DiagnosisTaskReportResponse.ProgressResponse(70, 0, 70, 0), null, "v1", null, null, null, null, null, null))
                 .thenThrow(new IllegalArgumentException("该报告内容完整，无需补全"));
 
         mvc.perform(post("/diagnosis-reports/9/supplement")).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(9));
