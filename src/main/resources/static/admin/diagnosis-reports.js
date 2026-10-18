@@ -183,7 +183,7 @@
         }
         if (activeTab === "overview") renderOverview(panel, summary);
         else if (activeTab === "visibility") renderVisibility(panel, summary);
-        // 报告内容缺失（summary 里没有 ③–⑥）时提示用右上角「补全报告」补全
+        // 当前页签的内容缺失时提示用右上角「补全报告」补全
         else if (!summary[activeTab]) panel.append(supplementNotice());
         else if (activeTab === "brand") renderBrand(panel, summary.brand);
         else if (activeTab === "competitor") renderCompetitor(panel, summary.competitor);
@@ -286,7 +286,7 @@
     /** ① 概览中的主要发现与前三条建议，内容来自 summary.advice。 */
     function renderKeyFindings(summary) {
         const advice = summary.advice;
-        if (!summary.issues) return supplementNotice();
+        if (!summary.issues || !summary.advice) return supplementNotice();
         if (advice.status === "NO_ISSUES") return element("p", "report-empty", "规则没有发现需要处理的问题。");
         if (advice.status === "FAILED") return element("p", "report-empty", advice.errorMessage + "，见 ⑥ 优化建议。");
         const box = element("div", "report-dimension-list");
@@ -327,13 +327,13 @@
         return element("div", "report-progress", "报告内容缺失时，点击补全报告可补全");
     }
 
-    /** 已完成但缺少 ③–⑥ 的报告才显示「补全报告」；只有当前报告正在补全时才禁用。 */
+    /** 报告缺少任何内容（接口返回 missingParts 不为空）就显示「补全报告」；只有当前报告正在补全时才禁用。 */
     function renderSupplementButton() {
         const button = byId("supplement-report");
-        button.hidden = !(report && report.status === "SUCCEEDED" && !report.summary.issues);
+        button.hidden = !report?.missingParts?.length;
         button.disabled = supplementingIds.has(reportId);
         button.textContent = button.disabled ? "补全中…" : "补全报告";
-        button.title = "用已保存的判定结果一次补全 ③–⑥，不重新判定回答；会调用 2 次模型，需要几十秒";
+        button.title = "用已保存的判定结果一次补全缺失内容，不重新判定回答；可能调用模型，需要几十秒";
     }
 
     /** 补全当前报告：一次补全全部缺失内容；完成时如果已切到别的报告，不用旧结果覆盖当前视图。 */
