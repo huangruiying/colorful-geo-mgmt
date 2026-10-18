@@ -1,4 +1,4 @@
-package org.huangry.colorful.geo.domain.service.diagnosis;
+package org.huangry.colorful.geo.domain.service.diagnosis.report.analyze;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
@@ -10,8 +10,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** 判定提示词与输出校验：名称统一、原文片段校验、枚举与分组限制；样例取自本地真实回答。 */
-class DiagnosisTaskResultAnalysisPromptTest {
-    private final DiagnosisTaskResultAnalysisPrompt analysisPrompt = analysisPrompt();
+class ResultJudgePromptTest {
+    private final ResultJudgePrompt analysisPrompt = analysisPrompt();
     private final JSONObject project = JSON.parseObject("""
             {"name":"团油","aliases":["能链团油","车主邦"],"competitors":["易加油","支付宝加油服务","小桔加油（滴滴加油）"],
              "coreFeatures":"加油优惠","sellingPoints":"站点多","pricing":"按站点","targetAudience":"车主"}""");
@@ -90,9 +90,9 @@ class DiagnosisTaskResultAnalysisPromptTest {
     }
 
     /** @return 注入规则组件的判定器 */
-    private static DiagnosisTaskResultAnalysisPrompt analysisPrompt() {
-        var analysisPrompt = new DiagnosisTaskResultAnalysisPrompt();
-        ReflectionTestUtils.setField(analysisPrompt, "ruleAnalyzer", new DiagnosisTaskResultRuleAnalyzer());
+    private static ResultJudgePrompt analysisPrompt() {
+        var analysisPrompt = new ResultJudgePrompt();
+        ReflectionTestUtils.setField(analysisPrompt, "ruleAnalyzer", new ResultRuleAnalyzer());
         return analysisPrompt;
     }
 }

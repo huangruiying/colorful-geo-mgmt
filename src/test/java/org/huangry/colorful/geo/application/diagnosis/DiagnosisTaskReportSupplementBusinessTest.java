@@ -3,8 +3,8 @@ package org.huangry.colorful.geo.application.diagnosis;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskReportLlmAnalyzer;
-import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskReportSummarizer;
+import org.huangry.colorful.geo.domain.service.diagnosis.report.llm.ReportLlmAnalyzer;
+import org.huangry.colorful.geo.domain.service.diagnosis.report.summary.ReportSummarizer;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService;
 import org.huangry.colorful.geo.domain.service.llm.GeoLlmChannelService;
@@ -29,8 +29,8 @@ class DiagnosisTaskReportSupplementBusinessTest {
     private final DiagnosisTaskReportSupplementBusiness business = new DiagnosisTaskReportSupplementBusiness();
     private final GeoDiagnosisTaskReportDao reportDao = mock(GeoDiagnosisTaskReportDao.class);
     private final GeoDiagnosisTaskReportService reportService = mock(GeoDiagnosisTaskReportService.class);
-    private final DiagnosisTaskReportSummarizer summarizer = mock(DiagnosisTaskReportSummarizer.class);
-    private final DiagnosisTaskReportLlmAnalyzer llmAnalyzer = mock(DiagnosisTaskReportLlmAnalyzer.class);
+    private final ReportSummarizer summarizer = mock(ReportSummarizer.class);
+    private final ReportLlmAnalyzer llmAnalyzer = mock(ReportLlmAnalyzer.class);
     private final GeoLlmChannelService channelService = mock(GeoLlmChannelService.class);
     private final DiagnosisTaskReportBusiness reportBusiness = mock(DiagnosisTaskReportBusiness.class);
     private final GeoLlmChannelEntity channel = new GeoLlmChannelEntity();
@@ -60,7 +60,7 @@ class DiagnosisTaskReportSupplementBusinessTest {
     void shouldRejectMissingUnfinishedOrSupplementedReport() {
         when(reportDao.selectById(8L)).thenReturn(report("RUNNING", null));
         JSONObject complete = new JSONObject();
-        DiagnosisTaskReportSummarizer.SUMMARY_PARTS.forEach(part -> complete.put(part, new JSONObject()));
+        ReportSummarizer.SUMMARY_PARTS.forEach(part -> complete.put(part, new JSONObject()));
         when(reportDao.selectById(7L)).thenReturn(report("SUCCEEDED", complete.toJSONString()));
 
         assertThrows(NoSuchElementException.class, () -> business.supplementReport(99L));
@@ -83,7 +83,7 @@ class DiagnosisTaskReportSupplementBusinessTest {
     @Test
     void shouldSupplementOnlyMissingParts() {
         JSONObject frozen = new JSONObject();
-        DiagnosisTaskReportSummarizer.SUMMARY_PARTS.stream().filter(part -> !part.equals("brand"))
+        ReportSummarizer.SUMMARY_PARTS.stream().filter(part -> !part.equals("brand"))
                 .forEach(part -> frozen.put(part, new JSONObject().fluentPut("frozen", true)));
         when(reportDao.selectById(9L)).thenReturn(report("SUCCEEDED", frozen.toJSONString()));
         when(summarizer.buildSummary(any(), any(), any(), any(), any())).thenReturn(new JSONObject()
@@ -121,8 +121,8 @@ class DiagnosisTaskReportSupplementBusinessTest {
     void setup() {
         ReflectionTestUtils.setField(business, "geoDiagnosisTaskReportDao", reportDao);
         ReflectionTestUtils.setField(business, "geoDiagnosisTaskReportService", reportService);
-        ReflectionTestUtils.setField(business, "diagnosisTaskReportSummarizer", summarizer);
-        ReflectionTestUtils.setField(business, "diagnosisTaskReportLlmAnalyzer", llmAnalyzer);
+        ReflectionTestUtils.setField(business, "reportSummarizer", summarizer);
+        ReflectionTestUtils.setField(business, "reportLlmAnalyzer", llmAnalyzer);
         ReflectionTestUtils.setField(business, "diagnosisTaskSnapshots", new DiagnosisTaskSnapshots());
         ReflectionTestUtils.setField(business, "geoLlmChannelService", channelService);
         ReflectionTestUtils.setField(business, "diagnosisTaskReportBusiness", reportBusiness);

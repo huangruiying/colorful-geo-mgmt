@@ -1,4 +1,4 @@
-package org.huangry.colorful.geo.domain.service.diagnosis;
+package org.huangry.colorful.geo.domain.service.diagnosis.report.llm;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
@@ -10,8 +10,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** 优化建议输出校验：只保留引用了已知问题编号、类别和证据状态合法的条目，防止模型编造结论。 */
-class DiagnosisTaskReportAdvicePromptTest {
-    private final DiagnosisTaskReportAdvicePrompt advicePrompt = new DiagnosisTaskReportAdvicePrompt();
+class AdvicePromptTest {
+    private final AdvicePrompt advicePrompt = new AdvicePrompt();
     private final JSONArray issues = JSON.parseArray("[{\"id\":\"P1\",\"title\":\"提及率低\"},{\"id\":\"P2\",\"title\":\"有错误信息\"}]");
 
     /** 引用不存在编号的发现被丢弃；未知编号从列表中剔除；类别或证据状态不合法的建议被丢弃。 */

@@ -1,14 +1,12 @@
-package org.huangry.colorful.geo.domain.service.diagnosis;
+package org.huangry.colorful.geo.domain.service.diagnosis.report.summary;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService.ReportAnswer;
-import org.huangry.colorful.geo.domain.service.diagnosis.report.ReportBrandSummarizer;
-import org.huangry.colorful.geo.domain.service.diagnosis.report.ReportCompetitorSummarizer;
-import org.huangry.colorful.geo.domain.service.diagnosis.report.ReportIssueSummarizer;
-import org.huangry.colorful.geo.domain.service.diagnosis.report.ReportSourceSummarizer;
-import org.huangry.colorful.geo.domain.service.diagnosis.report.ReportVisibilitySummarizer;
+import org.huangry.colorful.geo.domain.service.diagnosis.report.analyze.ResultRuleAnalyzer;
+import org.huangry.colorful.geo.domain.service.diagnosis.report.llm.DimensionPrompt;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultAnalysisEntity;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisTaskResultEntity;
 import org.junit.jupiter.api.Test;
@@ -25,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * 汇总口径：以一个模型的 7 条回答（含 1 条判定失败）逐项核对。
  * <p>非品牌 4 条：Q1 两次（一次首推、一次未提及）、Q2 两次（一次排第 3 被推荐、一次提及未推荐）；点名 2 条：正面、负面。</p>
  */
-class DiagnosisTaskReportSummarizerTest {
-    private final DiagnosisTaskReportSummarizer summarizer = summarizer();
+class ReportSummarizerTest {
+    private final ReportSummarizer summarizer = summarizer();
     private final JSONObject project = JSON.parseObject("{\"name\":\"团油\",\"aliases\":[\"能链团油\"],\"competitors\":[\"易加油\"]}");
 
     /** 非品牌问题的可见度、覆盖率、稳定性，点名问题的正面率与推荐份额按约定口径计算，判定失败不计入。 */
@@ -66,7 +64,7 @@ class DiagnosisTaskReportSummarizerTest {
     /** 维度归一只收集三类观点；归一结果缺项或损坏时保持原名。 */
     @Test
     void shouldCollectAndParseDimensions() {
-        var dimensionPrompt = new DiagnosisTaskReportDimensionPrompt();
+        var dimensionPrompt = new DimensionPrompt();
         Set<String> dimensions = dimensionPrompt.collectDimensions(answers());
         assertEquals(Set.of("价格偏高", "性价比", "油品"), dimensions);
 
@@ -242,23 +240,24 @@ class DiagnosisTaskReportSummarizerTest {
     }
 
     /** @return 按 Spring 注入关系手工组装的汇总器：入口类加各页签的汇总类，均使用真实实现 */
-    private static DiagnosisTaskReportSummarizer summarizer() {
-        var ruleAnalyzer = new DiagnosisTaskResultRuleAnalyzer();
-        var ranking = new DiagnosisTaskReportDimensionRanking();
-        ReflectionTestUtils.setField(ranking, "diagnosisTaskResultRuleAnalyzer", ruleAnalyzer);
+    private static ReportSummarizer summarizer() {
+        var ruleAnalyzer = new ResultRuleAnalyzer();
+        var ranking = new ReportDimensionRanking();
+        ReflectionTestUtils.setField(ranking, "resultRuleAnalyzer", ruleAnalyzer);
         var visibility = new ReportVisibilitySummarizer();
-        ReflectionTestUtils.setField(visibility, "diagnosisTaskReportDimensionRanking", ranking);
+        ReflectionTestUtils.setField(visibility, "reportDimensionRanking", ranking);
         var brand = new ReportBrandSummarizer();
-        ReflectionTestUtils.setField(brand, "diagnosisTaskReportDimensionRanking", ranking);
+        ReflectionTestUtils.setField(brand, "reportDimensionRanking", ranking);
         var competitor = new ReportCompetitorSummarizer();
-        ReflectionTestUtils.setField(competitor, "diagnosisTaskResultRuleAnalyzer", ruleAnalyzer);
-        ReflectionTestUtils.setField(competitor, "diagnosisTaskReportDimensionRanking", ranking);
+        ReflectionTestUtils.setField(competitor, "resultRuleAnalyzer", ruleAnalyzer);
+        ReflectionTestUtils.setField(competitor, "reportDimensionRanking", ranking);
         var source = new ReportSourceSummarizer();
-        ReflectionTestUtils.setField(source, "diagnosisTaskReportDimensionRanking", ranking);
+        ReflectionTestUtils.setField(source, "reportDimensionRanking", ranking);
 
-        var summarizer = new DiagnosisTaskReportSummarizer();
-        ReflectionTestUtils.setField(summarizer, "diagnosisTaskResultRuleAnalyzer", ruleAnalyzer);
+        var summarizer = new ReportSummarizer();
+        ReflectionTestUtils.setField(summarizer, "resultRuleAnalyzer", ruleAnalyzer);
         ReflectionTestUtils.setField(summarizer, "diagnosisTaskSnapshots", new DiagnosisTaskSnapshots());
+        ReflectionTestUtils.setField(summarizer, "reportOverviewSummarizer", new ReportOverviewSummarizer());
         ReflectionTestUtils.setField(summarizer, "reportVisibilitySummarizer", visibility);
         ReflectionTestUtils.setField(summarizer, "reportBrandSummarizer", brand);
         ReflectionTestUtils.setField(summarizer, "reportCompetitorSummarizer", competitor);

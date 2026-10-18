@@ -1,4 +1,4 @@
-package org.huangry.colorful.geo.domain.service.diagnosis;
+package org.huangry.colorful.geo.domain.service.diagnosis.report.llm;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
@@ -21,10 +21,10 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /** 报告中需要模型的两步：没有输入时不调用；调用失败时维度保持原名、建议记为失败，不抛出。 */
-class DiagnosisTaskReportLlmAnalyzerTest {
+class ReportLlmAnalyzerTest {
     private final LLMClient llmClient = mock(LLMClient.class);
     private final GeoLlmChannelEntity channel = new GeoLlmChannelEntity();
-    private final DiagnosisTaskReportLlmAnalyzer llmAnalyzer = llmAnalyzer();
+    private final ReportLlmAnalyzer llmAnalyzer = llmAnalyzer();
 
     /** 没有维度、没有问题时不调用模型。 */
     @Test
@@ -62,11 +62,11 @@ class DiagnosisTaskReportLlmAnalyzerTest {
     }
 
     /** @return 使用真实提示词组件与模型替身的分析器 */
-    private DiagnosisTaskReportLlmAnalyzer llmAnalyzer() {
-        var analyzer = new DiagnosisTaskReportLlmAnalyzer();
+    private ReportLlmAnalyzer llmAnalyzer() {
+        var analyzer = new ReportLlmAnalyzer();
         ReflectionTestUtils.setField(analyzer, "llmClient", llmClient);
-        ReflectionTestUtils.setField(analyzer, "diagnosisTaskReportDimensionPrompt", new DiagnosisTaskReportDimensionPrompt());
-        ReflectionTestUtils.setField(analyzer, "diagnosisTaskReportAdvicePrompt", new DiagnosisTaskReportAdvicePrompt());
+        ReflectionTestUtils.setField(analyzer, "dimensionPrompt", new DimensionPrompt());
+        ReflectionTestUtils.setField(analyzer, "advicePrompt", new AdvicePrompt());
         return analyzer;
     }
 }
