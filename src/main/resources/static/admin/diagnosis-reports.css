@@ -18,5 +18,13 @@
 .report-quote { margin:6px 0 0; color:#4b5f79; font-size:13px; line-height:1.6; overflow-wrap:anywhere; white-space:pre-wrap; }
 .report-quote .text-button { padding:0 4px; font-size:13px; }
 .report-empty { color:#9aa9bb; font-size:13px; }
+.report-model-filter { min-width:180px; margin-right:8px; padding:9px 12px; border:1px solid #d5dfed; border-radius:8px; color:#19324e; background:white; font:inherit; }
+.report-supplement-button { margin-right:8px; }
+.report-filter-note { margin:0 0 16px; padding:10px 14px; background:#f3f7fd; border:1px solid #d8e4f5; border-radius:8px; color:#4b5f79; font-size:13px; }
+.report-advice-meta { color:#73849b; font-size:13px; margin-left:6px; }
+.report-advice-content { margin:6px 0 0; color:#33465e; font-size:14px; line-height:1.7; }
+.report-advice-item .text-button { padding:0; font-size:13px; }
+#evidence-content h4 { margin:16px 0 4px; font-size:14px; }
+#evidence-content h4:first-child { margin-top:0; }
 .report-progress { padding:18px; background:#f7f9fd; border:1px solid #e0e7f1; border-radius:10px; line-height:1.8; }
 @media(max-width:900px) { .report-dimensions { grid-template-columns:1fr; } }

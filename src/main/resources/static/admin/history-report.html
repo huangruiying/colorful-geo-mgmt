@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="./styles.css?v=20261017-layout4">
     <link rel="stylesheet" href="./styles/components.css?v=20261017-layout4">
     <link rel="stylesheet" href="./styles/diagnosis.css?v=20261017-layout4">
-    <link rel="stylesheet" href="./diagnosis-reports.css?v=20261017-layout4">
+    <link rel="stylesheet" href="./diagnosis-reports.css?v=20261018-report-supplement2">
     <link rel="stylesheet" href="./markdown-view.css?v=20261017-md2">
     <script src="./shared/navigation.js?v=20261017-layout4" defer></script>
 </head>
@@ -55,12 +55,16 @@
     </form>
 </dialog>
 <dialog id="report-detail-dialog" class="task-dialog report-detail-dialog" aria-labelledby="report-detail-title">
-    <div class="panel-heading"><div class="task-detail-heading"><h2 id="report-detail-title">诊断报告</h2><p id="report-detail-note" class="help"></p></div><div class="task-header-actions"><button type="button" class="refresh-button" id="close-detail">关闭</button></div></div>
+    <div class="panel-heading"><div class="task-detail-heading"><h2 id="report-detail-title">诊断报告</h2><p id="report-detail-note" class="help"></p></div><div class="task-header-actions"><select id="report-model-filter" class="report-model-filter" aria-label="按模型筛选" hidden></select><button type="button" class="primary-button report-supplement-button" id="supplement-report" hidden>补全报告</button><button type="button" class="refresh-button" id="close-detail">关闭</button></div></div>
     <div class="task-dialog-body">
         <div id="detail-error" class="notice error" role="alert" hidden></div>
         <div class="report-tabs" role="tablist" id="report-tabs"></div>
         <div id="report-panel"></div>
     </div>
+</dialog>
+<dialog id="evidence-dialog" class="task-dialog task-answer-dialog" aria-labelledby="evidence-title">
+    <div class="panel-heading"><div><h2 id="evidence-title">证据</h2><p class="help">由规则从本报告数据中计算，点「看回答」可查看完整回答。</p></div><button type="button" class="refresh-button" id="close-evidence">返回报告</button></div>
+    <div class="task-dialog-body"><div id="evidence-content"></div></div>
 </dialog>
 <dialog id="answer-dialog" class="task-dialog task-answer-dialog" aria-labelledby="answer-title">
     <div class="panel-heading"><div><h2 id="answer-title">回答原文</h2><p id="answer-note" class="help"></p></div><button type="button" class="refresh-button" id="close-answer">返回报告</button></div>
@@ -74,6 +78,6 @@
 <script src="./shared/async.js?v=20261017-lifecycle1" defer></script>
 <script src="./shared/pagination.js?v=20261017-lifecycle1" defer></script>
 <script src="./shared/dialog.js?v=20261017-lifecycle1" defer></script>
-<script src="./diagnosis-reports.js?v=20261018-report-tabs1" defer></script>
+<script src="./diagnosis-reports.js?v=20261018-report-supplement2" defer></script>
 </body>
 </html>
