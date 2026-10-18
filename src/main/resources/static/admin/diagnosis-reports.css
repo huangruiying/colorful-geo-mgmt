@@ -2,7 +2,6 @@
 .report-tabs { display:flex; gap:6px; flex-wrap:wrap; border-bottom:1px solid #e0e7f1; margin-bottom:20px; }
 .report-tab { border:0; background:none; padding:10px 14px; color:#5a6f8a; font:inherit; font-size:14px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
 .report-tab[aria-selected=true] { color:#245faa; border-bottom-color:#347de6; font-weight:600; }
-.report-tab[data-pending=true] { color:#9aa9bb; }
 .report-section { margin-bottom:28px; }
 .report-section h3 { margin:0 0 6px; font-size:16px; }
 .report-section > .help { margin:0 0 12px; }
