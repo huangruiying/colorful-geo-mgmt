@@ -56,6 +56,7 @@ public class GeoDiagnosisTaskReportService {
     private DiagnosisTaskSnapshots snapshots;
 
     /**
+     * 把 诊断任务 转成 待处理的诊断报告(初始化)
      * 为已结束的诊断任务创建一份待生成的报告，并为每条有效回答建立待判定记录；不调用模型，判定与汇总由 DiagnosisTaskReportWorker 后台完成。
      * <p>写入（同一事务，任一步失败整体回滚）：
      * <ul>
@@ -102,26 +103,28 @@ public class GeoDiagnosisTaskReportService {
     }
 
     /**
-     * 领取一份待生成的报告；优先继续上次中断的 RUNNING 报告，其次领取最早的 PENDING 报告。
+     * 提取待处理报告
+     * 优先继续上次中断的 RUNNING 报告，其次领取最早的 PENDING 报告。
      * <p>单实例执行由后台执行器的数据库会话锁保证，因此残留的 RUNNING 报告可以直接续跑；已判定的回答不会重复判定。</p>
      * @return 已处于 RUNNING 的报告，没有可处理的报告时为 null
      */
     @Transactional
-    public GeoDiagnosisTaskReportEntity claimNextReport() {
-        // 1. 中断后续跑：剩余待判定记录保持 PENDING，继续处理即可
+    public GeoDiagnosisTaskReportEntity extrateUnprocessReport() {
+        // 1. 存在在分析中的报告，优先处理
         GeoDiagnosisTaskReportEntity running = reportDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisTaskReportEntity>()
                 .eq(GeoDiagnosisTaskReportEntity::getStatus, DiagnosisTaskReportStatus.RUNNING.name())
                 .orderByAsc(GeoDiagnosisTaskReportEntity::getId).last("LIMIT 1 FOR UPDATE"));
         if (running != null) {
             return running;
         }
-        // 2. 领取最早排队的报告，状态更新成功后才开始调用模型
+        // 2. 获取待处理的诊断报告
         GeoDiagnosisTaskReportEntity report = reportDao.selectOne(new LambdaQueryWrapper<GeoDiagnosisTaskReportEntity>()
                 .eq(GeoDiagnosisTaskReportEntity::getStatus, DiagnosisTaskReportStatus.PENDING.name())
                 .orderByAsc(GeoDiagnosisTaskReportEntity::getId).last("LIMIT 1 FOR UPDATE"));
         if (report == null) {
             return null;
         }
+        // 2.1 标记诊断报告为处理中
         LocalDateTime now = LocalDateTime.now();
         int changed = reportDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisTaskReportEntity>()
                 .eq(GeoDiagnosisTaskReportEntity::getId, report.getId())
@@ -129,6 +132,7 @@ public class GeoDiagnosisTaskReportService {
                 .set(GeoDiagnosisTaskReportEntity::getStatus, DiagnosisTaskReportStatus.RUNNING.name())
                 .set(GeoDiagnosisTaskReportEntity::getStartedAt, now));
         if (changed != 1) {
+            // 标记失败
             return null;
         }
         report.setStatus(DiagnosisTaskReportStatus.RUNNING.name());

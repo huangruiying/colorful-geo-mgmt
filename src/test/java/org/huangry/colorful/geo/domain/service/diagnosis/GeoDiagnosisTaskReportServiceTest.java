@@ -92,7 +92,7 @@ class GeoDiagnosisTaskReportServiceTest {
         running.setId(3L);
         running.setStatus("RUNNING");
         when(reports.selectOne(any())).thenReturn(running);
-        assertSame(running, service.claimNextReport());
+        assertSame(running, service.extrateUnprocessReport());
         verify(reports, never()).update(isNull(), any());
 
         var pending = new GeoDiagnosisTaskReportEntity();
@@ -100,7 +100,7 @@ class GeoDiagnosisTaskReportServiceTest {
         pending.setStatus("PENDING");
         when(reports.selectOne(any())).thenReturn(null, pending);
         when(reports.update(isNull(), any())).thenReturn(1);
-        var claimed = service.claimNextReport();
+        var claimed = service.extrateUnprocessReport();
         assertEquals("RUNNING", claimed.getStatus());
         assertNotNull(claimed.getStartedAt());
     }
