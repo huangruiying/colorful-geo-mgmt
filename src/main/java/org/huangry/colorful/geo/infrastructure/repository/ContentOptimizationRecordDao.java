@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.ConstructorArgs;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
-import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordSummary;
+import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordPageItem;
 import org.huangry.colorful.geo.infrastructure.repository.entity.ContentOptimizationRecordEntity;
 
 import java.time.LocalDateTime;
@@ -19,11 +19,11 @@ import java.util.List;
 public interface ContentOptimizationRecordDao extends BaseMapper<ContentOptimizationRecordEntity> {
 
     /**
-     * 只查询页面所需的摘要与平台发布数量，避免分页时加载正文。
+     * 内容优化记录列表查询，同时统计各平台发布状态数量，不加载正文。
      *
      * @param size 每页条数
      * @param offset 起始偏移
-     * @return 当前页摘要
+     * @return 当前页记录
      */
     @Select("""
             SELECT r.id, r.title, r.created_at,
@@ -45,6 +45,6 @@ public interface ContentOptimizationRecordDao extends BaseMapper<ContentOptimiza
             @Arg(column = "failed_count", javaType = int.class),
             @Arg(column = "created_at", javaType = LocalDateTime.class)
     })
-    List<ContentOptimizationRecordSummary> listSummaries(@Param("size") int size, @Param("offset") long offset);
+    List<ContentOptimizationRecordPageItem> listPageItems(@Param("size") int size, @Param("offset") long offset);
 
 }

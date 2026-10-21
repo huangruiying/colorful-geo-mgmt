@@ -1,16 +1,12 @@
 /** 内容工作台：优化稿入库后，在预发布弹窗确认最终稿并创建逐平台草稿。 */
-const publishStatusLabels = {
-    INITIALIZED: "待预发布", PRE_PUBLISHING: "预发布中／待核对", PRE_PUBLISHED: "预发布成功",
-    PUBLISHING: "实际发布中", PUBLISHED: "实际发布成功",
-    PRE_PUBLISH_FAILED: "预发布失败", PUBLISH_FAILED: "实际发布失败", CANCELLED: "已取消"
-};
+const publishStatusLabels = window.PublishStatus.labels;
+const requestJson = window.AdminHttp.requestJson;
+const formatDate = window.AdminFormat.dateTime;
 const pageSize = 20;
 let currentPage = 0;
 let currentDetail = null;
 let selectedRecordId = null;
 let checkedRecordId = null;
-let platformOptionsPromise = null;
-const platformDisplayNames = new Map();
 
 const recordRows = document.querySelector("#record-rows");
 const pageNotice = document.querySelector("#page-notice");
@@ -30,20 +26,6 @@ document.querySelectorAll("[data-close]").forEach(button => button.addEventListe
     document.getElementById(button.dataset.close).close();
 }));
 loadContentRecords(0);
-
-/** 只接收 JSON 结果；接口失败优先显示可读的业务说明。 */
-async function requestJson(path, options = {}) {
-    const response = await fetch(path, {
-        ...options,
-        headers: {Accept: "application/json", ...(options.body ? {"Content-Type": "application/json"} : {})},
-        cache: "no-store"
-    });
-    const body = await response.json().catch(() => null);
-    if (!response.ok) {
-        throw new Error(body?.detail || `接口返回 HTTP ${response.status}`);
-    }
-    return body;
-}
 
 /** 分页加载摘要，正文只在用户查看详情时读取。 */
 async function loadContentRecords(page) {
@@ -98,7 +80,7 @@ function renderContentRows(records) {
         const statusCell = document.createElement("td");
         statusCell.textContent = record.publishRecordCount ? "查看各平台状态" : "待预发布";
         const draftCell = document.createElement("td");
-        draftCell.textContent = `${record.draftCount} 草稿 · ${record.processingCount} 待核对 · ${record.failedCount} 失败`;
+        draftCell.textContent = `${record.draftCount} 草稿 · ${record.processingCount} 进行中 · ${record.failedCount} 失败`;
         const dateCell = document.createElement("td");
         dateCell.textContent = formatDate(record.createdAt);
         const actionCell = document.createElement("td");
@@ -144,14 +126,12 @@ async function submitOptimization(event) {
 /** 读取原文、优化稿及各平台发布结果；最终稿仅在预发布弹窗中确认。 */
 async function openContentDetail(recordId) {
     try {
-        const [detail] = await Promise.all([
-            requestJson(`/content-optimize/detail/${recordId}`), loadPlatformOptions()
-        ]);
-        currentDetail = detail;
+        currentDetail = await requestJson(`/content-optimize/detail/${recordId}`);
         const record = currentDetail.record;
         document.querySelector("#detail-title").textContent = record.title;
-        document.querySelector("#original-content").textContent = record.originalContent;
-        document.querySelector("#optimized-content").textContent = record.optimizedContent;
+        // 仅转换详情视图，预发布编辑框及实际提交仍使用接口原文。
+        MarkdownView.render(document.querySelector("#original-content"), record.originalContent);
+        MarkdownView.render(document.querySelector("#optimized-content"), record.optimizedContent);
         renderWarnings(record.warnings || []);
         renderCitations(record.citations || []);
         renderPublishRecords(currentDetail.publishRecords || []);
@@ -167,7 +147,7 @@ async function openPlatformSelection(recordId) {
     hideMessage(errorNode);
     try {
         const [detail, platforms] = await Promise.all([
-            requestJson(`/content-optimize/detail/${recordId}`), loadPlatformOptions()
+            requestJson(`/content-optimize/detail/${recordId}`), requestJson("/content-publish/platforms")
         ]);
         selectedRecordId = recordId;
         document.querySelector("#platform-dialog-title").textContent = `${detail.record.title} · 选择一个或多个平台创建草稿`;
@@ -218,7 +198,7 @@ async function submitPrePublish() {
     }
 }
 
-/** 仅成功状态置灰；明确失败可重试，进行中及待核对状态不可重复提交。 */
+/** 仅成功状态置灰；明确失败可重试，进行中状态不可重复提交。 */
 function createPlatformOption(platform, publishRecord) {
     const label = document.createElement("label");
     label.className = "platform-option";
@@ -232,24 +212,10 @@ function createPlatformOption(platform, publishRecord) {
     checkbox.disabled = Boolean(publishRecord) && !retryable;
     const name = document.createElement("span");
     const status = publishRecord
-        ? publishStatusLabels[publishRecord.publishStatus] || "状态未知，待核对" : "";
+        ? publishStatusLabels[publishRecord.publishStatus] || "状态未知" : "";
     name.textContent = `${platform.displayName}${status ? ` · ${status}` : ""}${retryable ? " · 可重试" : ""}`;
     label.append(checkbox, name);
     return label;
-}
-
-/** 平台展示名只读取一次；请求失败后允许再次加载。 */
-async function loadPlatformOptions() {
-    if (!platformOptionsPromise) {
-        platformOptionsPromise = requestJson("/publication/platforms").then(platforms => {
-            platforms.forEach(platform => platformDisplayNames.set(platform.platformType, platform.displayName));
-            return platforms;
-        }).catch(error => {
-            platformOptionsPromise = null;
-            throw error;
-        });
-    }
-    return platformOptionsPromise;
 }
 
 function togglePlatformSelection(checked) {
@@ -262,7 +228,7 @@ function renderPublishRecords(records) {
         const item = document.createElement("div");
         item.className = "publish-record-item";
         const name = document.createElement("strong");
-        name.textContent = platformDisplayNames.get(record.platformType) || record.platformType;
+        name.textContent = record.platformDisplayName;
         const status = document.createElement("span");
         status.textContent = publishStatusLabels[record.publishStatus] || record.publishStatus;
         item.append(name, status);
@@ -271,15 +237,7 @@ function renderPublishRecords(records) {
             id.textContent = `平台 ID：${record.remoteContentId}`;
             item.append(id);
         }
-        const draftUrl = safeWebUrl(record.draftUrl);
-        if (draftUrl) {
-            const link = document.createElement("a");
-            link.href = draftUrl;
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-            link.textContent = "打开草稿";
-            item.append(link);
-        }
+        appendDraftEntry(item, record);
         if (record.failureReason) {
             const reason = document.createElement("span");
             reason.textContent = record.failureReason;
@@ -299,26 +257,14 @@ function renderCitations(citations) {
     const node = document.querySelector("#optimization-citations");
     node.hidden = citations.length === 0;
     node.replaceChildren(...citations.map(citation => {
-        const url = safeWebUrl(citation.url);
-        const element = document.createElement(url ? "a" : "span");
-        element.textContent = citation.title || citation.url || "未命名引用";
-        if (url) {
-            element.href = url;
-            element.target = "_blank";
-            element.rel = "noopener noreferrer";
-        }
-        return element;
+        const item = document.createElement("span");
+        const title = citation.title || citation.url || "未命名引用";
+        // 无有效网页地址时仍保留引用名称，不生成可执行链接。
+        const link = appendWebLink(item, citation.url, title);
+        if (link) return link;
+        item.textContent = title;
+        return item;
     }));
-}
-
-/** 只允许网页协议进入可点击链接，避免平台或模型返回可执行的 URL。 */
-function safeWebUrl(value) {
-    try {
-        const url = new URL(value);
-        return ["http:", "https:"].includes(url.protocol) ? url.href : null;
-    } catch {
-        return null;
-    }
 }
 
 function createActionButton(label, action) {
@@ -338,11 +284,6 @@ function showEmptyRows(message) {
     cell.textContent = message;
     row.append(cell);
     recordRows.replaceChildren(row);
-}
-
-function formatDate(value) {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", {hour12: false});
 }
 
 function showMessage(node, message, type) {

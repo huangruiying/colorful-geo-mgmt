@@ -3,7 +3,7 @@ package org.huangry.colorful.geo.infrastructure.client.login;
 import org.huangry.colorful.geo.infrastructure.client.playwright.PlaywrightBrowserComponent;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson.JSON;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformType;
 import org.junit.jupiter.api.Test;
@@ -15,9 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** 扫码平台账号响应的状态判定测试；不启动浏览器或访问真实账号。 */
 class QrPlatformPlaywrightLoginClientTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final QrPlatformPlaywrightLoginClient client = new QrPlatformPlaywrightLoginClient(
-            objectMapper, new PlaywrightBrowserComponent());
+    private final QrPlatformPlaywrightLoginClient client = new QrPlatformPlaywrightLoginClient();
 
     /** 只有含扫码页及账号核验规则的平台才开放独立登录入口。 */
     @Test
@@ -39,9 +37,9 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 东方财富只接受创作平台返回的作者 ID 与昵称，不把业务成功码单独当成登录。 */
     @Test
     void 东方财富作者响应须包含身份() throws JsonProcessingException {
-        var visitor = objectMapper.readTree("{\"Success\":-1,\"Message\":\"未登录\",\"Result\":null}");
-        var missing = objectMapper.readTree("{\"Success\":1,\"Result\":{\"nickName\":\"作者\"}}");
-        var author = objectMapper.readTree(
+        var visitor = JSON.parseObject("{\"Success\":-1,\"Message\":\"未登录\",\"Result\":null}");
+        var missing = JSON.parseObject("{\"Success\":1,\"Result\":{\"nickName\":\"作者\"}}");
+        var author = JSON.parseObject(
                 "{\"Success\":1,\"Result\":{\"relatedUid\":123,\"nickName\":\"作者\"}}");
 
         assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN, client.parseEastmoneyAccount(visitor).status());
@@ -53,9 +51,9 @@ class QrPlatformPlaywrightLoginClientTest {
     /** CSDN 创作后台只有成功业务码和当前用户名同时具备时才保存扫码会话。 */
     @Test
     void CSDN账号响应须含用户名() throws JsonProcessingException {
-        var valid = objectMapper.readTree("{\"code\":200,\"data\":{\"username\":\"author-1\",\"nickname\":\"作者\"}}");
-        var missing = objectMapper.readTree("{\"code\":200,\"data\":{\"nickname\":\"作者\"}}");
-        var denied = objectMapper.readTree("{\"code\":401,\"data\":{\"username\":\"author-1\"}}");
+        var valid = JSON.parseObject("{\"code\":200,\"data\":{\"username\":\"author-1\",\"nickname\":\"作者\"}}");
+        var missing = JSON.parseObject("{\"code\":200,\"data\":{\"nickname\":\"作者\"}}");
+        var denied = JSON.parseObject("{\"code\":401,\"data\":{\"username\":\"author-1\"}}");
 
         assertEquals(PlatformBrowserLoginStatus.LOGGED_IN,
                 client.parseAccountResponse(PublicationPlatformType.CSDN, valid).status());
@@ -69,9 +67,9 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 什么值得买返回 HTTP 200 时仍须检查正数用户 ID。 */
     @Test
     void 什么值得买账号响应须含有效用户ID() throws JsonProcessingException {
-        var visitor = objectMapper.readTree("{\"smzdm_id\":0}");
-        var account = objectMapper.readTree("{\"smzdm_id\":123,\"nickname\":\"值友\"}");
-        var missing = objectMapper.readTree("{\"nickname\":\"值友\"}");
+        var visitor = JSON.parseObject("{\"smzdm_id\":0}");
+        var account = JSON.parseObject("{\"smzdm_id\":123,\"nickname\":\"值友\"}");
+        var missing = JSON.parseObject("{\"nickname\":\"值友\"}");
 
         assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN,
                 client.parseAccountResponse(PublicationPlatformType.SMZDM, visitor).status());
@@ -83,7 +81,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 掘金未登录会返回 HTTP 200 和空 data，不能把请求成功误当登录成功。 */
     @Test
     void 掘金空账号数据应判定未登录() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"err_no\":0,\"data\":null}");
+        var response = JSON.parseObject("{\"err_no\":0,\"data\":null}");
 
         assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN,
                 client.parseAccountResponse(PublicationPlatformType.JUEJIN, response).status());
@@ -92,7 +90,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 掘金账号 ID 与名称可用时才保存会话。 */
     @Test
     void 掘金有效账号应判定已登录() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"err_no\":0,\"data\":{\"user_id\":\"123\",\"user_name\":\"掘金账号\"}}");
+        var response = JSON.parseObject("{\"err_no\":0,\"data\":{\"user_id\":\"123\",\"user_name\":\"掘金账号\"}}");
 
         var probe = client.parseAccountResponse(PublicationPlatformType.JUEJIN, response);
 
@@ -103,7 +101,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 掘金账号响应格式变化时不能伪造已登录结论。 */
     @Test
     void 掘金缺少账号标识应判定无法确认() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"err_no\":0,\"data\":{\"user_name\":\"掘金账号\"}}");
+        var response = JSON.parseObject("{\"err_no\":0,\"data\":{\"user_name\":\"掘金账号\"}}");
 
         assertEquals(PlatformBrowserLoginStatus.UNKNOWN,
                 client.parseAccountResponse(PublicationPlatformType.JUEJIN, response).status());
@@ -112,7 +110,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 哔哩哔哩未登录业务码不能保存半成品会话。 */
     @Test
     void 哔哩哔哩未登录业务码应返回未登录() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"code\":-101,\"message\":\"账号未登录\"}");
+        var response = JSON.parseObject("{\"code\":-101,\"message\":\"账号未登录\"}");
 
         assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN,
                 client.parseAccountResponse(PublicationPlatformType.BILIBILI, response).status());
@@ -121,7 +119,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 哔哩哔哩账号接口须同时确认登录标志和用户 ID。 */
     @Test
     void 哔哩哔哩真实账号信息应返回已登录() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"code\":0,\"data\":{\"isLogin\":true,\"mid\":123,\"uname\":\"视频账号\"}}");
+        var response = JSON.parseObject("{\"code\":0,\"data\":{\"isLogin\":true,\"mid\":123,\"uname\":\"视频账号\"}}");
 
         var probe = client.parseAccountResponse(PublicationPlatformType.BILIBILI, response);
 
@@ -132,7 +130,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 哔哩哔哩缺少用户 ID 时保留未知，不把业务成功码当作登录成功。 */
     @Test
     void 哔哩哔哩缺少用户标识应返回无法确认() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"code\":0,\"data\":{\"isLogin\":true}}");
+        var response = JSON.parseObject("{\"code\":0,\"data\":{\"isLogin\":true}}");
 
         assertEquals(PlatformBrowserLoginStatus.UNKNOWN,
                 client.parseAccountResponse(PublicationPlatformType.BILIBILI, response).status());
@@ -141,7 +139,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 头条号明确返回未登录业务码时不保存会话。 */
     @Test
     void 头条号未登录业务码应返回未登录() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"err_no\":100004,\"message\":\"user not login\"}");
+        var response = JSON.parseObject("{\"err_no\":100004,\"message\":\"user not login\"}");
 
         assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN,
                 client.parseAccountResponse(PublicationPlatformType.TOUTIAO, response).status());
@@ -150,7 +148,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 头条号用户 ID 与昵称均来自平台账号接口，不从二维码图片推测账号。 */
     @Test
     void 头条号真实账号信息应返回已登录() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"err_no\":0,\"data\":{\"user\":{\"id\":123,\"screen_name\":\"头条账号\"}}}");
+        var response = JSON.parseObject("{\"err_no\":0,\"data\":{\"user\":{\"id\":123,\"screen_name\":\"头条账号\"}}}");
 
         var probe = client.parseAccountResponse(PublicationPlatformType.TOUTIAO, response);
 
@@ -209,7 +207,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 小红书的未登录业务码不能因为接口 HTTP 成功就保存会话。 */
     @Test
     void 小红书未登录业务码应返回未登录() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"success\":false,\"result\":-100}");
+        var response = JSON.parseObject("{\"success\":false,\"result\":-100}");
 
         assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN,
                 client.parseAccountResponse(PublicationPlatformType.XIAOHONGSHU, response).status());
@@ -218,7 +216,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 小红书创作者账号接口提供真实用户标识时才认定登录。 */
     @Test
     void 小红书有效账号应返回已登录() throws JsonProcessingException {
-        var response = objectMapper.readTree(
+        var response = JSON.parseObject(
                 "{\"success\":true,\"data\":{\"userId\":\"123\",\"userName\":\"创作者\"}}");
 
         var probe = client.parseAccountResponse(PublicationPlatformType.XIAOHONGSHU, response);
@@ -230,7 +228,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 抖音创作者接口明确返回未登录业务码时不得保存二维码会话。 */
     @Test
     void 抖音未登录业务码应返回未登录() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"status_code\":8,\"status_msg\":\"用户未登录\"}");
+        var response = JSON.parseObject("{\"status_code\":8,\"status_msg\":\"用户未登录\"}");
 
         assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN,
                 client.parseAccountResponse(PublicationPlatformType.DOUYIN, response).status());
@@ -239,7 +237,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 抖音成功码之外还需要当前用户标识，才可确认账号。 */
     @Test
     void 抖音缺用户标识应返回无法确认() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"status_code\":0,\"data\":{}}");
+        var response = JSON.parseObject("{\"status_code\":0,\"data\":{}}");
 
         assertEquals(PlatformBrowserLoginStatus.UNKNOWN,
                 client.parseAccountResponse(PublicationPlatformType.DOUYIN, response).status());
@@ -248,7 +246,7 @@ class QrPlatformPlaywrightLoginClientTest {
     /** 抖音创作者接口返回用户标识后才允许保存扫码会话。 */
     @Test
     void 抖音创作者账号可确认登录() throws JsonProcessingException {
-        var response = objectMapper.readTree("{\"status_code\":0,\"user_info\":{\"uid\":\"123\",\"nickname\":\"作者\"}}");
+        var response = JSON.parseObject("{\"status_code\":0,\"user_info\":{\"uid\":\"123\",\"nickname\":\"作者\"}}");
 
         var probe = client.parseAccountResponse(PublicationPlatformType.DOUYIN, response);
 

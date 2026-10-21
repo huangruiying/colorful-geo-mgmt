@@ -31,7 +31,7 @@ function createLoginPage(platforms = []) {
             querySelector: () => element('native-scan-method'),
             querySelectorAll: () => []
         },
-        window: { addEventListener() {} }, AbortController, URLSearchParams,
+        window: { addEventListener() {} }, AbortController, URLSearchParams, Headers,
         setInterval(callback) { timers.set(++nextTimer, callback); return nextTimer; },
         clearInterval(id) { timers.delete(id); },
         fetch: async (url, options) => {
@@ -40,6 +40,8 @@ function createLoginPage(platforms = []) {
                 : url.endsWith('/cancel') ? '' : '{"status":"LOGIN_PENDING"}' };
         }
     });
+    vm.runInContext(fs.readFileSync(path.join(__dirname,
+        '../../main/resources/static/admin/shared/http.js'), 'utf8'), context);
     vm.runInContext(fs.readFileSync(path.join(__dirname,
         '../../main/resources/static/admin/browser-login.js'), 'utf8'), context);
     vm.runInContext("activePlatform = 'ZHIHU'; platformNames.ZHIHU = '知乎'; startPolling();", context);
@@ -209,7 +211,7 @@ test('登录页打开失败时在弹窗显示原因并允许重试', async () =>
         if (url.includes('/XIAOHONGSHU/login?') && failOnce) {
             failOnce = false;
             return Promise.resolve({ ok: false, status: 400,
-                json: async () => ({ message: '小红书加载二维码失败，请检查网络后重试' }) });
+                text: async () => JSON.stringify({ detail: '小红书加载二维码失败，请检查网络后重试' }) });
         }
         return originalFetch(url, options);
     };

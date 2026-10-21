@@ -41,7 +41,7 @@ class PlatformBrowserLoginControllerTest {
         when(service.listPlatforms()).thenReturn(List.of(platform));
         var response = new MockHttpServletResponse();
 
-        var result = new PlatformBrowserLoginController(service).listPlatforms(response);
+        var result = new MgmtPlatformLoginController(service).listPlatforms(response);
 
         assertEquals(List.of(platform), result);
         assertEquals("no-store", response.getHeader("Cache-Control"));
@@ -57,7 +57,7 @@ class PlatformBrowserLoginControllerTest {
         when(service.checkLoggedInPlatforms()).thenReturn(List.of(platform));
         var response = new MockHttpServletResponse();
 
-        var result = new PlatformBrowserLoginController(service).checkLoggedInPlatforms(response);
+        var result = new MgmtPlatformLoginController(service).checkLoggedInPlatforms(response);
 
         assertEquals(List.of(platform), result);
         assertEquals("no-store", response.getHeader("Cache-Control"));
@@ -76,7 +76,7 @@ class PlatformBrowserLoginControllerTest {
                 .thenReturn(new PlatformBrowserLoginService.LoginProgress(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "private-qr-image-test", null));
 
-        new PlatformBrowserLoginController(service).startLogin("ZHIHU", "WECHAT", false, response);
+        new MgmtPlatformLoginController(service).startLogin("ZHIHU", "WECHAT", false, response);
 
         verify(service).startLogin(PublicationPlatformType.ZHIHU, PlatformScanLoginMethod.WECHAT, false);
         assertEquals("no-store", response.getHeader("Cache-Control"));
@@ -90,14 +90,14 @@ class PlatformBrowserLoginControllerTest {
     void 密码登录只调用当前浏览器任务(CapturedOutput output) {
         PlatformBrowserLoginService service = mock(PlatformBrowserLoginService.class);
         var response = new MockHttpServletResponse();
-        var request = new PlatformBrowserLoginController.PasswordLoginRequest(
+        var request = new MgmtPlatformLoginController.PasswordLoginRequest(
                 "user@example.com", "private-password-test", false);
         when(service.submitPasswordLogin(PublicationPlatformType.ZHIHU,
                 "user@example.com", "private-password-test", false))
                 .thenReturn(new PlatformBrowserLoginService.LoginProgress(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, null, null));
 
-        new PlatformBrowserLoginController(service).submitPasswordLogin("ZHIHU", request, response);
+        new MgmtPlatformLoginController(service).submitPasswordLogin("ZHIHU", request, response);
 
         verify(service).submitPasswordLogin(PublicationPlatformType.ZHIHU,
                 "user@example.com", "private-password-test", false);
@@ -112,10 +112,10 @@ class PlatformBrowserLoginControllerTest {
     void 空短信码不进入浏览器任务() {
         PlatformBrowserLoginService service = mock(PlatformBrowserLoginService.class);
         var response = new MockHttpServletResponse();
-        var request = new PlatformBrowserLoginController.SmsCodeRequest(" ");
+        var request = new MgmtPlatformLoginController.SmsCodeRequest(" ");
 
         assertThrows(PlatformBrowserLoginException.class,
-                () -> new PlatformBrowserLoginController(service).submitSmsCode("ZHIHU", request, response));
+                () -> new MgmtPlatformLoginController(service).submitSmsCode("ZHIHU", request, response));
         verifyNoInteractions(service);
     }
 
@@ -130,7 +130,7 @@ class PlatformBrowserLoginControllerTest {
                 .thenReturn(new PlatformBrowserLoginService.LoginProgress(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "private-verification-image", null));
 
-        new PlatformBrowserLoginController(service).selectIdentityVerificationMethod(
+        new MgmtPlatformLoginController(service).selectIdentityVerificationMethod(
                 "DOUYIN", DouyinIdentityVerificationMethod.RECEIVE_SMS, response);
 
         assertEquals("no-store", response.getHeader("Cache-Control"));
@@ -145,12 +145,12 @@ class PlatformBrowserLoginControllerTest {
     void 抖音身份验证码不记录到日志(CapturedOutput output) {
         PlatformBrowserLoginService service = mock(PlatformBrowserLoginService.class);
         var response = new MockHttpServletResponse();
-        var request = new PlatformBrowserLoginController.SmsCodeRequest("987654");
+        var request = new MgmtPlatformLoginController.SmsCodeRequest("987654");
         when(service.submitDouyinVerificationCode(PublicationPlatformType.DOUYIN, "987654"))
                 .thenReturn(new PlatformBrowserLoginService.LoginProgress(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, null, null));
 
-        new PlatformBrowserLoginController(service).submitIdentityVerificationCode("DOUYIN", request, response);
+        new MgmtPlatformLoginController(service).submitIdentityVerificationCode("DOUYIN", request, response);
 
         verify(service).submitDouyinVerificationCode(PublicationPlatformType.DOUYIN, "987654");
         assertFalse(output.toString().contains("987654"));
@@ -163,9 +163,9 @@ class PlatformBrowserLoginControllerTest {
         PlatformBrowserLoginService service = mock(PlatformBrowserLoginService.class);
         var exception = new PlatformBrowserLoginException("小红书加载二维码失败，请检查网络后重试");
 
-        var response = new PlatformBrowserLoginController(service).handleLoginError(exception);
+        var problem = new MgmtPlatformLoginController(service).handleLoginError(exception);
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals(exception.getMessage(), response.getBody().get("message"));
+        assertEquals(400, problem.getStatus());
+        assertEquals(exception.getMessage(), problem.getDetail());
     }
 }

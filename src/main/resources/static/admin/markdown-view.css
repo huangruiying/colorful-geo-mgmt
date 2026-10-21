@@ -1,0 +1,32 @@
+/* 仅作用于只读正文，避免改变页面表格、错误提示、JSON 和编辑框的展示。 */
+.markdown-body { color:inherit; font-size:14px; line-height:1.85; white-space:normal; overflow-wrap:anywhere; min-width:0; }
+.markdown-body.markdown-plain-fallback { white-space:pre-wrap; }
+#answer-content.markdown-body > p:first-child { background:none; padding:0; border-radius:0; }
+.markdown-body > :first-child { margin-top:0; }
+.markdown-body > :last-child { margin-bottom:0; }
+.markdown-body p, .markdown-body ul, .markdown-body ol, .markdown-body blockquote, .markdown-body pre, .markdown-body table { margin:0 0 16px; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { margin:24px 0 12px; color:inherit; line-height:1.4; font-weight:650; }
+.markdown-body h1 { font-size:24px; }
+.markdown-body h2 { font-size:21px; }
+.markdown-body h3 { font-size:18px; }
+.markdown-body h4, .markdown-body h5, .markdown-body h6 { font-size:16px; }
+.markdown-body ul, .markdown-body ol { padding-left:26px; }
+.markdown-body li { margin:4px 0; }
+.markdown-body li > p { margin:0 0 8px; }
+.markdown-body blockquote { padding:8px 16px; border-left:4px solid #b9cce7; background:#f5f8fc; color:#526881; }
+.markdown-body blockquote > :last-child { margin-bottom:0; }
+.markdown-body code { padding:2px 5px; border-radius:4px; background:#edf2f8; font-family:ui-monospace, SFMono-Regular, Consolas, monospace; font-size:.92em; white-space:pre-wrap; }
+.markdown-body pre { padding:16px; border-radius:8px; background:#f3f6fa; overflow-x:auto; }
+.markdown-body pre code { padding:0; background:none; white-space:pre; overflow-wrap:normal; }
+.markdown-body table { display:block; width:max-content; max-width:100%; overflow-x:auto; border-collapse:collapse; font-size:inherit; }
+.markdown-body th, .markdown-body td { border:1px solid #dce4ef; padding:8px 12px; text-align:left; vertical-align:top; white-space:normal; }
+.markdown-body th { background:#f3f6fa; font-weight:600; }
+.markdown-body a { color:#2d6fce; text-decoration:underline; text-underline-offset:3px; }
+.markdown-body img { max-width:100%; height:auto; }
+.markdown-body hr { border:0; border-top:1px solid #dce4ef; margin:20px 0; }
+/* 公式使用原生 MathML，长公式在正文内部滚动，不扩大弹窗。 */
+.markdown-body eq { display:inline; }
+.markdown-body eqn { display:block; overflow-x:auto; max-width:100%; margin:16px 0; padding:8px 0; }
+.markdown-body eqn math { min-width:max-content; }
+.markdown-body .eqno { position:relative; }
+@media(max-width:700px) { .markdown-body h1 { font-size:21px; } .markdown-body h2 { font-size:19px; } .markdown-body pre { padding:12px; } }

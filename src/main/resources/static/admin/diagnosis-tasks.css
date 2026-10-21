@@ -1,0 +1,27 @@
+.task-header-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; flex-shrink:0; }
+.task-restart-note { margin:-8px 0 20px; color:#73849b; font-size:13px; line-height:1.6; }
+#task-detail-dialog .task-dialog-body > .task-overview { margin-top:0; }
+@media(max-width:540px) { #task-detail-dialog > .panel-heading { flex-wrap:wrap; } .task-header-actions { width:100%; } }
+.task-channel-progress { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.channel-progress-item { padding:12px; border:1px solid #e0e7f1; border-radius:8px; font-size:14px; }
+.task-snapshot { margin:20px 0; }
+.task-snapshot { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.readonly-section { margin-bottom:24px; border:1px solid #e0e7f1; border-radius:12px; overflow:hidden; }
+.readonly-section h3 { margin:0; padding:14px 18px; background:#f4f7fc; font-size:15px; }
+.readonly-table { width:100%; table-layout:auto; }
+.readonly-table th, .readonly-table td { white-space:pre-wrap; overflow-wrap:anywhere; vertical-align:top; line-height:1.7; }
+.readonly-table th:first-child, .readonly-table td:first-child { min-width:110px; }
+.readonly-table td:nth-child(2) { min-width:180px; }
+.readonly-table[data-columns="2"] { table-layout:fixed; }
+.readonly-table[data-columns="2"] th:first-child, .readonly-table[data-columns="2"] td:first-child { width:28%; min-width:0; }
+.readonly-table[data-columns="2"] td:nth-child(2) { min-width:0; }
+.response-json { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; background:#f4f7fc; padding:20px; border-radius:10px; font:13px/1.8 monospace; }
+#answer-content > p:first-child { background:#f4f7fc; padding:16px; border-radius:10px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; }
+#answer-content > .text-button { border:1px solid #d5dfed; border-radius:8px; padding:10px 14px; margin:12px 12px 0 0; background:#f7f9fd; }
+.result-heading { justify-content:space-between; margin:20px 0 12px; }
+.result-heading h3 { margin:0; }
+.result-table { min-width:650px; }
+.result-table td:first-child { max-width:450px; white-space:normal; overflow-wrap:anywhere; }
+.answer-body { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.85; padding:16px 0; }
+#answer-content li { margin:8px 0; overflow-wrap:anywhere; }
+@media(max-width:700px) { .result-heading { align-items:flex-start; flex-direction:column; gap:14px; } .task-channel-progress { grid-template-columns:1fr; } }

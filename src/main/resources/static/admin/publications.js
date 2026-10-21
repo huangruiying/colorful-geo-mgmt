@@ -1,9 +1,7 @@
 /** 发布记录列表：展示本地状态和平台结果，删除只作用于本地记录。 */
-const publishStatusLabels = {
-    INITIALIZED: "待预发布", PRE_PUBLISHING: "预发布中／待核对", PRE_PUBLISHED: "预发布成功",
-    PUBLISHING: "实际发布中", PUBLISHED: "实际发布成功",
-    PRE_PUBLISH_FAILED: "预发布失败", PUBLISH_FAILED: "实际发布失败", CANCELLED: "已取消"
-};
+const publishStatusLabels = window.PublishStatus.labels;
+const requestJson = window.AdminHttp.requestJson;
+const formatDate = window.AdminFormat.dateTime;
 const pageSize = 20;
 let currentPage = 0;
 const recordRows = document.querySelector("#record-rows");
@@ -16,14 +14,6 @@ document.querySelector("#next-page").addEventListener("click", () => loadContent
 document.querySelector("#close-detail").addEventListener("click", () => detailDialog.close());
 document.querySelector("#close-detail-bottom").addEventListener("click", () => detailDialog.close());
 loadContentPublishRecords(0);
-
-/** 接口失败时读取 ProblemDetail；删除成功的 204 响应没有正文。 */
-async function requestJson(path, options = {}) {
-    const response = await fetch(path, {headers: {Accept: "application/json"}, cache: "no-store", ...options});
-    const body = response.status === 204 ? null : await response.json().catch(() => null);
-    if (!response.ok) throw new Error(body?.detail || `接口返回 HTTP ${response.status}`);
-    return body;
-}
 
 /** 分页读取发布表；当前页删空时退回上一页。 */
 async function loadContentPublishRecords(page) {
@@ -56,7 +46,7 @@ function createRecordRow(record) {
 
     const title = document.createElement("td");
     title.className = "publication-title";
-    title.textContent = record.platformType || "未知平台";
+    title.textContent = record.platformDisplayName;
     const titleText = document.createElement("small");
     titleText.textContent = record.publicationTitle || "未命名";
     title.append(titleText);
@@ -66,7 +56,8 @@ function createRecordRow(record) {
     const result = document.createElement("td");
     result.className = "publication-result";
     if (record.remoteContentId) appendText(result, `平台 ID：${record.remoteContentId}`);
-    appendWebLink(result, record.draftUrl, "打开草稿");
+    // 使用平台草稿入口链接。
+    appendDraftEntry(result, record);
     appendWebLink(result, record.publishedUrl, "打开文章");
     if (record.failureReason) {
         const reason = document.createElement("div");
@@ -101,7 +92,7 @@ function createRecordRow(record) {
 async function deleteContentPublishRecord(record) {
     const warning = record.publishStatus === "PUBLISHED" || record.publishStatus === "PRE_PUBLISHED"
         ? "平台上的草稿或文章仍会保留；删除后可能再次提交同一内容。" : "";
-    if (!window.confirm(`确定删除本地发布记录 #${record.id}（${record.platformType}）吗？\n${warning}此操作不会删除平台上的内容。`)) return;
+    if (!window.confirm(`确定删除本地发布记录 #${record.id}（${record.platformDisplayName}）吗？\n${warning}此操作不会删除平台上的内容。`)) return;
     try {
         await requestJson(`/content-publish/detail/${record.id}`, {method: "DELETE"});
         await loadContentPublishRecords(currentPage);
@@ -111,40 +102,25 @@ async function deleteContentPublishRecord(record) {
     }
 }
 
-/** 详情展示最终稿快照，不再触发平台接口。 */
+/** 详情以 Markdown 展示最终稿快照，只改变视图，不触发平台接口或修改已发布内容。 */
 function openRecordDetail(record) {
     document.querySelector("#detail-title").textContent = `发布记录 #${record.id}`;
-    document.querySelector("#detail-content").textContent = record.publicationContent || "—";
+    MarkdownView.render(document.querySelector("#detail-content"), record.publicationContent || "—");
     const meta = document.querySelector("#detail-meta");
     meta.replaceChildren();
     [
         `优化记录 ID：${record.contentOptimizationRecordId}`,
-        `平台：${record.platformType}`,
+        `平台：${record.platformDisplayName}`,
         `状态：${publishStatusLabels[record.publishStatus] || record.publishStatus}`,
         `最终发布标题：${record.publicationTitle || "—"}`,
         `平台内容 ID：${record.remoteContentId || "—"}`,
-        `失败或待核对原因：${record.failureReason || "—"}`,
+        `失败/说明原因：${record.failureReason || "—"}`,
         `创建时间：${formatDate(record.createdAt)}`,
         `更新时间：${formatDate(record.updatedAt)}`
     ].forEach(value => appendText(meta, value));
-    appendWebLink(meta, record.draftUrl, "打开草稿");
+    appendDraftEntry(meta, record);
     appendWebLink(meta, record.publishedUrl, "打开文章");
     detailDialog.showModal();
-}
-
-/** URL 只允许 HTTP(S)，平台返回值不直接拼入 HTML。 */
-function appendWebLink(container, url, label) {
-    if (!url) return;
-    try {
-        const parsed = new URL(url);
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
-        const link = document.createElement("a");
-        link.href = parsed.href;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.textContent = label;
-        container.append(link);
-    } catch (_) { /* 平台未返回有效网页链接时只展示其他字段。 */ }
 }
 
 function appendText(container, value) {
@@ -178,6 +154,3 @@ function showNotice(message, error) {
     pageNotice.hidden = false;
 }
 
-function formatDate(value) {
-    return value ? new Date(value).toLocaleString("zh-CN", {hour12: false}) : "—";
-}

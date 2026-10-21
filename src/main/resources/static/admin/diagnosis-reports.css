@@ -1,0 +1,36 @@
+.report-detail-dialog { width:min(1180px,calc(100vw - 48px)); }
+.report-tabs { display:flex; gap:6px; flex-wrap:wrap; border-bottom:1px solid #e0e7f1; margin-bottom:20px; }
+.report-tab { border:0; background:none; padding:10px 14px; color:#5a6f8a; font:inherit; font-size:14px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+.report-tab[aria-selected=true] { color:#245faa; border-bottom-color:#347de6; font-weight:600; }
+.report-section { margin-bottom:28px; }
+.report-section h3 { margin:0 0 6px; font-size:16px; }
+.report-section > .help { margin:0 0 12px; }
+.report-table { min-width:640px; }
+.report-table td.metric, .report-table th.metric { text-align:right; white-space:nowrap; }
+.report-dimensions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.report-dimension-list { border:1px solid #e0e7f1; border-radius:10px; padding:14px 16px; min-width:0; }
+.report-dimension-list h4 { margin:0 0 10px; font-size:14px; }
+.report-dimension { padding:10px 0; border-top:1px solid #f0f3f7; }
+.report-dimension:first-of-type { border-top:0; }
+.report-dimension strong { font-size:14px; }
+.report-dimension .count { color:#73849b; font-size:13px; margin-left:6px; }
+.report-quote { margin:6px 0 0; color:#4b5f79; font-size:13px; line-height:1.6; overflow-wrap:anywhere; white-space:pre-wrap; }
+.report-quote .text-button { padding:0 4px; font-size:13px; }
+.report-empty { color:#9aa9bb; font-size:13px; }
+.report-model-filter { min-width:180px; margin-right:8px; padding:9px 12px; border:1px solid #d5dfed; border-radius:8px; color:#19324e; background:white; font:inherit; }
+.report-supplement-button, .report-export-button { margin-right:8px; }
+.report-filter-note { margin:0 0 16px; padding:10px 14px; background:#f3f7fd; border:1px solid #d8e4f5; border-radius:8px; color:#4b5f79; font-size:13px; }
+.report-advice-meta { color:#73849b; font-size:13px; margin-left:6px; }
+.report-advice-content { margin:6px 0 0; color:#33465e; font-size:14px; line-height:1.7; }
+.report-advice-item .text-button { padding:0; font-size:13px; }
+#evidence-content h4 { margin:16px 0 4px; font-size:14px; }
+#evidence-content h4:first-child { margin-top:0; }
+.report-progress { padding:18px; background:#f7f9fd; border:1px solid #e0e7f1; border-radius:10px; line-height:1.8; }
+@media(max-width:900px) { .report-dimensions { grid-template-columns:1fr; } }
+/* 导出网页的版面：六个页签在一页内依次展开，内容居中限宽，各部分以标题分隔 */
+.report-export { max-width:1180px; margin:0 auto; padding:32px 24px 48px; background:white; }
+.report-export h1 { margin:0 0 8px; font-size:22px; }
+.report-export-note { margin:0 0 4px; color:#4b5f79; font-size:13px; }
+.report-export > .report-filter-note { margin-top:12px; }
+.report-export-part { margin-top:36px; }
+.report-export-part > h2 { margin:0 0 16px; padding-bottom:8px; border-bottom:2px solid #347de6; font-size:18px; }

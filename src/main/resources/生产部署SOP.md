@@ -1,6 +1,6 @@
 # 生产部署 SOP
 
-知乎草稿创建与已有草稿公开发布共用数据库保存的浏览器登录态。部署时按下列顺序检查；分别见 [浏览器登录配置](config/browser-login.md)、[知乎公开发布配置](config/zhihu-publish.md)。其他平台使用 Wechatsync 时见 [Wechatsync 配置](config/wechatsync.md)。
+知乎草稿创建与已有草稿公开发布共用数据库保存的浏览器登录态。部署时按下列顺序检查；分别见 [浏览器登录配置](config/browser-login.md)、[知乎公开发布配置](config/zhihu-publish.md)。
 
 ## 1. 准备运行环境
 
@@ -11,11 +11,11 @@
 
 ## 2. 配置应用
 
-1. 在外置配置中设定 `colorful.geo.llm.enabled_llm_provider`，填写该通道的 `base-url`、`model` 和 `api-key-env`。
-2. 给 Java 服务进程设置 `api-key-env` 所指向的密钥环境变量。当前 custom 通道使用 `COLORFUL_GEO_LLM_CUSTOM_API_KEY`。
-3. 如启用其他平台的 Wechatsync 草稿，按 [Wechatsync 配置说明](config/wechatsync.md) 配置 CLI 路径与桥接 Token；知乎草稿不需要它们。
+1. 空库执行 `db/mysql/001_init.sql`；已有库执行 `db/mysql/007_geo_llm_channel.sql`，建立共享模型渠道表。
+2. 在“基础配置 → 模型配置”填写渠道、模型、接口地址和 API 密钥，保存到 `geo_llm_channel`。未指定渠道或模型时，按已启用渠道的 `score` 降序、ID 升序选择；模型配置不再从 YAML 读取。新库需先新增并启用至少一个可用渠道。
+3. 其他平台草稿能力按各自独立浏览器登录通道接入；知乎草稿不需要额外配置。
 4. 如启用知乎公开发布，按 [知乎公开发布配置](config/zhihu-publish.md) 检查数据库登录态；仅在需要时调整页面动作超时。
-5. 打包前移除源码中的真实 Token 和 API Key，凭证只通过受控的运行环境或外置配置提供。不要把 `/test/**` 测试接口暴露到公网。
+5. 源码及制品不包含真实 Token 和 API Key；模型凭据由数据库维护，查询接口不返回密钥。不要把管理接口或 `/test/**` 测试接口暴露到公网。
 
 ## 3. 启动与验证
 

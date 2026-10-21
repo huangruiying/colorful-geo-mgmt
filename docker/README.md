@@ -16,3 +16,11 @@ docker compose -f docker/compose.yml exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASS
 ```
 
 迁移脚本保留旧优化记录中的人工稿和审核状态列以保护历史数据；新代码不再使用这两列。新建空库只需执行 `001_init.sql`，不要再执行 `002`。
+
+新增项目基础档案时，已有数据库执行增量脚本（仅新建项目表）：
+
+若已有旧表 `geo_project`，改为执行 `src/main/resources/db/mysql/009_rename_geo_project_info.sql`，保留数据并重命名；不要先执行 006 创建同名新表。新库使用 001 或 006，无需执行 009。
+
+```bash
+docker compose -f docker/compose.yml exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql --default-character-set=utf8mb4 -ugeo_app -Dcolorful_geo' < src/main/resources/db/mysql/006_geo_project_info.sql
+```

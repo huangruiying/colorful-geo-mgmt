@@ -1,8 +1,12 @@
 package org.huangry.colorful.geo.application.content;
 
-import lombok.RequiredArgsConstructor;
-import org.huangry.colorful.geo.application.content.model.ContentPublishRecordPage;
+import jakarta.annotation.Resource;
+import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.PublicationPlatformStrategy;
+import java.util.Comparator;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
 import org.huangry.colorful.geo.domain.service.content.ContentPublishRecordService;
 import org.huangry.colorful.geo.domain.service.publish.ContentPublicationService;
@@ -16,30 +20,45 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * 内容发布业务入口：负责预发布与本地发布记录管理；不生成优化稿，也不删除平台内容。
+ * 内容发布业务入口：负责发布平台选项、预发布与本地发布记录管理；不生成优化稿，也不删除平台内容。
  */
 @Service
-@RequiredArgsConstructor
 public class ContentPublishBusiness {
 
-    private final ContentPublicationService publicationService;
-    private final ContentOptimizationRecordService optimizationRecordService;
-    private final ContentPublishRecordService publishRecordService;
+    @Resource
+    private ContentPublicationService publicationService;
+    @Resource
+    private ContentOptimizationRecordService optimizationRecordService;
+    @Resource
+    private ContentPublishRecordService publishRecordService;
+
+    @Resource
+    private List<PublicationPlatformStrategy> strategies;
+
+    /** 列出已接入发布策略的平台，不检测登录状态，按枚举顺序去重排列。 */
+    public List<PublicationPlatformOption> listConfiguredPlatforms() {
+        return strategies.stream()
+            .map(PublicationPlatformStrategy::platformType)
+            .distinct()
+            .sorted(Comparator.comparingInt(Enum::ordinal))
+            .map(platform -> new PublicationPlatformOption(platform, platform.getDisplayName()))
+            .toList();
+    }
 
     /**
-     * 分页读取逐平台发布记录，供独立发布列表查看状态和平台结果。
+     * 发布记录列表分页查询。
      *
      * @param page 从零开始的页码
      * @param size 每页条数，上限 100
-     * @return 发布记录分页
+     * @return 当前页及总数
      */
-    public ContentPublishRecordPage listContentPublishRecords(int page, int size) {
-        if (page < 0 || size < 1 || size > 100) {
-            throw new IllegalArgumentException("分页参数不合法：page 不小于 0，size 范围为 1～100");
-        }
-        long offset = (long) page * size;
-        return new ContentPublishRecordPage(publishRecordService.listContentPublishRecords(size, offset),
-                publishRecordService.countContentPublishRecords(), page, size);
+    public PageResponse<ContentPublishRecord> listContentPublishRecords(int page, int size) {
+        // 分页参数越界直接拒绝，避免一次查询过多记录
+        var pageQuery = new PageQuery(page, size);
+
+        // 查询当前页记录和总数
+        return pageQuery.toResponse(publishRecordService.listContentPublishRecords(pageQuery),
+                publishRecordService.countContentPublishRecords());
     }
 
     /**

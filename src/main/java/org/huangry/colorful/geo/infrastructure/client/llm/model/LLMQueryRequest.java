@@ -1,36 +1,25 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.model;
 
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMMessageRole;
-
-import java.util.List;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 
 /**
- * 大模型查询请求。
+ * 独立单次大模型查询；不携带历史回答，重复执行由调用方多次发起。
  *
- * <p>网页搜索用于检索外部信息（如最新资料、数据或官方文档）辅助回答，引用是接口可能返回的来源信息。
- * 搜索开关表示能力请求，不强制模型执行搜索，也不保证返回引用或来源正确；通道不支持时返回普通模型结果。</p>
- *
- * @param messages 按会话顺序排列的消息，列表必填且非空，元素不允许 null
- * @param webSearchEnabled 是否请求启用网页搜索；与调用远程大模型接口所需的网络请求不同
+ * @param prompt 本次问题，必填且不能仅包含空白
+ * @param channelCode 指定渠道编码，空值时按模型及优先级选择, {@linkplain GeoLlmChannelEntity#getChannelCode()}
+ * @param modelName 指定模型标识，空值时使用选中渠道的模型
  * @author huangry
  */
-public record LLMQueryRequest(List<LLMMessage> messages, boolean webSearchEnabled) {
-
-    /** 校验至少包含一条消息，并保存不可变副本以固定本次请求的消息顺序。 */
-    public LLMQueryRequest {
-        if (messages == null || messages.isEmpty()) {
-            throw new IllegalArgumentException("大模型查询消息不能为空");
-        }
-        messages = List.copyOf(messages);
+public record LLMQueryRequest(String prompt, String channelCode, String modelName) {
+    /** 单次问题默认按数据库优先级选择渠道。 */
+    public LLMQueryRequest(String prompt) {
+        this(prompt, null, null);
     }
 
-    /**
-     * 创建默认不启用网页搜索的单轮用户查询。
-     *
-     * @param userMessage 用户问题
-     * @return 单轮查询请求
-     */
-    public static LLMQueryRequest userMessage(String userMessage) {
-        return new LLMQueryRequest(List.of(new LLMMessage(LLMMessageRole.USER, userMessage)), false);
+    /** 拒绝无效问题，保留原文以保证重复执行输入一致。 */
+    public LLMQueryRequest {
+        if (prompt == null || prompt.isBlank()) {
+            throw new IllegalArgumentException("大模型查询问题不能为空");
+        }
     }
 }

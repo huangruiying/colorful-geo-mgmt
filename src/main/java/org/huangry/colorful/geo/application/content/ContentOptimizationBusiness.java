@@ -2,11 +2,13 @@ package org.huangry.colorful.geo.application.content;
 
 import lombok.RequiredArgsConstructor;
 import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordDetail;
-import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordPage;
-import org.huangry.colorful.geo.application.content.model.OptimizeContentCommand;
+import org.huangry.colorful.geo.application.content.model.ContentOptimizationRecordPageItem;
+import org.huangry.colorful.geo.application.content.model.CreateContentOptimizationRecordRequest;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRequest;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationResult;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
+import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.content.ContentPublishRecordService;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
 import org.huangry.colorful.geo.domain.service.optimization.ContentOptimizationService;
@@ -28,28 +30,28 @@ public class ContentOptimizationBusiness {
     /**
      * 优化正文并将原文与模型结果一同入库，返回可追溯的内容记录。
      *
-     * @param command 标题、原文和可选优化参数
+     * @param request 标题、原文和可选优化参数
      * @return 已保存的内容优化记录
      */
-    public ContentOptimizationRecord optimizeAndSave(OptimizeContentCommand command) {
+    public ContentOptimizationRecord optimizeAndSave(CreateContentOptimizationRecordRequest request) {
         // 1. 标题只属于内容记录，正文及策略边界继续由现有领域优化服务校验。
-        if (command == null || command.title() == null || command.title().isBlank()
-                || command.title().length() > 200) {
+        if (request == null || request.title() == null || request.title().isBlank()
+                || request.title().length() > 200) {
             throw new IllegalArgumentException("标题不能为空且不能超过 200 字符");
         }
-        if (command.optimizationPreference() != null && command.optimizationPreference().length() > 1000) {
+        if (request.optimizationPreference() != null && request.optimizationPreference().length() > 1000) {
             throw new IllegalArgumentException("优化偏好不能超过 1000 字符");
         }
-        ContentOptimizationRequest request = new ContentOptimizationRequest(command.content(),
-                command.optimizationPreference(), command.strategies(), command.references());
+        ContentOptimizationRequest optimizationRequest = new ContentOptimizationRequest(request.content(),
+                request.optimizationPreference(), request.strategies(), request.references());
 
         // 2. 优化成功才写入记录；原文、优化稿、策略、提示和引用在同一次写入中保存。
-        ContentOptimizationResult result = optimizationService.optimizeContent(request);
+        ContentOptimizationResult result = optimizationService.optimizeContent(optimizationRequest);
         ContentOptimizationRecord record = ContentOptimizationRecord.builder()
-                .title(command.title().trim())
-                .originalContent(command.content())
+                .title(request.title().trim())
+                .originalContent(request.content())
                 .optimizedContent(result.optimizedContent())
-                .optimizationPreference(command.optimizationPreference())
+                .optimizationPreference(request.optimizationPreference())
                 .appliedStrategies(result.appliedStrategies())
                 .warnings(result.warnings())
                 .citations(result.citations())
@@ -58,19 +60,19 @@ public class ContentOptimizationBusiness {
     }
 
     /**
-     * 读取内容摘要分页，避免列表请求加载每篇长正文。
+     * 内容优化记录列表分页查询。
      *
      * @param page 从零开始的页码
      * @param size 每页条数，上限 100
      * @return 当前页及总数
      */
-    public ContentOptimizationRecordPage listContentOptimizationRecords(int page, int size) {
-        if (page < 0 || size < 1 || size > 100) {
-            throw new IllegalArgumentException("分页参数不合法：page 不小于 0，size 范围为 1～100");
-        }
-        long offset = (long) page * size;
-        return new ContentOptimizationRecordPage(optimizationRecordService.listSummaries(size, offset),
-                optimizationRecordService.countAll(), page, size);
+    public PageResponse<ContentOptimizationRecordPageItem> listContentOptimizationRecords(int page, int size) {
+        // 分页参数越界直接拒绝，避免一次查询过多记录
+        var pageQuery = new PageQuery(page, size);
+
+        // 查询当前页记录和总数
+        return pageQuery.toResponse(optimizationRecordService.listPageItems(pageQuery),
+                optimizationRecordService.countAll());
     }
 
     /**

@@ -38,4 +38,13 @@ public class ContentPublishRecord {
     LocalDateTime createdAt;
     /** 发布记录最近更新时间。 */
     LocalDateTime updatedAt;
+
+    /**
+     * 平台中文名，由平台枚举推导，不单独存储；序列化为 JSON 的 platformDisplayName，页面直接展示。
+     *
+     * @return 平台中文名，如“知乎”
+     */
+    public String getPlatformDisplayName() {
+        return platformType.getDisplayName();
+    }
 }

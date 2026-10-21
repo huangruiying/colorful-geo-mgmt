@@ -3,7 +3,7 @@ package org.huangry.colorful.geo.presentation.controller;
 import jakarta.annotation.Resource;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.huangry.colorful.geo.application.test.TestLLMBusiness;
+import org.huangry.colorful.geo.infrastructure.client.llm.LLMClient;
 import org.huangry.colorful.geo.application.test.TestOptimizeBusiness;
 import org.huangry.colorful.geo.application.test.TestPublistBusiness;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationResult;
@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TestController {
 
 	@Resource
-	private TestLLMBusiness testLLMBusiness;
+	private LLMClient llmClient;
 	@Resource
 	private TestOptimizeBusiness testOptimizeBusiness;
 	@Resource
@@ -45,9 +45,9 @@ public class TestController {
 	@PostMapping("llmQuery")
 	public LLMResponse llmQuery(@RequestParam("text") String text) {
 		log.info("测试大模型查询 request questionLength={}", text.length());
-		LLMResponse result = testLLMBusiness.llmQuery(text);
+		LLMResponse result = llmClient.query(text);
 		log.info("测试大模型查询 response answerLength={} citationCount={}",
-				result.content().length(), result.citations().size());
+				result.getContent().length(), result.getCitations().size());
 		return result;
 	}
 

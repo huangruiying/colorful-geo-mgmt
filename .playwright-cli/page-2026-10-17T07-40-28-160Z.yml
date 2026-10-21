@@ -1,0 +1,115 @@
+- generic [ref=e2]:
+  - complementary "主导航" [ref=e3]:
+    - link "GEO 管理平台首页" [ref=e4] [cursor=pointer]:
+      - /url: ./contents.html?v=20261011-config3
+      - generic [aria-hidden] [ref=e5]: G
+      - generic [ref=e6]:
+        - strong [ref=e7]: GEO 管理平台
+        - generic [ref=e8]: CONTENT OPERATIONS
+    - navigation "功能菜单" [ref=e9]:
+      - group [ref=e10]:
+        - generic "项目管理" [ref=e11] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e12]: ◇
+          - generic [aria-hidden] [ref=e14]: ›
+      - group [ref=e15]:
+        - generic "资产诊断" [ref=e16] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e17]: ❖
+          - generic [aria-hidden] [ref=e19]: ›
+        - generic [ref=e20]:
+          - link "诊断方案" [ref=e21] [cursor=pointer]:
+            - /url: ./diagnose.html?v=20261014-terms1
+            - generic [aria-hidden] [ref=e22]: ◉
+          - link "诊断任务" [ref=e24] [cursor=pointer]:
+            - /url: ./diagnosis-tasks.html?v=20261014-terms1
+            - generic [aria-hidden] [ref=e25]: ▷
+          - link "诊断报告" [ref=e27] [cursor=pointer]:
+            - /url: ./history-report.html?v=20261014-terms1
+            - generic [aria-hidden] [ref=e28]: ▦
+      - group [ref=e30]:
+        - generic "内容投放" [ref=e31] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e32]: ▣
+          - generic [aria-hidden] [ref=e34]: ›
+      - group [ref=e35]:
+        - generic "基础配置" [ref=e36] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e37]: ⚙
+          - generic [aria-hidden] [ref=e39]: ›
+    - generic [ref=e40]: GEO 内容运营工作台
+  - generic [ref=e41]:
+    - banner [ref=e42]:
+      - generic [ref=e43]:
+        - text: 资产诊断 /
+        - strong [ref=e44]: 诊断报告
+      - generic [ref=e45]: 管理平台
+    - main [ref=e46]:
+      - generic [ref=e47]:
+        - generic [ref=e48]:
+          - paragraph [ref=e49]: DIAGNOSIS REPORTS
+          - heading "诊断报告" [level=1] [ref=e50]
+          - paragraph [ref=e51]: 选择一次已结束的诊断任务生成报告，逐条判定回答并汇总各模型的提及、推荐与用户关注点。
+        - button "生成诊断报告" [ref=e52] [cursor=pointer]
+      - region "诊断报告列表" [ref=e53]:
+        - generic [ref=e54]:
+          - heading "诊断报告" [level=2] [ref=e55]
+          - generic [ref=e56]:
+            - combobox "筛选状态" [ref=e57]:
+              - option "全部状态" [selected]
+              - option "待生成"
+              - option "生成中"
+              - option "已完成"
+              - option "失败"
+            - button "查询" [ref=e58] [cursor=pointer]
+        - table [ref=e60]:
+          - rowgroup [ref=e61]:
+            - row [ref=e62]:
+              - columnheader "报告" [ref=e63]
+              - columnheader "方案 / 项目" [ref=e64]
+              - columnheader "状态" [ref=e65]
+              - columnheader "判定进度" [ref=e66]
+              - columnheader "创建时间" [ref=e67]
+              - columnheader "操作" [ref=e68]
+          - rowgroup [ref=e69]:
+            - row [ref=e70]:
+              - cell "#6" [ref=e71]
+              - 'cell "团油deepseek / 团油 诊断任务 #37" [ref=e72]':
+                - text: 团油deepseek / 团油
+                - generic [ref=e73]: "诊断任务 #37"
+              - cell "已完成" [ref=e74]
+              - cell "5 / 5" [ref=e76]
+              - cell "2026-10-17 04:39:32.304" [ref=e77]
+              - cell [ref=e78]:
+                - button "查看" [ref=e79] [cursor=pointer]
+            - row [ref=e80]:
+              - cell "#5" [ref=e81]
+              - 'cell "团油诊断 / 团油 诊断任务 #27" [ref=e82]':
+                - text: 团油诊断 / 团油
+                - generic [ref=e83]: "诊断任务 #27"
+              - cell "已完成" [ref=e84]
+              - cell "23 / 23（失败 1）" [ref=e86]
+              - cell "2026-10-17 02:03:12.762" [ref=e87]
+              - cell [ref=e88]:
+                - button "查看" [ref=e89] [cursor=pointer]
+            - row [ref=e90]:
+              - cell "#4" [ref=e91]
+              - 'cell "团油deepseek / 团油 诊断任务 #35" [ref=e92]':
+                - text: 团油deepseek / 团油
+                - generic [ref=e93]: "诊断任务 #35"
+              - cell "已完成" [ref=e94]
+              - cell "5 / 5（失败 1）" [ref=e96]
+              - cell "2026-10-17 01:49:13.031" [ref=e97]
+              - cell [ref=e98]:
+                - button "查看" [ref=e99] [cursor=pointer]
+            - row [ref=e100]:
+              - cell "#3" [ref=e101]
+              - 'cell "团油deepseek / 团油 诊断任务 #35" [ref=e102]':
+                - text: 团油deepseek / 团油
+                - generic [ref=e103]: "诊断任务 #35"
+              - cell "已完成" [ref=e104]
+              - cell "5 / 5（失败 3）" [ref=e106]
+              - cell "2026-10-17 01:47:00.852" [ref=e107]
+              - cell [ref=e108]:
+                - button "查看" [ref=e109] [cursor=pointer]
+        - generic [ref=e110]:
+          - button "上一页" [disabled] [ref=e111]
+          - generic [ref=e112]: 第 1 页 · 共 4 份
+          - button "下一页" [disabled] [ref=e113]
+      - paragraph [ref=e114]: 报告由后台逐条判定，关闭页面不影响生成。判定使用已启用渠道中分数最高的模型，每条回答调用一次，会产生模型费用；判定失败不重试。

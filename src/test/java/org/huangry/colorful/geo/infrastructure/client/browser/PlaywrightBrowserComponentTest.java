@@ -34,7 +34,7 @@ class PlaywrightBrowserComponentTest {
         Page page = mock(Page.class);
         Browser.NewContextOptions options = new Browser.NewContextOptions();
         when(playwright.chromium()).thenReturn(browserType);
-        when(browserType.launch()).thenReturn(browser);
+        when(browserType.launch(org.mockito.ArgumentMatchers.any(BrowserType.LaunchOptions.class))).thenReturn(browser);
         when(browser.newContext(options)).thenReturn(context);
         when(context.newPage()).thenReturn(page);
 
@@ -60,7 +60,7 @@ class PlaywrightBrowserComponentTest {
         Browser browser = mock(Browser.class);
         Browser.NewContextOptions options = new Browser.NewContextOptions();
         when(playwright.chromium()).thenReturn(browserType);
-        when(browserType.launch()).thenReturn(browser);
+        when(browserType.launch(org.mockito.ArgumentMatchers.any(BrowserType.LaunchOptions.class))).thenReturn(browser);
         when(browser.newContext(options)).thenThrow(new IllegalStateException("context unavailable"));
 
         try (MockedStatic<Playwright> factory = mockStatic(Playwright.class)) {
@@ -83,7 +83,7 @@ class PlaywrightBrowserComponentTest {
         BrowserContext context = mock(BrowserContext.class);
         Browser.NewContextOptions options = new Browser.NewContextOptions();
         when(playwright.chromium()).thenReturn(browserType);
-        when(browserType.launch()).thenReturn(browser);
+        when(browserType.launch(org.mockito.ArgumentMatchers.any(BrowserType.LaunchOptions.class))).thenReturn(browser);
         when(browser.newContext(options)).thenReturn(context);
         when(context.storageState(org.mockito.ArgumentMatchers.any(BrowserContext.StorageStateOptions.class)))
                 .thenReturn("saved-state");

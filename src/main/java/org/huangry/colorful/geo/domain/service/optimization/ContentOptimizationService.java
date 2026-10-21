@@ -59,12 +59,12 @@ public class ContentOptimizationService {
 
         // 2. 将正文、优化偏好、策略和允许使用的证据范围一起交给既有大模型通道。
         LLMResponse response = invokeContentOptimizationModel(request, strategies);
-        if (response.content().isBlank()) {
+        if (response.getContent().isBlank()) {
             throw new ContentOptimizationException("大模型未返回优化后的内容");
         }
 
         // 3. 仅透传通道明确返回的结构化引用，不从正文猜测或伪造引用链接。
-        return new ContentOptimizationResult(response.content(), strategies, buildWarnings(strategies), response.citations());
+        return new ContentOptimizationResult(response.getContent(), strategies, buildWarnings(strategies), response.getCitations());
     }
 
     /**

@@ -1,5 +1,6 @@
 package org.huangry.colorful.geo.application.content;
 
+import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
@@ -12,6 +13,9 @@ import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformT
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationTaskStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.huangry.colorful.geo.infrastructure.client.publish.strategy.PublicationPlatformStrategy;
+import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
 import org.mockito.ArgumentCaptor;
 
 import java.util.List;
@@ -43,21 +47,37 @@ class ContentPublishBusinessTest {
         publicationService = mock(ContentPublicationService.class);
         optimizationRecordService = mock(ContentOptimizationRecordService.class);
         publishRecordService = mock(ContentPublishRecordService.class);
-        service = new ContentPublishBusiness(publicationService, optimizationRecordService, publishRecordService);
+        service = new ContentPublishBusiness();
+        ReflectionTestUtils.setField(service, "publicationService", publicationService);
+        ReflectionTestUtils.setField(service, "optimizationRecordService", optimizationRecordService);
+        ReflectionTestUtils.setField(service, "publishRecordService", publishRecordService);
+    }
+
+    /** 只返回已接入平台；重复策略去重，注册顺序不改变页面顺序。 */
+    @Test
+    void 应按枚举顺序返回已接入平台() {
+        var weibo = mock(PublicationPlatformStrategy.class);
+        var zhihu = mock(PublicationPlatformStrategy.class);
+        when(weibo.platformType()).thenReturn(PublicationPlatformType.WEIBO);
+        when(zhihu.platformType()).thenReturn(PublicationPlatformType.ZHIHU);
+        ReflectionTestUtils.setField(service, "strategies", List.of(weibo, zhihu, weibo));
+        assertEquals(List.of(
+            new PublicationPlatformOption(PublicationPlatformType.ZHIHU, "知乎"),
+            new PublicationPlatformOption(PublicationPlatformType.WEIBO, "微博")), service.listConfiguredPlatforms());
     }
 
     /** 发布列表沿用原有分页语义，并只读取发布记录服务。 */
     @Test
     void 应分页读取发布记录() {
         ContentPublishRecord record = ContentPublishRecord.builder().id(11L).build();
-        when(publishRecordService.listContentPublishRecords(20, 20L)).thenReturn(List.of(record));
+        when(publishRecordService.listContentPublishRecords(new PageQuery(1, 20))).thenReturn(List.of(record));
         when(publishRecordService.countContentPublishRecords()).thenReturn(21L);
 
         var page = service.listContentPublishRecords(1, 20);
 
         assertEquals(List.of(record), page.items());
         assertEquals(21L, page.total());
-        verify(publishRecordService).listContentPublishRecords(20, 20L);
+        verify(publishRecordService).listContentPublishRecords(new PageQuery(1, 20));
     }
 
     /** 删除发布记录应委托本地持久化服务，不触碰平台接口。 */

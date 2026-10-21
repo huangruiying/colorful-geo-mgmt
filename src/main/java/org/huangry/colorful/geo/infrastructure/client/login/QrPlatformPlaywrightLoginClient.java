@@ -3,8 +3,11 @@ package org.huangry.colorful.geo.infrastructure.client.login;
 import org.huangry.colorful.geo.infrastructure.client.playwright.BrowserTaskRunner;
 import org.huangry.colorful.geo.infrastructure.client.playwright.PlaywrightBrowserComponent;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.JSONPath;
+import com.alibaba.fastjson.JSONException;
+import jakarta.annotation.Resource;
 import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
@@ -16,7 +19,6 @@ import com.microsoft.playwright.Response;
 import com.microsoft.playwright.options.RequestOptions;
 import com.microsoft.playwright.options.WaitUntilState;
 import jakarta.annotation.PreDestroy;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginTaskStatus;
@@ -27,7 +29,6 @@ import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformT
 import org.huangry.colorful.geo.infrastructure.common.exceptions.PlatformBrowserLoginException;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -48,7 +49,6 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class QrPlatformPlaywrightLoginClient {
 
     private static final Duration LOGIN_LIFETIME = Duration.ofMinutes(10);
@@ -113,8 +113,8 @@ public class QrPlatformPlaywrightLoginClient {
                     "https://mp.eastmoney.com/", "#qrcode", "#qrcode",
                     "https://caifuhaoapi.eastmoney.com/api/v2/getauthorinfo")));
 
-    private final ObjectMapper objectMapper;
-    private final PlaywrightBrowserComponent browserComponent;
+    @Resource
+    private PlaywrightBrowserComponent browserComponent;
     private final BrowserTaskRunner taskRunner = new BrowserTaskRunner("qr-platform-login-browser");
 
     /** 浏览器线程异常统一映射为平台登录异常。 */
@@ -499,6 +499,7 @@ public class QrPlatformPlaywrightLoginClient {
      * @return 登录、未登录或未知结论
      */
     AccountProbe probeAccount(PublicationPlatformType platform, BrowserContext context) {
+        // 1. 需页面动态签名的平台由页面发起请求，其余平台直接访问受保护账号接口
         if (platform == PublicationPlatformType.CSDN) {
             return probeCsdnAccount(context);
         }
@@ -512,6 +513,7 @@ public class QrPlatformPlaywrightLoginClient {
                         .setHeader("Referer", "https://creator.xiaohongshu.com/");
             }
             APIResponse response = context.request().get(requireSite(platform).accountUrl(), requestOptions);
+            // 2. HTTP 认证拒绝优先；知乎访问限制只标记未知，避免误判会话失效
             if (platform == PublicationPlatformType.ZHIHU && response.status() == 403) {
                 return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
             }
@@ -521,6 +523,7 @@ public class QrPlatformPlaywrightLoginClient {
             if (!response.ok()) {
                 return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
             }
+            // 3. 按平台解析 HTML 或 JSON，再由平台规则判定身份，解析失败返回未知
             if (platform == PublicationPlatformType.WECHAT_OFFICIAL_ACCOUNT) {
                 return parseWechatAccountHtml(new String(response.body(), StandardCharsets.UTF_8));
             }
@@ -530,8 +533,8 @@ public class QrPlatformPlaywrightLoginClient {
             if (platform == PublicationPlatformType.DAYU) {
                 return parseDayuAccountHtml(response.url(), new String(response.body(), StandardCharsets.UTF_8));
             }
-            return parseAccountResponse(platform, objectMapper.readTree(response.body()));
-        } catch (IOException | PlaywrightException exception) {
+            return parseAccountResponse(platform, JSON.parseObject(new String(response.body(), StandardCharsets.UTF_8)));
+        } catch (JSONException | PlaywrightException exception) {
             log.debug("扫码平台账号核验暂时无法确认，platformType={} errorType={}",
                     platform, exception.getClass().getSimpleName());
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
@@ -546,53 +549,65 @@ public class QrPlatformPlaywrightLoginClient {
      */
     private AccountProbe probeCsdnAccount(BrowserContext context) {
         try (Page page = context.newPage()) {
-            // 只读取创作后台自己发出的用户接口；页面标题、Cookie 和跳转均不视为登录成功。
+            // 1. 只读取创作后台自己发出的用户接口；页面标题、Cookie 和跳转均不视为登录成功
             Response response = page.waitForResponse(
                     candidate -> candidate.url().startsWith(CSDN_ACCOUNT_URL),
                     new Page.WaitForResponseOptions().setTimeout(12_000),
                     () -> page.navigate("https://mp.csdn.net/mp_blog/manage/article",
                             new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED).setTimeout(15_000)));
+            // 2. 优先区分认证拒绝，其他 HTTP 失败保持未知
             if (response.status() == 401 || response.status() == 403) {
                 return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
             }
+            // 3. 业务账号由平台专用规则核验，页面关闭后仍只返回核验结论
             return response.ok() ? parseAccountResponse(PublicationPlatformType.CSDN,
-                    objectMapper.readTree(response.body()))
+                    JSON.parseObject(new String(response.body(), StandardCharsets.UTF_8)))
                     : new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
-        } catch (IOException | PlaywrightException exception) {
+        } catch (JSONException | PlaywrightException exception) {
             log.debug("CSDN 创作后台账号核验暂时无法确认，errorType={}", exception.getClass().getSimpleName());
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
     }
 
-    /** 由东方财富创作页生成登录令牌并请求作者信息，不能用静态空令牌代替。 */
+    /**
+     * 由东方财富创作页生成登录令牌并请求作者信息，不能用静态空令牌代替。
+     * @param context 当前会话的浏览器上下文
+     * @return 作者账号核验结论，页面或 JSON 失败为未知
+     */
     private AccountProbe probeEastmoneyAccount(BrowserContext context) {
         try (Page page = context.newPage()) {
-            // 页面脚本负责附加创作平台令牌；只解析这次页面实际收到的作者响应。
+            // 页面脚本负责附加创作平台令牌；只等待这次页面实际收到的作者响应
             Response response = page.waitForResponse(
                     candidate -> candidate.url().startsWith(requireSite(PublicationPlatformType.EASTMONEY).accountUrl()),
                     new Page.WaitForResponseOptions().setTimeout(12_000),
                     () -> page.navigate("https://mp.eastmoney.com/",
                             new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED).setTimeout(15_000)));
-            return response.ok() ? parseEastmoneyAccount(objectMapper.readTree(response.body()))
+            // HTTP 成功后再核验作者资料，页面或解析异常不能当成明确登录
+            return response.ok() ? parseEastmoneyAccount(JSON.parseObject(new String(response.body(), StandardCharsets.UTF_8)))
                     : new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
-        } catch (IOException | PlaywrightException exception) {
+        } catch (JSONException | PlaywrightException exception) {
             log.debug("东方财富创作平台账号核验暂时无法确认，errorType={}", exception.getClass().getSimpleName());
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
     }
 
-    /** 作者接口成功且同时带用户 ID、昵称时才确认东方财富登录。 */
-    AccountProbe parseEastmoneyAccount(JsonNode response) {
+    /**
+     * 作者接口成功且同时带用户 ID、昵称时才确认东方财富登录。
+     * @param response 平台作者响应
+     * @return 账号核验结论
+     */
+    AccountProbe parseEastmoneyAccount(JSONObject response) {
         // 未登录业务码优先于返回体，避免把公共主页误判为当前作者账号。
-        if (response.path("Success").asInt(-1) == -1) {
+        if ((int) readAccountNumber(response, "$.Success", -1) == -1) {
             return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
         }
-        if (response.path("Success").asInt(-1) != 1) {
+        if ((int) readAccountNumber(response, "$.Success", -1) != 1) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        JsonNode author = response.path("Result");
-        String authorId = author.path("relatedUid").asText("");
-        String authorName = author.path("nickName").asText("");
+        // 再核验响应中的账号资料；业务成功不等于已有有效身份标识
+        Object author = JSONPath.eval(response, "$.Result");
+        String authorId = readAccountText(author, "$.relatedUid", "");
+        String authorName = readAccountText(author, "$.nickName", "");
         return authorId.isBlank() || authorName.isBlank()
                 ? new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null)
                 : new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN, authorName);
@@ -605,10 +620,12 @@ public class QrPlatformPlaywrightLoginClient {
      * @param response 已解析的账号响应
      * @return 可用于落库和更新状态的结论
      */
-    AccountProbe parseAccountResponse(PublicationPlatformType platform, JsonNode response) {
-        if (response == null || response.isNull()) {
+    AccountProbe parseAccountResponse(PublicationPlatformType platform, JSONObject response) {
+        // 空响应没有身份依据，不能转交平台解析后误判成功
+        if (response == null) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
+        // 每个平台独立解释业务码与账号字段，不共用成功码或账号路径
         return switch (platform) {
             case ZHIHU -> parseZhihuAccount(response);
             case JUEJIN -> parseJuejinAccount(response);
@@ -622,13 +639,18 @@ public class QrPlatformPlaywrightLoginClient {
         };
     }
 
-    /** 知乎账号接口必须同时返回账号 ID 和名称，才确认本次登录。 */
-    private AccountProbe parseZhihuAccount(JsonNode response) {
-        if (!response.path("id").isTextual() || !response.path("name").isTextual()
-                || response.path("id").asText().isBlank() || response.path("name").asText().isBlank()) {
+    /**
+     * 知乎账号接口必须同时返回文本型账号 ID 和名称，才确认本次登录。
+     * @param response 平台账号响应
+     * @return 账号核验结论
+     */
+    private AccountProbe parseZhihuAccount(JSONObject response) {
+        // 标识与名称都必须是非空文本，不将数字或容器强制转换为账号
+        if (!(JSONPath.eval(response, "$.id") instanceof String) || !(JSONPath.eval(response, "$.name") instanceof String)
+                || readAccountText(response, "$.id", "").isBlank() || readAccountText(response, "$.name", "").isBlank()) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN, response.path("name").asText());
+        return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN, readAccountText(response, "$.name", ""));
     }
 
     /**
@@ -654,19 +676,21 @@ public class QrPlatformPlaywrightLoginClient {
      * @param html 微博文章编辑器响应
      * @return 账号或未登录结论
      */
-    AccountProbe parseWeiboAccountHtml(String html) throws IOException {
+    AccountProbe parseWeiboAccountHtml(String html) {
+        // 只提取编辑器中的当前账号配置，跳转到公共登录页不能确认身份
         Matcher config = WEIBO_CONFIG.matcher(html);
         if (!config.find()) {
             return new AccountProbe(html.contains("url=https://weibo.com/")
                     ? PlatformBrowserLoginStatus.NOT_LOGGED_IN : PlatformBrowserLoginStatus.UNKNOWN, null);
         }
+        // 解析配置后仍要求非空账号标识；没有昵称时使用标识展示
         String configJson = config.group(1).replace("\\'", "'").replace("\\\\", "\\");
-        JsonNode account = objectMapper.readTree(configJson);
-        String accountId = account.path("uid").asText("");
+        Object account = JSON.parseObject(configJson);
+        String accountId = readAccountText(account, "$.uid", "");
         if (accountId.isBlank()) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        String accountName = account.path("nick").asText("");
+        String accountName = readAccountText(account, "$.nick", "");
         return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
                 accountName.isBlank() ? accountId : accountName);
     }
@@ -692,19 +716,21 @@ public class QrPlatformPlaywrightLoginClient {
      * @param response 掘金账号响应
      * @return 掘金账号结论
      */
-    private AccountProbe parseJuejinAccount(JsonNode response) {
-        JsonNode account = response.path("data");
-        if (response.path("err_no").asInt(-1) == 0 && account.isNull()) {
+    private AccountProbe parseJuejinAccount(JSONObject response) {
+        // 保留 data 缺失与显式空值的区别：成功码加显式空值是访客，缺失字段是未知
+        Object account = JSONPath.eval(response, "$.data");
+        if ((int) readAccountNumber(response, "$.err_no", -1) == 0 && account == null && response.containsKey("data")) {
             return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
         }
-        if (response.path("err_no").asInt(-1) != 0 || account.isMissingNode()) {
+        if ((int) readAccountNumber(response, "$.err_no", -1) != 0 || !response.containsKey("data")) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        String accountId = account.path("user_id").asText(null);
+        // 成功响应还必须含用户标识，不能仅凭业务成功码确认登录
+        String accountId = readAccountText(account, "$.user_id", null);
         if (accountId == null || accountId.isBlank()) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        String accountName = account.path("user_name").asText(null);
+        String accountName = readAccountText(account, "$.user_name", null);
         return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
                 accountName == null || accountName.isBlank() ? accountId : accountName);
     }
@@ -715,20 +741,22 @@ public class QrPlatformPlaywrightLoginClient {
      * @param response 哔哩哔哩账号响应
      * @return 哔哩哔哩账号结论
      */
-    private AccountProbe parseBilibiliAccount(JsonNode response) {
-        int code = response.path("code").asInt(Integer.MIN_VALUE);
-        JsonNode account = response.path("data");
+    private AccountProbe parseBilibiliAccount(JSONObject response) {
+        // 先核对平台业务状态，明确未登录与无法确认分别处理
+        int code = (int) readAccountNumber(response, "$.code", Integer.MIN_VALUE);
+        // 再核验响应中的账号资料；业务成功不等于已有有效身份标识
+        Object account = JSONPath.eval(response, "$.data");
         // 未登录业务码优先；其他非成功码属于无法确认，不能误标为失效。
-        if (code == -101 || code == 0 && !account.path("isLogin").asBoolean(false)) {
+        if (code == -101 || code == 0 && !readAccountBoolean(account, "$.isLogin")) {
             return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
         }
-        if (code != 0 || !account.path("isLogin").asBoolean(false)
-                || account.path("mid").asLong(0) <= 0) {
+        if (code != 0 || !readAccountBoolean(account, "$.isLogin")
+                || readAccountNumber(account, "$.mid", 0) <= 0) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        String accountName = account.path("uname").asText("");
+        String accountName = readAccountText(account, "$.uname", "");
         return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
-                accountName.isBlank() ? account.path("mid").asText() : accountName);
+                accountName.isBlank() ? readAccountText(account, "$.mid", "") : accountName);
     }
 
     /**
@@ -737,19 +765,21 @@ public class QrPlatformPlaywrightLoginClient {
      * @param response 头条号账号响应
      * @return 头条号账号结论
      */
-    private AccountProbe parseToutiaoAccount(JsonNode response) {
-        if (response.path("err_no").asInt(-1) == 100004) {
+    private AccountProbe parseToutiaoAccount(JSONObject response) {
+        // 先核对平台业务状态，明确未登录与无法确认分别处理
+        if ((int) readAccountNumber(response, "$.err_no", -1) == 100004) {
             return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
         }
-        if (response.path("err_no").asInt(-1) != 0) {
+        if ((int) readAccountNumber(response, "$.err_no", -1) != 0) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        JsonNode account = response.path("data").path("user");
-        String accountId = account.path("id").asText(null);
+        // 再核验响应中的账号资料；业务成功不等于已有有效身份标识
+        Object account = JSONPath.eval(response, "$.data.user");
+        String accountId = readAccountText(account, "$.id", null);
         if (accountId == null || accountId.isBlank()) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        String accountName = account.path("screen_name").asText("");
+        String accountName = readAccountText(account, "$.screen_name", "");
         return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
                 accountName.isBlank() ? accountId : accountName);
     }
@@ -760,38 +790,46 @@ public class QrPlatformPlaywrightLoginClient {
      * @param response 创作者账号接口响应
      * @return 登录结论与账号名
      */
-    private AccountProbe parseXiaohongshuAccount(JsonNode response) {
-        if (!response.path("success").asBoolean(false)) {
-            return response.path("result").asInt(0) == -100
+    private AccountProbe parseXiaohongshuAccount(JSONObject response) {
+        // 先核对平台业务状态，明确未登录与无法确认分别处理
+        if (!readAccountBoolean(response, "$.success")) {
+            return (int) readAccountNumber(response, "$.result", 0) == -100
                     ? new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null)
                     : new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        JsonNode account = response.path("data");
-        String accountId = account.path("userId").asText("");
+        // 再核验响应中的账号资料；业务成功不等于已有有效身份标识
+        Object account = JSONPath.eval(response, "$.data");
+        String accountId = readAccountText(account, "$.userId", "");
         if (accountId.isBlank()) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        String accountName = account.path("userName").asText("");
+        String accountName = readAccountText(account, "$.userName", "");
         return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
                 accountName.isBlank() ? accountId : accountName);
     }
 
-    /** 抖音创作者账号接口必须同时返回成功码与当前用户标识。 */
-    private AccountProbe parseDouyinAccount(JsonNode response) {
-        int statusCode = response.path("status_code").asInt(-1);
+    /**
+     * 抖音创作者账号接口必须同时返回成功码与当前用户标识。
+     * @param response 平台账号响应
+     * @return 账号核验结论
+     */
+    private AccountProbe parseDouyinAccount(JSONObject response) {
+        // 先核对平台业务状态，明确未登录与无法确认分别处理
+        int statusCode = (int) readAccountNumber(response, "$.status_code", -1);
         if (statusCode == 8) {
             return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
         }
         if (statusCode != 0) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        JsonNode account = response.path("user_info");
-        String accountId = account.path("uid").asText("");
+        // 再核验响应中的账号资料；业务成功不等于已有有效身份标识
+        Object account = JSONPath.eval(response, "$.user_info");
+        String accountId = readAccountText(account, "$.uid", "");
         if (accountId.isBlank()) {
-            account = response.path("data");
-            accountId = account.path("user_id").asText("");
+            account = JSONPath.eval(response, "$.data");
+            accountId = readAccountText(account, "$.user_id", "");
         }
-        String accountName = account.path("nickname").asText("");
+        String accountName = readAccountText(account, "$.nickname", "");
         return accountId.isBlank()
                 ? new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null)
                 : new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
@@ -804,13 +842,15 @@ public class QrPlatformPlaywrightLoginClient {
      * @param response 创作后台用户接口响应
      * @return 登录结论与账号名
      */
-    private AccountProbe parseCsdnAccount(JsonNode response) {
-        if (response.path("code").asInt(-1) != 200) {
+    private AccountProbe parseCsdnAccount(JSONObject response) {
+        // 先核对平台业务状态，明确未登录与无法确认分别处理
+        if ((int) readAccountNumber(response, "$.code", -1) != 200) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        JsonNode account = response.path("data");
-        String username = account.path("username").asText("");
-        String nickname = account.path("nickname").asText("");
+        // 再核验响应中的账号资料；业务成功不等于已有有效身份标识
+        Object account = JSONPath.eval(response, "$.data");
+        String username = readAccountText(account, "$.username", "");
+        String nickname = readAccountText(account, "$.nickname", "");
         return username.isBlank()
                 ? new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null)
                 : new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
@@ -823,15 +863,17 @@ public class QrPlatformPlaywrightLoginClient {
      * @param response 站点当前用户接口响应
      * @return 登录结论与账号名
      */
-    private AccountProbe parseSmzdmAccount(JsonNode response) {
-        long accountId = response.path("smzdm_id").asLong(-1);
+    private AccountProbe parseSmzdmAccount(JSONObject response) {
+        // 先核对平台业务状态，明确未登录与无法确认分别处理
+        long accountId = readAccountNumber(response, "$.smzdm_id", -1);
         if (accountId == 0) {
             return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
         }
         if (accountId < 0) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        String accountName = response.path("nickname").asText("");
+        // 再核验响应中的账号资料；业务成功不等于已有有效身份标识
+        String accountName = readAccountText(response, "$.nickname", "");
         return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
                 accountName.isBlank() ? Long.toString(accountId) : accountName);
     }
@@ -925,4 +967,50 @@ public class QrPlatformPlaywrightLoginClient {
 
     /** 平台账号接口给出的明确登录结论。 */
     public record AccountProbe(PlatformBrowserLoginStatus status, String accountName) { }
+
+    /**
+     * 提取账号接口标量文本，缺失或容器结构不能充当账号标识。
+     * @param response 平台响应或账号子对象
+     * @param path 字段路径
+     * @param fallback 字段不可用时的返回值
+     * @return 标量文本或默认值
+     */
+    private static String readAccountText(Object response, String path, String fallback) {
+        Object value = JSONPath.eval(response, path);
+        return value instanceof String || value instanceof Number || value instanceof Boolean
+                ? value.toString() : fallback;
+    }
+
+    /**
+     * 读取账号业务码或数字标识，非法值不能默认为成功码零。
+     * @param response 平台响应或账号子对象
+     * @param path 字段路径
+     * @param fallback 缺失或非法值的默认值
+     * @return 数字字段值或默认值
+     */
+    private static long readAccountNumber(Object response, String path, long fallback) {
+        Object value = JSONPath.eval(response, path);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        // 部分平台返回字符串业务码；解析失败仍保持无法确认的结论
+        try {
+            return value instanceof String text ? Long.parseLong(text.strip()) : fallback;
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
+    }
+
+    /**
+     * 读取平台明确声明的成功标志，字段缺失时不能推定登录成功。
+     * @param response 平台响应或账号子对象
+     * @param path 字段路径
+     * @return 是否明确成功
+     */
+    private static boolean readAccountBoolean(Object response, String path) {
+        Object value = JSONPath.eval(response, path);
+        return Boolean.TRUE.equals(value) || "true".equals(value)
+                || value instanceof Number number && number.intValue() != 0;
+    }
+
 }

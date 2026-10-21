@@ -20,9 +20,10 @@ import java.net.URI;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 /**
- * 使用数据库中的公众号登录态保存文章草稿；入口为 createDraft。
+ * 使用数据库中的公众号登录态保存文章草稿并回读核验；入口为 createDraft。
  * 不公开发表文章，也不返回含会话 token 的后台编辑链接。
  */
 @Slf4j
@@ -58,6 +59,7 @@ public class WeixinBrowserClient {
             browserLock.unlock();
         }
     }
+
 
     /**
      * 只恢复数据库中确认已登录的公众号会话，不复用其他平台的微信账号。
@@ -169,7 +171,7 @@ public class WeixinBrowserClient {
     }
 
     /**
-     * 重新打开相同草稿，确认平台保存的标题和正文与输入一致。
+     * 重新加载相同草稿，核验标题及正文；只忽略富文本增加的展示空行。
      *
      * @param page 当前浏览器页面
      * @param draftUrl 含当前会话 token 的内部编辑地址
@@ -178,12 +180,26 @@ public class WeixinBrowserClient {
      */
     private void verifySavedDraft(Page page, String draftUrl, String title, String content) {
         page.navigate(draftUrl, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+        // 1. 强制读取平台保存的草稿，避免同地址导航保留本地编辑器状态。
+        page.reload(new Page.ReloadOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
         page.locator(".ProseMirror[data-placeholder='请在这里输入标题']").waitFor();
         page.waitForFunction("() => document.querySelector('.ProseMirror[data-placeholder=\"请在这里输入标题\"]')?.innerText?.trim().length > 0");
+        // 2. 标题必须原样匹配；正文展示空行不代表丢失，非空文本及行边界必须一致。
         String savedTitle = page.locator(".ProseMirror[data-placeholder='请在这里输入标题']").innerText();
         String savedContent = page.locator(".ProseMirror[contenteditable=true]").last().innerText();
-        if (!title.equals(savedTitle) || !content.stripTrailing().equals(savedContent.stripTrailing())) {
+        if (!title.equals(savedTitle) || !normalizeParagraphs(content).equals(normalizeParagraphs(savedContent))) {
             throw new PublicationOutcomeUnknownException("微信公众号草稿内容未完整回读，请核对草稿箱，勿直接重试");
         }
+    }
+
+    /**
+     * 忽略富文本回读的展示空行，保留非空行文字、顺序、行边界及行内空格。
+     *
+     * @param content 输入正文或草稿回读正文
+     * @return 可比较的正文文本
+     */
+    static String normalizeParagraphs(String content) {
+        return content.replace("\r\n", "\n").lines().filter(line -> !line.isBlank())
+                .collect(Collectors.joining("\n"));
     }
 }

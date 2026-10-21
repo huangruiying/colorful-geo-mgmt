@@ -1,0 +1,6 @@
+.model-check { display: flex; align-items: center; gap: 10px; color: #304865; font-size: 13px; }
+.model-help { grid-column: 1 / -1; margin: 0; color: #7a8da5; font-size: 12px; line-height: 1.7; }
+.model-table { min-width: 1200px; }
+.model-table th, .model-table td { padding-left: 16px; padding-right: 16px; white-space: nowrap; }
+.model-table td:nth-child(2) { min-width: 200px; max-width: 280px; white-space: normal; overflow-wrap: anywhere; }
+.model-table td:last-child { min-width: 110px; }
