@@ -2,6 +2,7 @@ package org.huangry.colorful.geo.presentation.controller;
 
 import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.application.diagnosis.DiagnosisTaskReportBusiness;
+import org.huangry.colorful.geo.application.diagnosis.DiagnosisTaskReportSupplementBusiness;
 import org.huangry.colorful.geo.application.diagnosis.model.DiagnosisTaskReportResponse;
 import org.huangry.colorful.geo.application.diagnosis.model.DiagnosisTaskResponse;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 public class MgmtDiagnosisTaskReportController {
 	@Resource
 	private DiagnosisTaskReportBusiness diagnosisTaskReportBusiness;
+	@Resource
+	private DiagnosisTaskReportSupplementBusiness diagnosisTaskReportSupplementBusiness;
 
 	/**
 	 * 生成诊断报告。
@@ -55,6 +58,17 @@ public class MgmtDiagnosisTaskReportController {
 	@GetMapping("/{id}")
 	public DiagnosisTaskReportResponse getReport(@PathVariable("id") long id) {
 		return diagnosisTaskReportBusiness.getReport(id);
+	}
+
+	/**
+	 * 补全报告：报告内容缺失时，用已保存的判定结果一次补算 ③–⑥，不重新判定回答；会调用两次模型，请求持续几十秒。
+	 *
+	 * @param id 报告 ID
+	 * @return 补全后的报告详情
+	 */
+	@PostMapping("/{id}/supplement")
+	public DiagnosisTaskReportResponse supplementReport(@PathVariable("id") long id) {
+		return diagnosisTaskReportSupplementBusiness.supplementReport(id);
 	}
 
 	/**

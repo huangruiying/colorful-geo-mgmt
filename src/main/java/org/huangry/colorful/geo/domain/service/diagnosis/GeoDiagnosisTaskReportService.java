@@ -224,6 +224,24 @@ public class GeoDiagnosisTaskReportService {
     }
 
     /**
+     * 补全报告缺失的汇总内容：用补算后的完整汇总替换 summary，状态、时间与判定记录都不改。
+     * <p>写入 geo_diagnosis_task_report 1 条的 summary 字段，只更新已完成（SUCCEEDED）的报告；同一份报告不重复补全由调用方保证。</p>
+     * @param reportId 报告 ID
+     * @param summary 补全后的完整汇总 JSON
+     * @throws IllegalStateException 报告已不是已完成状态，未写入
+     */
+    @Transactional
+    public void updateReportSummarySupplemented(long reportId, String summary) {
+        int changed = reportDao.update(null, new LambdaUpdateWrapper<GeoDiagnosisTaskReportEntity>()
+                .eq(GeoDiagnosisTaskReportEntity::getId, reportId)
+                .eq(GeoDiagnosisTaskReportEntity::getStatus, DiagnosisTaskReportStatus.SUCCEEDED.name())
+                .set(GeoDiagnosisTaskReportEntity::getSummary, summary));
+        if (changed != 1) {
+            throw new IllegalStateException("诊断报告补全结果保存失败");
+        }
+    }
+
+    /**
      * 将报告标记为失败；只更新 RUNNING 报告，已保存的分析结果保留。
      * @param reportId 报告 ID
      * @param reason 脱敏后的失败原因

@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 诊断报告创建、列表与详情接口的响应；名称取自诊断任务快照，判定渠道只返回非敏感快照。
@@ -29,6 +30,8 @@ public record DiagnosisTaskReportResponse(
         String promptVersion,
         /** 冻结的汇总指标，只在详情且报告完成后返回。 */
         JSONObject summary,
+        /** 汇总缺少的部分，只在详情且报告完成后返回；不为空时页面提供“补全报告”。 */
+        List<String> missingParts,
         /** 生成失败原因。 */
         String errorMessage,
         /** 报告创建时间。 */
