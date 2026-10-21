@@ -61,6 +61,19 @@ class ReportSummarizerTest {
                 summary.getJSONArray("strength").getJSONObject(0).getJSONObject("distribution").getInnerMap());
     }
 
+    /** 点名问题必然提到目标，其推荐强度不计入分布，避免把被动提及算成模型主动推荐。 */
+    @Test
+    void shouldCountStrengthOnlyForNonBrandQuestions() {
+        List<ReportAnswer> answers = new ArrayList<>(answers());
+        answers.add(answer(6, 1, "BRAND", "团油值得用", "[{\"name\":\"团油\",\"type\":\"TARGET\",\"recommended\":true,\"rank\":1,\"strength\":\"STRONG\"}]",
+                "[]", "POSITIVE", "SUCCEEDED"));
+
+        JSONObject summary = summarizer.buildSummary(answers, project, Map.of(), new JSONObject(), "v1");
+
+        assertEquals(Map.of("PASSING", 1L, "FIRST_CHOICE", 1L, "PARALLEL", 1L),
+                summary.getJSONArray("strength").getJSONObject(0).getJSONObject("distribution").getInnerMap());
+    }
+
     /** 维度归一只收集三类观点；归一结果缺项或损坏时保持原名。 */
     @Test
     void shouldCollectAndParseDimensions() {

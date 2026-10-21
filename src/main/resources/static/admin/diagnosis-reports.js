@@ -122,6 +122,7 @@
         detailPoller.stop(); answerRequests.cancel(); answerDialog.close();
         reportId = id; report = null; activeTab = "overview"; modelFilter = ""; show("detail-error", "");
         byId("supplement-report").hidden = true;
+        byId("export-report-html").hidden = true;
         byId("report-detail-title").textContent = "诊断报告 #" + id;
         byId("report-panel").replaceChildren(element("p", "help", "正在加载…"));
         if (!detailDialog.open) detailDialog.showModal();
@@ -137,14 +138,20 @@
         if (!ticket.isCurrent() || reportId !== id || !detailDialog.open) return false;
         show("detail-error", "");
         report = detail;
-        const judge = detail.judgeChannel ? (detail.judgeChannel.channelName || "—") + " · " + (detail.judgeChannel.modelName || "—") : "未开始";
-        byId("report-detail-note").textContent = (detail.planName || "—") + " / " + (detail.projectName || "—") + " · 诊断任务 #" + detail.diagnosisTaskId
-            + " · 判定模型：" + judge + " · " + (labels[detail.status] || detail.status);
+        byId("report-detail-note").textContent = reportNote(detail);
         renderModelFilter();
         renderSupplementButton();
+        byId("export-report-html").hidden = detail.status !== "SUCCEEDED";
         renderTabs();
         renderPanel();
         return active(detail.status);
+    }
+
+    /** @return 报告所属方案、项目、诊断任务、判定模型与状态的一行说明，详情抬头与导出网页抬头共用 */
+    function reportNote(detail) {
+        const judge = detail.judgeChannel ? (detail.judgeChannel.channelName || "—") + " · " + (detail.judgeChannel.modelName || "—") : "未开始";
+        return (detail.planName || "—") + " / " + (detail.projectName || "—") + " · 诊断任务 #" + detail.diagnosisTaskId
+            + " · 判定模型：" + judge + " · " + (labels[detail.status] || detail.status);
     }
 
     /** 报告完成且有两个以上模型时才显示模型筛选，选项来自汇总中的模型。 */
@@ -176,19 +183,55 @@
             panel.append(progress);
             return;
         }
-        const summary = report.summary;
-        if (modelFilter) {
-            const model = byId("report-model-filter").selectedOptions[0]?.textContent;
-            panel.append(element("p", "report-filter-note", "已筛选模型：" + model + "。按模型分行的表格只显示该模型；维度排行、链接与清单为全部模型合计。"));
-        }
-        if (activeTab === "overview") renderOverview(panel, summary);
-        else if (activeTab === "visibility") renderVisibility(panel, summary);
-        // 当前页签的内容缺失时提示用右上角「补全报告」补全
-        else if (!summary[activeTab]) panel.append(supplementNotice());
-        else if (activeTab === "brand") renderBrand(panel, summary.brand);
-        else if (activeTab === "competitor") renderCompetitor(panel, summary.competitor);
-        else if (activeTab === "source") renderSource(panel, summary.source);
+        if (modelFilter) panel.append(modelFilterNote());
+        renderTabContent(panel, activeTab, report.summary);
+    }
+
+    /** 已选模型时的筛选说明，提醒哪些表格只含该模型、哪些仍是全部模型合计。 */
+    function modelFilterNote() {
+        const model = byId("report-model-filter").selectedOptions[0]?.textContent;
+        return element("p", "report-filter-note", "已筛选模型：" + model + "。按模型分行的表格只显示该模型；维度排行、链接与清单为全部模型合计。");
+    }
+
+    /**
+     * 渲染一个页签的内容；页面切换页签与导出网页逐个输出页签都走这里，保证两边内容一致。
+     * @param {HTMLElement} panel 内容写入的容器
+     * @param {string} key 页签标识，取自 tabs
+     * @param {object} summary 已完成报告的冻结汇总
+     */
+    function renderTabContent(panel, key, summary) {
+        if (key === "overview") renderOverview(panel, summary);
+        else if (key === "visibility") renderVisibility(panel, summary);
+        // 页签内容缺失时提示用右上角「补全报告」补全
+        else if (!summary[key]) panel.append(supplementNotice());
+        else if (key === "brand") renderBrand(panel, summary.brand);
+        else if (key === "competitor") renderCompetitor(panel, summary.competitor);
+        else if (key === "source") renderSource(panel, summary.source);
         else renderAdvice(panel, summary);
+    }
+
+    /**
+     * 把已完成报告的六个页签按顺序展开，导出为可离线打开的独立网页。
+     * 内容与页面当前看到的一致：沿用模型筛选；证据与回答原文需在系统内点开查看，不进入导出网页。
+     */
+    function exportReportHtml() {
+        // 1. 抬头：报告编号、所属任务与判定模型、导出时间，有模型筛选时一并注明
+        const documentNode = element("article", "report-export");
+        documentNode.append(element("h1", null, "诊断报告 #" + report.id), element("p", "report-export-note", reportNote(report)),
+            element("p", "report-export-note", "导出时间：" + window.AdminFormat.dateTime(new Date())));
+        if (modelFilter) documentNode.append(modelFilterNote());
+        // 导出网页无法补全，缺失内容在抬头提醒先补全再导出
+        if (report.missingParts?.length) documentNode.append(element("p", "report-filter-note", "本报告有缺失内容（见各部分提示），建议先在系统中点击「补全报告」，完成后再导出。"));
+        // 2. 六个页签依次展开，各自成一部分
+        for (const [key, title] of tabs) {
+            const part = element("section", "report-export-part");
+            part.append(element("h2", null, title));
+            renderTabContent(part, key, report.summary);
+            documentNode.append(part);
+        }
+        // 3. 交给公共导出模块，文件名带方案名与报告编号，便于区分多份报告
+        window.AdminHtmlExport.downloadPage(documentNode, {
+            title:"诊断报告-" + (report.planName || "未命名方案") + "-" + report.id, bodyClass:"diagnosis-page"});
     }
 
     function renderOverview(panel, summary) {
@@ -213,7 +256,7 @@
                 model.channelName + " · " + model.modelName, model.nonBrandAnswers, percent(model.mentionRate), percent(model.recommendRate),
                 percent(model.firstChoiceRate), model.averageRank ?? "—", percent(model.questionCoverage), percent(model.stability)]))));
         const strengthKeys = Object.keys(strengthLabels);
-        panel.append(section("推荐强度（提到目标时）", "提到不等于推荐得好：顺带一提、附带缺点都说明推荐不够坚定。",
+        panel.append(section("推荐强度（非品牌问题中提到目标时）", "提到不等于推荐得好：顺带一提、附带缺点都说明推荐不够坚定。点名与对比问题必然提到目标，不计入。",
             table(["模型", ...strengthKeys.map(key => strengthLabels[key])], ofModel(summary.strength).map(row => [
                 row.channelName, ...strengthKeys.map(key => row.distribution[key] || 0)]))));
         const lists = element("div", "report-dimensions");
@@ -221,8 +264,6 @@
             dimensionList("用户选择标准", "未提到目标的回答强调了什么", summary.criteria),
             dimensionList("用户顾虑", "未提到目标的回答提醒了什么", summary.concerns));
         panel.append(section("推荐理由与用户关注点", "按归一后的维度统计次数，附回答原文。", lists));
-        panel.append(section("按问题意图拆分（非品牌问题）", null, table(["问题意图", "模型", "回答数", "提及率", "推荐率"], ofModel(summary.byIntent).map(row => [
-            intentLabels[row.intent] || row.intent, row.channelName, row.answers, percent(row.mentionRate), percent(row.recommendRate)]), 2)));
     }
 
     /** ③ 品牌认知：只看点名问题，模型怎么评价目标、描述对不对、负面来自哪里、卖点说没说到。 */
@@ -455,6 +496,7 @@
     byId("close-answer").addEventListener("click", () => answerDialog.close());
     byId("close-evidence").addEventListener("click", () => evidenceDialog.close());
     byId("supplement-report").addEventListener("click", supplementReport);
+    byId("export-report-html").addEventListener("click", exportReportHtml);
     byId("report-model-filter").addEventListener("change", event => { modelFilter = event.target.value; renderPanel(); });
     window.AdminDialogs.bind([createDialog, detailDialog, evidenceDialog, answerDialog], {
         canClose:dialog => dialog !== createDialog || !creating,
