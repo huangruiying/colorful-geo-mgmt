@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.application.diagnosis.model.DiagnosisTaskReportResponse;
 import org.huangry.colorful.geo.domain.service.diagnosis.DiagnosisTaskSnapshots;
+import org.huangry.colorful.geo.domain.service.diagnosis.report.summary.ReportSummarizer;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService;
 import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskReportStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskResultAnalysisStatus;
@@ -32,28 +33,28 @@ import java.util.stream.Collectors;
  * <p>报告生成完整流程（一份报告对应一次诊断任务，报告表 geo_diagnosis_task_report，
  * 逐条分析表 geo_diagnosis_task_result_analysis）：</p>
  * <ol>
- *   <li>用户点击生成：本类 {@code create} 调用 {@code GeoDiagnosisTaskReportService.createReport}，
+ *   <li>用户点击生成：本类 {@code createReport} 调用 {@code GeoDiagnosisTaskReportService.createReport}，
  *       创建 PENDING 报告，并为每条成功的诊断结果建一条 PENDING 分析记录，随即返回，不等待判定。</li>
  *   <li>后台领取：{@code DiagnosisTaskReportWorker} 每秒轮询，取得数据库锁后领取报告（优先续跑中断的 RUNNING），
  *       首次冻结判定渠道（分数最高的已启用渠道），续跑沿用同一渠道。</li>
  *   <li>逐条分析每条诊断结果，失败只记录本条原因并继续：
  *     <ul>
- *       <li>规则归类引用来源（我方发布、自有域名、提到目标、提到竞品、其他）：{@code DiagnosisTaskResultRuleAnalyzer.classifySources}</li>
- *       <li>模型判定品牌、观点、情感等：{@code DiagnosisTaskResultAnalysisPrompt} 组装提示词并校验解析，Worker 调用模型，
+ *       <li>规则归类引用来源（我方发布、自有域名、提到目标、提到竞品、其他）：{@code ResultRuleAnalyzer.classifySources}</li>
+ *       <li>模型判定品牌、观点、情感等：{@code ResultJudgePrompt} 组装提示词并校验解析，Worker 调用模型，
  *           结果写入分析记录</li>
  *     </ul>
  *   </li>
  *   <li>汇总：全部分析结束后，若无一条判定成功则报告失败；否则
  *     <ul>
- *       <li>维度归一：把同义维度合并为统一名称，由 {@code DiagnosisTaskReportSummarizer} 组装提示词并解析，Worker 调用模型；
+ *       <li>维度归一：把同义维度合并为统一名称，由 {@code DimensionPrompt} 组装提示词并解析，{@code ReportLlmAnalyzer} 调用模型；
  *           失败时保持原名，不阻断报告</li>
- *       <li>指标计算：{@code DiagnosisTaskReportSummarizer.summarize}，计算时按规则识别是否提及目标、是否实际联网，
- *           得出样本说明、各模型核心指标、推荐强度、维度排行和按意图拆分，供页面 ① 概览、② 可见度与推荐展示</li>
+ *       <li>指标计算：{@code ReportSummarizer.buildSummary} 交给各页签汇总类（diagnosis/report 包）计算 ①–⑤ 的指标与 ⑥ 规则问题</li>
+ *       <li>优化建议：{@code ReportLlmAnalyzer.generateAdvice} 调用一次模型，失败只记在 advice 上</li>
  *     </ul>
  *   </li>
- *   <li>冻结：{@code GeoDiagnosisTaskReportService.finish} 把汇总 JSON 写入报告 summary 并标记 SUCCEEDED，
- *       之后不随规则或数据变化重算；汇总异常时 {@code fail} 标记 FAILED 并记录原因。</li>
- *   <li>查看：本类 {@code list} 返回报告列表与判定进度，{@code detail} 返回冻结的汇总。</li>
+ *   <li>冻结：{@code GeoDiagnosisTaskReportService.finishReport} 把汇总 JSON 写入报告 summary 并标记 SUCCEEDED，
+ *       之后不随规则或数据变化重算；汇总异常时 {@code failReport} 标记 FAILED 并记录原因。</li>
+ *   <li>查看：本类 {@code listReports} 返回报告列表与判定进度，{@code getReport} 返回冻结的汇总；旧报告缺少 ③–⑥ 时由 {@code DiagnosisTaskReportSupplementBusiness} 补全。</li>
  * </ol>
  */
 @Service
@@ -153,9 +154,10 @@ public class DiagnosisTaskReportBusiness {
             };
             counts[index] += ((Number) row.get("analysis_count")).longValue();
         }
-        // 3. 组装响应，判定渠道与汇总以 JSON 对象返回
+        // 3. 组装响应，判定渠道与汇总以 JSON 对象返回，详情同时给出汇总缺少的部分
         return reports.stream().map(report -> {
             GeoDiagnosisTaskEntity task = tasks.get(report.getTaskId());
+            JSONObject summary = detail && report.getSummary() != null ? (JSONObject) snapshots.parseSnapshot(report.getSummary()) : null;
             JSONObject snapshot = task == null ? new JSONObject() : (JSONObject) snapshots.parseSnapshot(task.getPlanSnapshot());
             long[] counts = progress.getOrDefault(report.getId(), new long[3]);
             return new DiagnosisTaskReportResponse(report.getId(), report.getTaskId(), snapshot.getString("planName"),
@@ -164,7 +166,7 @@ public class DiagnosisTaskReportBusiness {
                     new DiagnosisTaskReportResponse.ProgressResponse(counts[0] + counts[1] + counts[2], counts[0], counts[1], counts[2]),
                     report.getJudgeChannelSnapshot() == null ? null : (JSONObject) snapshots.parseSnapshot(report.getJudgeChannelSnapshot()),
                     report.getPromptVersion(),
-                    detail && report.getSummary() != null ? (JSONObject) snapshots.parseSnapshot(report.getSummary()) : null,
+                    summary, summary == null ? null : ReportSummarizer.listMissingParts(summary),
                     report.getErrorMessage(), report.getCreatedAt(), report.getStartedAt(), report.getFinishedAt());
         }).toList();
     }
