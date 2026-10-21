@@ -87,6 +87,13 @@ infrastructure/client：外部协议、平台及浏览器适配
 - 含模块语义的映射（如发布记录 `IllegalStateException → 409`、诊断模块存储失败 500、`LLMClientException` 的提示文案、渠道编码重复 409）留在对应 Controller，Controller 内处理优先于全局处理。
 - Controller 单测使用 `standaloneSetup` 时需 `.setControllerAdvice(new GlobalExceptionHandler())`，否则 400/404 断言不生效。
 
+## 登录与访问控制
+
+- 管理后台只有一个登录账号，不提供注册；账号来自环境变量 `GEO_ADMIN_USERNAME`、`GEO_ADMIN_PASSWORD_HASH`（BCrypt 哈希），不建用户表，未配置哈希时服务拒绝启动。
+- 访问控制集中在 `infrastructure/config/security/AdminSecurityConfig`：除登录页及其样式、脚本和 `robots.txt` 外全部要求登录；新增公开资源只改这里的放行清单。未登录访问页面跳转登录页，访问接口返回 401 ProblemDetail；同一 IP 15 分钟内连续失败 5 次锁定 15 分钟（`LoginAttemptLimiter`）。
+- 写请求必须带跨站令牌：页面接口请求统一走 `shared/http.js` 的 `AdminHttp.requestJson`（自动附带 `X-XSRF-TOKEN`，401 跳转登录页），不直接使用 `fetch`；表单提交用 `AdminHttp.csrfToken()` 填 `_csrf`。新页面必须引入 `shared/http.js` 与 `shared/navigation.js`（含退出入口）。
+- 所有响应带 `X-Robots-Tag: noindex, nofollow`，并提供禁止抓取的 `robots.txt`；这只约束遵守规则的爬虫，真正的访问控制仍是登录。
+
 ## 已确认的大模型设计
 
 - 配置唯一来源为数据库 `geo_llm_channel`，不恢复 YAML 模型配置、自动导入或默认回退。
