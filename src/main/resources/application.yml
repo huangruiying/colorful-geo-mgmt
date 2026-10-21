@@ -1,5 +1,19 @@
 server:
   port: 8010
+  # 部署在 Nginx 之后时读取转发的真实 IP 和协议：登录失败按真实 IP 锁定；https 访问时登录 Cookie 自动只走加密连接
+  forward-headers-strategy: native
+  servlet:
+    session:
+      cookie:
+        # 别的网站发起的写请求不携带登录 Cookie，各浏览器行为一致
+        same-site: lax
+
+# 管理后台唯一登录账号，不提供注册；密码只配置 BCrypt 哈希，未配置时服务拒绝启动。
+admin:
+  login:
+    username: ${GEO_ADMIN_USERNAME:huangruiying}
+    # htpasswd -bnBC 10 "" '密码' | tr -d ':\n'
+    password-hash: ${GEO_ADMIN_PASSWORD_HASH:$2y$10$UFfoMWMNXW5P6veB78mjW.6ceKViE.lWTJjI9nBRV3966gKQS6jsW}
 
 # 模型 HTTP 客户端提前注册，所有模型调用使用同一超时和证书策略。
 http:

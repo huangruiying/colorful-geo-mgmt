@@ -1,6 +1,11 @@
 "use strict";
-/** 管理页面共用的 JSON 请求入口；不记录报文、不重试，也不决定页面交互。 */
+/** 管理页面共用的 JSON 请求入口；写请求附带跨站令牌，未登录时跳转登录页；不记录报文、不重试，也不决定页面交互。 */
 (() => {
+    /** 登录页地址；管理页面都在同一目录下。 */
+    const LOGIN_PAGE = "./login.html";
+    /** 只有写请求需要跨站令牌，查询不附加。 */
+    const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
     /**
      * 发起一次 JSON 请求；空响应返回 null，失败抛出可展示的错误，HTTP 错误保留 status。
      * @param {string} path 接口地址
@@ -15,6 +20,9 @@
         }
         if (options.body != null && !headers.has("Content-Type")) {
             headers.set("Content-Type", "application/json");
+        }
+        if (!SAFE_METHODS.has((options.method || "GET").toUpperCase())) {
+            headers.set("X-XSRF-TOKEN", csrfToken());
         }
         let response, text;
         try {
@@ -41,6 +49,10 @@
                 throw createResponseError(message + "（HTTP " + response.status + "）", response.status);
             }
         }
+        // 登录过期或未登录：整页回到登录页，登录后由服务端回到原页面
+        if (response.status === 401) {
+            window.location.assign(LOGIN_PAGE + "?expired");
+        }
         if (!response.ok) {
             const detail = typeof body?.detail === "string" ? body.detail.trim() : "";
             throw createResponseError(detail || "请求失败（HTTP " + response.status + "）", response.status);
@@ -54,5 +66,14 @@
         return Object.assign(new Error(message), {status});
     }
 
-    window.AdminHttp = Object.freeze({requestJson});
+    /**
+     * 读取服务端写入 Cookie 的跨站令牌；登录表单与退出也用它，不在页面各自解析 Cookie。
+     * @returns {string} 当前令牌，Cookie 尚未写入时为空字符串，服务端会拒绝并提示刷新页面
+     */
+    function csrfToken() {
+        const cookie = document.cookie.split("; ").find(item => item.startsWith("XSRF-TOKEN="));
+        return cookie ? decodeURIComponent(cookie.slice("XSRF-TOKEN=".length)) : "";
+    }
+
+    window.AdminHttp = Object.freeze({requestJson, csrfToken});
 })();

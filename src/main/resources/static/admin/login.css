@@ -1,0 +1,13 @@
+/* 登录页独立布局：不加载导航，只有居中的登录卡片。 */
+.login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background: #10233f; }
+.login-card { width: min(380px, 100%); padding: 36px 32px; border-radius: 14px; background: white; box-shadow: 0 18px 48px rgba(6, 18, 36, .35); }
+.login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; color: #172b46; font-size: 15px; }
+.login-brand .brand-mark { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: #3679dc; color: white; font-weight: 700; }
+.login-card h1 { margin: 0 0 18px; font-size: 22px; }
+.login-card label { display: block; margin: 14px 0 6px; color: #4b5f79; font-size: 13px; }
+.login-card input { width: 100%; padding: 10px 12px; border: 1px solid #d5dfed; border-radius: 8px; color: #19324e; font: inherit; }
+.login-card input:focus { outline: 2px solid #9ec0f2; outline-offset: 0; border-color: #3679dc; }
+.login-button { width: 100%; margin-top: 24px; padding: 11px 0; border: 0; border-radius: 8px; background: #3679dc; color: white; font: inherit; font-weight: 600; cursor: pointer; }
+.login-button:hover { background: #2366c5; }
+.login-message { margin: 0 0 6px; padding: 10px 12px; border-radius: 8px; background: #f3f7fd; color: #3b628e; font-size: 13px; }
+.login-message.error { background: #fdf1f1; color: #b4302f; }
