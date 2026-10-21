@@ -4,9 +4,13 @@
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
 
+- 2026-10-20 按用户确认调整报告 ② 可见度与推荐：推荐强度 `strength` 改为只统计非品牌问题（点名与对比问题必然提到目标，不反映主动推荐），页面标题改为「推荐强度（非品牌问题中提到目标时）」并补说明；删除「按问题意图拆分」（`ReportVisibilitySummarizer.listIntentMetrics`、summary `byIntent`、`SUMMARY_PARTS` 中的 byIntent、页面渲染与文档说明），④ 竞品优势场景仍用意图标签。新增测试 `shouldCountStrengthOnlyForNonBrandQuestions`；`mvn -o test` 386 项 385 通过（原有路由测试）；静态资源已同步（diagnosis-reports.js 版本 20261020-visibility1），Java 改动需重启生效。已生成报告的 summary 冻结不重算：旧报告 strength 仍含点名/对比问题、byIntent 留在数据里但不再显示；报告 7（迈极炫）另有 24 条推荐类回答判定失败（判定模型开头约 2 分钟不可用），建议重新生成。未提交。
+
+- 2026-10-19 诊断报告「导出网页」（用户先选打印 PDF，后改为导出独立 HTML，PDF 代码已全部删除；纯前端，无 Java/接口/数据库改动）：新增公共模块 `shared/html-export.js`（`AdminHtmlExport.downloadPage`：复制内容、去掉按钮、内联当前页面全部样式，经 DOM 组装后以 Blob 下载 `.html`）；`diagnosis-reports.js` 抽出 `renderTabContent`、`reportNote`、`modelFilterNote` 供页面与导出共用，`exportReportHtml` 依次展开六个页签（沿用当前模型筛选，证据与回答原文不输出，缺失内容在抬头提醒先补全）；报告完成后详情右上角显示「导出网页」，导出版面样式在 `diagnosis-reports.css`（`.report-export*`）。`history-report.html` 引入 format/html-export，版本 20261019-report-html1。验证：JS 语法检查；静态资源已同步 target/classes（删除了旧 print.js/print.css 的构建副本），运行实例无需重启；Playwright 对报告 6 点击导出得到“诊断报告-团油deepseek-6.html”（约 29KB），断网打开样式完整、六部分展开、无按钮/脚本/外链样式。未提交。
+
 ### 诊断报告六个页签全部接入（2026-10-18）
 
-- 目录按步骤重排（用户确认，入口 Worker、GeoDiagnosisTaskReportService 不动）：`diagnosis/report/analyze`（② 逐条分析：ResultAnalyzer 从 Worker 搬出、ResultRuleAnalyzer、ResultJudgePrompt）、`report/summary`（③ 汇总：ReportSummarizer 与各 Tab、ReportAnswerFacts、ReportMetrics、ReportDimensionRanking）、`report/llm`（ReportLlmAnalyzer、DimensionPrompt、AdvicePrompt、ModelJsonOutput）。只搬位置、改类名，逻辑与测试断言不变。重排脚本曾误改 120 个无关文件的 import 顺序，已从 HEAD 恢复，只保留类名替换；4 个原有改动文件手工恢复 import 原序。`mvn -o test` 385 项 384 通过（既有路由测试）。
+- 目录按步骤重排（用户确认，入口 Worker、GeoDiagnosisTaskReportService 不动）：`diagnosis/report/analyze`（② 逐条分析：ResultAnalyzer 从 Worker 搬出、ResultRuleAnalyzer、ResultJudgePrompt）、`report/summary`（③ 汇总：ReportSummarizer 与各 Tab、ReportAnswerFacts、ReportMetrics、ReportDimensionRanking）、`report/llm`（ReportLlmAnalyzer、DimensionPrompt、AdvicePrompt、LlmJsonOutputParser）。只搬位置、改类名，逻辑与测试断言不变。重排脚本曾误改 120 个无关文件的 import 顺序，已从 HEAD 恢复，只保留类名替换；4 个原有改动文件手工恢复 import 原序。`mvn -o test` 385 项 384 通过（既有路由测试）。
 
 - TODO（用户要求记录，待讨论）：各 Tab 的统计数据是在生成时冻结进 `geo_diagnosis_task_report.summary`（现状），还是页面打开时按 `geo_diagnosis_task_result_analysis` 实时统计。
 
@@ -18,7 +22,7 @@
 
 - 补全入口调整（用户确认）：补全是整份报告一次补全 ③–⑥，页面改为详情右上角一个「补全报告」按钮（仅已完成且缺少 ③–⑥ 的报告显示），页签内只提示“报告内容缺失时，点击补全报告可补全”；补全只因报告内容缺失，与版本无关。前端按报告记录补全中状态，不同报告可同时补全；后端 `DiagnosisTaskReportSupplementBusiness` 用内存集合拒绝同一份报告重复补全（“该报告正在补全，请稍候”），写入条件保护保留。资源 `20261018-report-supplement2`。验证：`mvn -o test` 384 项 383 通过（唯一失败为既有路由测试）；Playwright 19 项通过（含报告 4 补全中打开报告 3 仍可补全、报告 4 完成不覆盖当前视图）。
 
-- 写法重构（用户选择“继续”，按其上次“基础类不移动”的要求包结构不变，只改写法，输出不变）：维度归一拆为 `DimensionPrompt`（收集维度、提示词、解析），`ReportLlmAnalyzer.normalizeDimensions` 改为直接接收回答；三处“截出 JSON / 取对象数组 / 校验取值”合并为 `ModelJsonOutput`；`.fluentPut` 链一行一个字段；`x.stream().filter(..).count()` 改为 `ReportMetrics.countMatching`；回答事实新增 `isBrandRecommended` / `isBrandFirstChoice`；规则分析来源归类的嵌套三元改为 `classifySource`；修正 `DiagnosisTaskReportBusiness` 类注释中不存在的方法名。验证：`mvn -o test` 383 项 382 通过（唯一失败为既有路由测试），报告相关 41 项断言未改全部通过；前端未改。
+- 写法重构（用户选择“继续”，按其上次“基础类不移动”的要求包结构不变，只改写法，输出不变）：维度归一拆为 `DimensionPrompt`（收集维度、提示词、解析），`ReportLlmAnalyzer.normalizeDimensions` 改为直接接收回答；三处“截出 JSON / 取对象数组 / 校验取值”合并为 `LlmJsonOutputParser`；`.fluentPut` 链一行一个字段；`x.stream().filter(..).count()` 改为 `ReportMetrics.countMatching`；回答事实新增 `isBrandRecommended` / `isBrandFirstChoice`；规则分析来源归类的嵌套三元改为 `classifySource`；修正 `DiagnosisTaskReportBusiness` 类注释中不存在的方法名。验证：`mvn -o test` 383 项 382 通过（唯一失败为既有路由测试），报告相关 41 项断言未改全部通过；前端未改。
 
 - 旧报告补全（用户确认方案 B：页面手动、入口独立）：`POST /diagnosis-reports/{id}/supplement` → 新建 `DiagnosisTaskReportSupplementBusiness`，只做补全：读已保存的判定结果，重算后只把 brand / competitor / source / issues / advice 并入原 summary，①② 保持原结论；不建报告、不重新判定、不改状态；同步调用 2 次模型。写入用 `GeoDiagnosisTaskReportService.updateReportSummarySupplemented`（仅 SUCCEEDED 且 `JSON_EXTRACT(summary,'$.issues') IS NULL` 时写，防重复覆盖）；判定渠道沿用报告冻结的渠道，已删除则拒绝。后台执行器中维度归一、优化建议两段提取为公共组件 `ReportLlmAnalyzer`，执行器与补全共用。页面旧报告显示「补全分析」按钮（资源 `20261018-report-supplement1`）。验证：`mvn -o test` 383 项 382 通过（唯一失败为既有路由测试），新增补全编排 3 项、公共组件 3 项、Controller 1 项；Playwright 拦截接口 16 项通过；本地库只读查询确认条件语法可用，报告 #3–#6 均可补全。未对真实报告执行补全、未重启 8010、未提交。
 
