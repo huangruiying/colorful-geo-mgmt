@@ -1,0 +1,58 @@
+name: colorful-geo-mgmt
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_DATABASE: colorful_geo
+      MYSQL_USER: geo_app
+      MYSQL_PASSWORD: ${GEO_MYSQL_PASSWORD:?请在 deploy/.env 填写数据库密码}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请填写数据库 root 密码}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 仅在空数据目录建表，已有库不会重放。
+      - ../src/main/resources/db/mysql/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql --protocol=TCP -h 127.0.0.1 -u\"$$MYSQL_USER\" colorful_geo -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    init: true
+    shm_size: 1gb
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${GEO_BIND_ADDRESS:-0.0.0.0}:${GEO_HTTP_PORT:-8010}:8010"
+    environment:
+      GEO_MYSQL_URL: jdbc:mysql://mysql:3306/colorful_geo?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      GEO_MYSQL_USER: geo_app
+      GEO_MYSQL_PASSWORD: ${GEO_MYSQL_PASSWORD:?请填写数据库密码}
+      GEO_ADMIN_USERNAME: ${GEO_ADMIN_USERNAME:-admin}
+      GEO_ADMIN_PASSWORD_HASH: ${GEO_ADMIN_PASSWORD_HASH:?请填写后台密码 BCrypt 哈希}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=60.0}
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8010/admin/login.html"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  mysql-data:
