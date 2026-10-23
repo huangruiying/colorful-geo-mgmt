@@ -93,6 +93,15 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Playwright 用 zipfs 打开自身 jar 解压 driver，无法读取 fat jar 内的嵌套 jar；启动时先解压为独立文件 -->
+                    <requiresUnpack>
+                        <dependency>
+                            <groupId>com.microsoft.playwright</groupId>
+                            <artifactId>driver-bundle</artifactId>
+                        </dependency>
+                    </requiresUnpack>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
