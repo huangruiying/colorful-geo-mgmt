@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#10233f">
+    <meta name="robots" content="noindex, nofollow">
+    <title>登录 · GEO 管理平台</title>
+    <link rel="stylesheet" href="./styles.css?v=20261021-login1">
+    <link rel="stylesheet" href="./login.css?v=20261021-login1">
+    <script src="./shared/http.js?v=20261021-login1" defer></script>
+    <script src="./login.js?v=20261021-login1" defer></script>
+</head>
+<body class="login-page">
+<main class="login-card">
+    <div class="login-brand"><span class="brand-mark" aria-hidden="true">G</span><strong>GEO 管理平台</strong></div>
+    <h1>登录</h1>
+    <p id="login-message" class="login-message" role="alert" hidden></p>
+    <form id="login-form" method="post" action="../login">
+        <label for="username">用户名</label>
+        <input id="username" name="username" autocomplete="username" required autofocus>
+        <label for="password">密码</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <input id="csrf-token" type="hidden" name="_csrf">
+        <button type="submit" class="login-button">登录</button>
+    </form>
+</main>
+</body>
+</html>

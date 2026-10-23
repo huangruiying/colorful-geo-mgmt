@@ -1,8 +1,20 @@
 # Project Handoff
 
+## 当前交接：Linux Compose 部署（2026-10-22）
+
+- 用户确认：部署文件统一在 `deploy/`，使用 `docker compose -f "$DOCKER_DIR/docker-compose.yaml" --env-file "$DOCKER_DIR/.env" up -d` 启动应用和 MySQL；删除无用 install.sh。
+- 已新增 `deploy/docker-compose.yaml`、`deploy/Dockerfile`、本地 `.env` 和可提交 `.env.example`；更新 deploy/README、生产部署 SOP、Git/Docker 忽略规则，删除宿主机安装脚本。无 Java 业务方法变更；未修改用户的 SQL、缓存或 IDE 文件，未提交 Git。
+- Compose 使用 MySQL 8.4 持久卷，不公开数据库端口；空卷执行当前 001_init.sql，数据库账号可连接后启动应用。镜像构建执行可执行 JAR 打包并安装项目依赖对应的 Chromium、Xvfb 和字体，以非 root 运行应用。更新代码需 `up -d --build`，已有库升级不重放初始化脚本。
+- `.env` 三项密码留空，首次运行前必须填写；未配置时 Compose 明确拒绝启动，不使用源码中的默认凭据。`.env` 已 Git 忽略且权限 600，不进入构建上下文。
+- 已验证：Compose 配置解析、缺少必填项拒绝、BCrypt 字面量序列化、MySQL 无公开端口、git diff --check；独立 MySQL 8.4.11 容器用当前初始化 SQL 成功建立 12 张表，应用账号 TCP 查询成功，测试容器及匿名卷已删除。
+- 注释审计：无新增/修改 Java 或业务方法，逐方法表不适用；Dockerfile 已说明构建、浏览器版本及虚拟显示生命周期，Compose 已说明空卷初始化边界。部署资源归 Compose 管理，数据归命名卷；未新增业务层或改变接口契约。
+- 完整镜像构建验证未完成：基础镜像下载成功，Docker 内 Maven 进入项目构建后，依赖下载阶段数分钟未输出后续结果，已停止本次验证，未留下后台构建；尚未证明应用容器健康或 Linux 服务器实际部署成功。本机无 mvn 命令。后续填写服务器配置、完成完整镜像构建与登录验证，再按需要处理 HTTPS 和本地数据迁移。
+
 > 核对日期：2026-10-14，仓库 `/Users/huangry/Documents/huangry-code/colorful-geo-mgmt`。本文件是协作快照，不是聊天记录或平台联调成功证明。接手者先复核 Git、代码与数据库状态。共同规则见仓库根目录 [AGENTS.md](../AGENTS.md)。
 
 ## 当前任务：诊断任务执行与模型 Bean 路由
+
+- 2026-10-21 管理后台登录（用户确认：单账号、只能登录不能注册；对应部署安全方案第 1、2、5 项）：引入 spring-boot-starter-security（6.2.0，已联网下载）与 spring-security-test；新增 `infrastructure/config/security/AdminSecurityConfig`（表单登录、退出、页面未登录跳登录页/接口 401 ProblemDetail、Cookie 跨站令牌、X-Robots-Tag）与 `LoginAttemptLimiter`（同 IP 15 分钟内失败 5 次锁 15 分钟，内存计数）；账号来自 `GEO_ADMIN_USERNAME`/`GEO_ADMIN_PASSWORD_HASH`（BCrypt，未配置拒绝启动），会话 Cookie 显式 SameSite=Lax，HttpOnly 用 Tomcat 默认，Secure 由 Tomcat 按请求是否 https 自动设置（依赖 `server.forward-headers-strategy: native` 读取 Nginx 的 X-Forwarded-Proto，用户确认去掉 `GEO_SESSION_COOKIE_SECURE` 开关）。前端新增 login.html/js/css，`shared/http.js` 写请求带 X-XSRF-TOKEN、401 跳登录页并提供 `csrfToken()`，`navigation.js` 顶栏加「退出」，effect-recovery 补引 http.js，各页版本 20261021-login1；新增 `static/robots.txt`。测试：新增 AdminSecurityConfigTest 7 项（真实过滤链，测出并修复锁定过滤器路径判断缺陷）、LoginAttemptLimiterTest 4 项；`mvn -o test` 397 项 396 通过（原有路由测试）；htpasswd 生成的 $2y$ 哈希经 Spring 校验通过。规范写入 project-conventions「登录与访问控制」，部署说明补登录账号配置。**注意：重启前必须在 IDE 运行配置加 GEO_ADMIN_PASSWORD_HASH，否则服务拒绝启动。** 8010 运行实例仍是旧代码，未做浏览器端到端登录验证。剩余：TestController（/test/llmQuery）处理、Nginx/HTTPS/防火墙/IP 白名单。未提交。
 
 - 2026-10-20 按用户确认调整报告 ② 可见度与推荐：推荐强度 `strength` 改为只统计非品牌问题（点名与对比问题必然提到目标，不反映主动推荐），页面标题改为「推荐强度（非品牌问题中提到目标时）」并补说明；删除「按问题意图拆分」（`ReportVisibilitySummarizer.listIntentMetrics`、summary `byIntent`、`SUMMARY_PARTS` 中的 byIntent、页面渲染与文档说明），④ 竞品优势场景仍用意图标签。新增测试 `shouldCountStrengthOnlyForNonBrandQuestions`；`mvn -o test` 386 项 385 通过（原有路由测试）；静态资源已同步（diagnosis-reports.js 版本 20261020-visibility1），Java 改动需重启生效。已生成报告的 summary 冻结不重算：旧报告 strength 仍含点名/对比问题、byIntent 留在数据里但不再显示；报告 7（迈极炫）另有 24 条推荐类回答判定失败（判定模型开头约 2 分钟不可用），建议重新生成。未提交。
 

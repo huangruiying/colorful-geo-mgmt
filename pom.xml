@@ -31,6 +31,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- 管理后台登录、会话与跨站请求防护，版本由 Spring Boot 管理 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
 
         <!-- 内容优化记录与逐平台发布记录持久化 -->
         <!-- Spring 6 共用 RestTemplate 连接池，版本由 Spring Boot 管理 -->
@@ -74,6 +79,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
 

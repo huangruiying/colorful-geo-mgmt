@@ -1,5 +1,5 @@
 "use strict";
-/** 管理后台唯一导航定义；根据现有页面路径渲染菜单、高亮和面包屑，不参与业务请求。 */
+/** 管理后台唯一导航定义；根据现有页面路径渲染菜单、高亮、面包屑和退出入口，不参与业务请求。 */
 (() => {
     const groups = [
         {title:"项目管理", icon:"◇", pages:[
@@ -82,6 +82,30 @@
             const page = group.pages.find(page => page.file === currentFile);
             breadcrumb.replaceChildren(document.createTextNode(group.title + " "), element("span", null, "/"), document.createTextNode(" "), element("strong", null, page.title));
         }
+        renderLogout(document.querySelector(".topbar-label"));
+    }
+
+    /** 在顶栏右侧放置退出按钮；页面没有顶栏时不渲染。 */
+    function renderLogout(topbarLabel) {
+        if (!topbarLabel) return;
+        const button = element("button", "logout-button", "退出");
+        button.type = "button";
+        button.addEventListener("click", logout);
+        topbarLabel.append(button);
+    }
+
+    /** 以表单提交退出，服务端清除会话后跳转登录页；退出属于写操作，需附带跨站令牌。 */
+    function logout() {
+        const form = element("form");
+        form.method = "post";
+        form.action = "../logout";
+        const token = element("input");
+        token.type = "hidden";
+        token.name = "_csrf";
+        token.value = window.AdminHttp.csrfToken();
+        form.append(token);
+        document.body.append(form);
+        form.submit();
     }
 
     const sidebar = document.querySelector("[data-admin-navigation]");

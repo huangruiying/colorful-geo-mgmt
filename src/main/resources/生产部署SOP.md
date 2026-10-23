@@ -1,5 +1,7 @@
 # 生产部署 SOP
 
+容器部署见 [deploy/README.md](../../../deploy/README.md)，Compose 自动构建应用、启动 MySQL 并初始化空库。以下手动环境准备仅用于非容器部署。
+
 知乎草稿创建与已有草稿公开发布共用数据库保存的浏览器登录态。部署时按下列顺序检查；分别见 [浏览器登录配置](config/browser-login.md)、[知乎公开发布配置](config/zhihu-publish.md)。
 
 ## 1. 准备运行环境
@@ -19,7 +21,7 @@
 
 ## 3. 启动与验证
 
-1. 构建并确认部署产物可启动。当前 POM 未显式配置 Spring Boot 可执行 JAR 的 `repackage`，不要直接假定普通 JAR 可用 `java -jar` 启动。
+1. 构建并确认部署产物可启动。容器 Dockerfile 显式执行 `spring-boot:repackage`；手动部署可执行 `mvn -DskipTests package spring-boot:repackage`。
 2. 如果启用知乎草稿，先确认数据库中的知乎 Playwright 登录态有效，再启动 Java 服务；当前按单实例发布节点部署。
 3. 验证大模型查询与内容优化。知乎草稿先在浏览器登录管理中检查登录，再创建一篇测试草稿。
 4. 确认返回 `DRAFT_CREATED` 和 `draftUrl`，打开链接核对内容；超时后先检查草稿箱，再决定是否重试。
