@@ -49,8 +49,8 @@ public class AdminSecurityConfig {
     static final String LOGIN_PAGE = "/admin/login.html";
     /** 登录表单提交地址，由 Spring Security 校验账号密码。 */
     static final String LOGIN_PROCESSING_URL = "/login";
-    /** 登录成功且没有原访问页面时进入的首页，与导航中的品牌链接一致。 */
-    private static final String HOME_PAGE = "/admin/contents.html";
+    /** 登录成功且没有原访问页面时进入的首页，与导航中的品牌链接一致；根路径与 /admin 目录也跳转到这里。 */
+    static final String HOME_PAGE = "/admin/contents.html";
     /** 未登录访问接口的响应正文，与全局异常一致使用 ProblemDetail 结构，前端读取 detail。 */
     private static final String UNAUTHENTICATED_BODY =
             "{\"type\":\"about:blank\",\"title\":\"Unauthorized\",\"status\":401,\"detail\":\"未登录或登录已过期，请重新登录\"}";

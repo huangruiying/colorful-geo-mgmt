@@ -16,6 +16,8 @@ RUN java -cp '/tmp/playwright-dependencies/*' com.microsoft.playwright.CLI insta
     && rm -rf /tmp/playwright-dependencies /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 geo \
     && chmod -R a+rX /ms-playwright
+# 浏览器已在上一步安装；运行时跳过 Playwright.create() 自带的安装检查，geo 用户无权写浏览器目录。
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 COPY --from=build --chown=geo:geo /build/target/colorful-geo-mgmt-1.0.0-SNAPSHOT.jar /app/app.jar
 USER geo
 EXPOSE 8010

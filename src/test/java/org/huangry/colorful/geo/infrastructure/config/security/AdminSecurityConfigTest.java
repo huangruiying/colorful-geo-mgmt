@@ -79,6 +79,21 @@ class AdminSecurityConfigTest {
         mvc.perform(get("/probe").session(session).accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk());
     }
 
+    /** 未登录打开根路径或 /admin 目录：登录后回到原地址，再由入口跳转进入首页，不出现 404。 */
+    @Test
+    void shouldReachHomePageAfterLoginFromSiteEntryAddress() throws Exception {
+        for (String entryUrl : new String[]{"/", "/admin", "/admin/"}) {
+            MockHttpSession session = new MockHttpSession();
+            mvc.perform(get(entryUrl).session(session).accept(MediaType.TEXT_HTML))
+                    .andExpect(redirectedUrl("http://localhost/admin/login.html"));
+            mvc.perform(post("/login").session(session).param("username", "admin").param("password", PASSWORD).with(csrf()))
+                    .andExpect(redirectedUrl("http://localhost" + entryUrl + "?continue"));
+
+            mvc.perform(get(entryUrl).param("continue", "").session(session).accept(MediaType.TEXT_HTML))
+                    .andExpect(redirectedUrl("/admin/contents.html"));
+        }
+    }
+
     /** 锁定按客户端 IP 计数；本用例使用独立 IP，失败次数不影响其他用例的登录。 */
     @Test
     void shouldLockAfterFiveFailuresEvenWithCorrectPassword() throws Exception {
@@ -127,11 +142,11 @@ class AdminSecurityConfigTest {
                 });
     }
 
-    /** 只装配安全配置、限流器与探针接口。 */
+    /** 只装配安全配置、入口跳转、限流器与探针接口。 */
     @Configuration
     @EnableWebMvc
     @EnableWebSecurity
-    @Import({AdminSecurityConfig.class, LoginAttemptLimiter.class, ProbeController.class})
+    @Import({AdminSecurityConfig.class, AdminHomePageConfig.class, LoginAttemptLimiter.class, ProbeController.class})
     static class TestConfig {
     }
 
