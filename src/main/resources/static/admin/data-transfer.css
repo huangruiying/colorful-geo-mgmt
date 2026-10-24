@@ -1,0 +1,19 @@
+/** 数据迁移页只补充表格、上传区和结果间距，导航与控件复用管理后台样式。 */
+.transfer-page .list-panel + .list-panel { margin-top: 24px; }
+.transfer-page .panel-heading p { max-width: 900px; font-size: 13px; line-height: 1.7; }
+.transfer-page #project-search, .transfer-page #project-import { padding: 20px 24px; }
+.transfer-page #project-search label { white-space: nowrap; flex-shrink: 0; font-size: 13px; color: #304865; }
+.transfer-page #project-import { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.transfer-page table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; text-align: left; }
+.transfer-page th:first-child { width: 100px; }
+.transfer-page th:last-child { width: 110px; }
+.transfer-page td:last-child .text-button { white-space: nowrap; overflow-wrap: normal; }
+.transfer-page th, .transfer-page td { padding: 15px 24px; border-bottom: 1px solid #edf1f6; overflow-wrap: anywhere; }
+.transfer-page th { background: #f7f9fc; color: #73849b; font-size: 12px; }
+.transfer-page td { color: #304865; font-size: 13px; }
+.transfer-page #import-result { margin: 0 24px 24px; padding: 16px; background: #eef5ff; color: #3564a2; line-height: 1.8; overflow-wrap: anywhere; }
+.transfer-page #import-result[hidden] { display: none; }
+@media (max-width: 600px) {
+    .transfer-page th, .transfer-page td { padding: 12px; }
+    .transfer-page input[type="file"] { max-width: 100%; }
+}
