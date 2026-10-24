@@ -19,16 +19,16 @@ function createNavigation() {
     return {sidebar, breadcrumb, nodes, render:context.window.AdminNavigation.render};
 }
 
-const pages = ["projects", "project-create", "models", "model-config", "diagnose", "diagnosis-tasks", "history-report", "contents", "publications", "browser-login", "effect-recovery"];
+const pages = ["projects", "project-create", "models", "model-config", "diagnose", "diagnosis-tasks", "history-report", "contents", "publications", "browser-login", "effect-recovery", "data-transfer"];
 for (const page of pages) {
-    test(`${page} 只有一个当前导航且展开所属分组，11个原页面路径都保留`, () => {
+    test(`${page} 只有一个当前导航且展开所属分组，包含项目数据迁移入口`, () => {
         const nav = createNavigation(); nav.render(nav.sidebar, page + ".html");
         const all = nav.nodes(nav.sidebar), current = all.filter(node => node.attributes?.["aria-current"] === "page");
         assert.equal(current.length, 1);
         assert.equal(current[0].href.split("?")[0], "./" + page + ".html");
         assert.equal(all.filter(node => node.tag === "details" && node.open).length, 1);
         const links = all.filter(node => node.className?.startsWith("navigation-item"));
-        assert.equal(links.length, 11);
+        assert.equal(links.length, pages.length);
         assert.deepEqual(links.map(node => node.href.split("?")[0]).sort(), pages.map(file => "./" + file + ".html").sort());
         const title = nav.breadcrumb.children.find(node => node.tag === "strong");
         assert.equal(title.textContent, current[0].children.at(-1).textContent);
