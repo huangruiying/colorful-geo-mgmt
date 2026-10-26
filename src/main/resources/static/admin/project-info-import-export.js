@@ -25,7 +25,7 @@
     /** 查询项目分页；序号防止先发后到的旧查询覆盖新结果。 */
     async function loadProjects() {
         const sequence = ++loadSequence;
-        notice("transfer-error");
+        notice("import-export-error");
         try {
             const query = new URLSearchParams({page: String(page), size: "20", keyword: byId("keyword").value.trim()});
             const result = await AdminHttp.requestJson("/projects?" + query);
@@ -53,7 +53,7 @@
             if (!result.items.length) { byId("project-page").textContent = "没有符合条件的项目"; }
             setBusy(busy);
         } catch (error) {
-            if (sequence === loadSequence) { notice("transfer-error", error.message); }
+            if (sequence === loadSequence) { notice("import-export-error", error.message); }
         }
     }
 
@@ -61,11 +61,11 @@
     async function exportProject(projectId) {
         if (busy) { return; }
         setBusy(true);
-        notice("transfer-error");
-        notice("transfer-status", "正在整理项目数据，请稍候…");
+        notice("import-export-error");
+        notice("import-export-status", "正在整理项目数据，请稍候…");
         let url;
         try {
-            const archive = await AdminHttp.requestJson("/project-transfers/" + encodeURIComponent(projectId));
+            const archive = await AdminHttp.requestJson("/project-info-import-export/" + encodeURIComponent(projectId));
             url = URL.createObjectURL(new Blob([JSON.stringify(archive, null, 2)], {type: "application/json;charset=utf-8"}));
             const link = document.createElement("a");
             link.href = url;
@@ -73,10 +73,10 @@
             document.body.append(link);
             link.click();
             link.remove();
-            notice("transfer-status", "项目文件已生成并开始下载。");
+            notice("import-export-status", "项目文件已生成并开始下载。");
         } catch (error) {
-            notice("transfer-status");
-            notice("transfer-error", error.message);
+            notice("import-export-status");
+            notice("import-export-error", error.message);
         } finally {
             if (url) { setTimeout(() => URL.revokeObjectURL(url), 1000); }
             setBusy(false);
@@ -88,27 +88,27 @@
         event.preventDefault();
         if (busy) { return; }
         const file = byId("project-file").files[0];
-        notice("transfer-error");
+        notice("import-export-error");
         if (!file || !file.size || file.size > maxFileBytes) {
-            notice("transfer-error", "请选择非空且不超过 50 MiB 的 JSON 文件");
+            notice("import-export-error", "请选择非空且不超过 50 MiB 的 JSON 文件");
             return;
         }
         setBusy(true);
         byId("import-result").hidden = true;
-        notice("transfer-status", "正在校验渠道并导入项目，请勿重复提交…");
+        notice("import-export-status", "正在校验渠道并导入项目，请勿重复提交…");
         try {
-            const response = await AdminHttp.requestJson("/project-transfers", {method: "POST", body: await file.text()});
+            const response = await AdminHttp.requestJson("/project-info-import-export", {method: "POST", body: await file.text()});
             const labels = {project: "项目", plans: "方案", questions: "问题", planChannels: "方案渠道", tasks: "任务", results: "诊断结果", reports: "报告", analyses: "回答分析"};
             byId("import-result").textContent = `已导入项目“${response.projectName}”（新项目 ID：${response.projectId}）。` +
                 Object.entries(labels).map(([key, label]) => `${label} ${response.counts[key]} 条`).join("，") + "。";
             byId("import-result").hidden = false;
             byId("project-file").value = "";
-            notice("transfer-status", "导入完成，历史记录不会自动执行。");
+            notice("import-export-status", "导入完成，历史记录不会自动执行。");
             page = 0;
             await loadProjects();
         } catch (error) {
-            notice("transfer-status");
-            notice("transfer-error", error.message + (error.status ? "" : "。网络中断时请先查看项目列表，确认是否已导入，再决定是否重试"));
+            notice("import-export-status");
+            notice("import-export-error", error.message + (error.status ? "" : "。网络中断时请先查看项目列表，确认是否已导入，再决定是否重试"));
         } finally {
             setBusy(false);
         }
