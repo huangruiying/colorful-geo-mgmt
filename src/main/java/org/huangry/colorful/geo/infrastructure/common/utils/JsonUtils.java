@@ -83,15 +83,25 @@ public final class JsonUtils {
     }
 
     /**
-     * 读取正整数 long 字段，支持整数值和十进制字符串；不接受小数、指数写法、前导零或溢出。
+     * 读取正整数 long 字段，支持整数值和十进制字符串；不接受缺失、小数、指数写法、前导零或溢出。
      * @param object 所属 JSON 对象
      * @param field 字段名
      * @return 正整数值
      * @throws IllegalArgumentException 字段格式错误或超出 long 范围
      */
     public static long getPositiveLong(JsonNode object, String field) {
+        return confirmPositiveLong(object.get(field), field);
+    }
+
+    /**
+     * 校验单个 JSON 值是正整数 long，规则与 {@link #getPositiveLong} 相同；用于值已从对象中取出的场景。
+     * @param value JSON 值，缺失时传 null
+     * @param field 字段名，仅用于错误提示
+     * @return 正整数值
+     * @throws IllegalArgumentException 值格式错误或超出 long 范围
+     */
+    public static long confirmPositiveLong(JsonNode value, String field) {
         // 先限制格式，防止 JSON 或浏览器隐式转换丢失标识精度
-        JsonNode value = object.get(field);
         if (value == null || !(value.isIntegralNumber() || value.isTextual())
                 || !value.asText().matches("[1-9][0-9]{0,18}")) {
             throw new IllegalArgumentException("JSON 字段不是有效正整数：" + field);

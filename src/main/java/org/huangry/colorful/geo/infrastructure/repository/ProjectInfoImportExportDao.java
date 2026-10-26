@@ -13,7 +13,9 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -21,7 +23,9 @@ import java.util.stream.Collectors;
 import static org.huangry.colorful.geo.infrastructure.common.enums.ProjectInfoImportExportTable.*;
 
 /**
- * 以固定字段读取项目迁移数据并写入新行；事务、文件校验及标识映射由领域服务负责。
+ * 项目导入导出的数据库读写：按白名单字段读取一个项目的八张表，并把导入数据逐行插入为新记录。
+ * <p>表名和字段只取自 {@link ProjectInfoImportExportTable}，SQL 值全部参数绑定。</p>
+ * <p>事务、文件校验、ID 映射和幂等键清理由领域服务负责。</p>
  */
 @Repository
 public class ProjectInfoImportExportDao {
@@ -91,7 +95,7 @@ public class ProjectInfoImportExportDao {
 	}
 
 	/**
-	 * 按白名单写入一行并获取新 ID；保留历史时间，不写入来源主键或任务幂等键。
+	 * 按白名单写入一行并获取新 ID；保留历史时间，不写入来源主键，其余字段按行内值原样写入。
 	 *
 	 * @param table 固定迁移表
 	 * @param row   已校验及映射的行
@@ -143,11 +147,11 @@ public class ProjectInfoImportExportDao {
 				Object value = result.getObject(index);
 				if (value instanceof Timestamp timestamp) {
 					value = timestamp.toLocalDateTime().toString();
-				} else if (value instanceof java.time.LocalDateTime dateTime) {
+				} else if (value instanceof LocalDateTime dateTime) {
 					// MySQL 驱动可直接返回 LocalDateTime，与 Timestamp 统一为本地时间文本
 					value = dateTime.toString();
 				}
-				String column = metadata.getColumnLabel(index).toLowerCase(java.util.Locale.ROOT);
+				String column = metadata.getColumnLabel(index).toLowerCase(Locale.ROOT);
 				row.set(column, JSON_COLUMNS.contains(column) && value instanceof String json
 						? JsonUtils.readTree(json) : JsonUtils.toTree(value));
 			}
@@ -163,14 +167,14 @@ public class ProjectInfoImportExportDao {
 	 * @return JDBC 绑定值
 	 */
 	private Object columnValue(String column, JsonNode value) {
-		if (value == null || value.isNull() || column.equals("request_id")) {
+		if (value == null || value.isNull()) {
 			return null;
 		}
 		if (JSON_COLUMNS.contains(column)) {
 			return value.toString();
 		}
 		if (column.endsWith("_at")) {
-			return Timestamp.valueOf(java.time.LocalDateTime.parse(value.asText()));
+			return Timestamp.valueOf(LocalDateTime.parse(value.asText()));
 		}
 		if (value.isIntegralNumber()) {
 			return value.longValue();

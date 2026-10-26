@@ -13,20 +13,31 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.huangry.colorful.geo.infrastructure.common.enums.ProjectInfoImportExportTable.*;
 
-/** 项目全链路迁移入口；一致性快照导出、全事务新建导入，不调用模型或覆盖现有项目。 */
+/**
+ * 项目导入导出的主流程：把一个项目及其诊断历史导出为 JSON 树，或把 JSON 树导入为一个新项目。
+ * <p>导出在同一数据库快照内读取八张表，并把渠道 ID 换成可移植的渠道编码；导入在一个事务内按依赖顺序写入，重建全部 ID。</p>
+ * <p>不调用模型、不覆盖已有项目；文件读写由 {@code ProjectInfoImportExportBusiness} 负责，文件校验由 {@link ProjectInfoImportExportValidator} 负责。</p>
+ */
 @Service
 public class ProjectInfoImportExportService {
     @Resource
     private ProjectInfoImportExportDao importExportDao;
     @Resource
     private ProjectInfoImportExportValidator validator;
-    /** 结构化快照及报告证据字段对应的迁移对象，不是通用 JSON 遍历规则。 */
+    /** 数据行的表级外键字段及其指向的表；导出时转成字符串，导入时换成新 ID。 */
+    private static final Map<String, ProjectInfoImportExportTable> FOREIGN_KEYS = Map.of(
+            "project_id", PROJECT, "plan_id", PLAN, "question_id", QUESTION,
+            "task_id", TASK, "report_id", REPORT, "task_result_id", RESULT);
+    /** 结构化快照及报告证据中的引用字段及其指向的表，不是通用 JSON 遍历规则。 */
     private static final Map<String, ProjectInfoImportExportTable> REFERENCE_FIELDS = Map.of(
             "projectId", PROJECT, "planId", PLAN, "questionId", QUESTION,
             "taskId", TASK, "resultId", RESULT, "taskResultId", RESULT, "reportId", REPORT);
+    /** 全部文件分区名称，用于识别数据行自身的 id 字段。 */
+    private static final Set<String> SECTIONS = Arrays.stream(values()).map(table -> table.section).collect(Collectors.toSet());
 
     /**
      * 一致性读取项目与七个诊断关联分区；有未结束任务、结果或报告时拒绝导出。
@@ -165,9 +176,7 @@ public class ProjectInfoImportExportService {
      */
     private void mapRowForeignKeys(ObjectNode row, Map<ProjectInfoImportExportTable, Map<Long, Long>> ids, Map<String, Long> channels) {
         // 1. 重建项目到回答分析的内部外键，不访问目标环境的既有项目
-        Map<String, ProjectInfoImportExportTable> parents = Map.of("project_id", PROJECT, "plan_id", PLAN, "question_id", QUESTION,
-                "task_id", TASK, "report_id", REPORT, "task_result_id", RESULT);
-        parents.forEach((field, parent) -> {
+        FOREIGN_KEYS.forEach((field, parent) -> {
             if (row.has(field)) {
                 row.put(field, requireMappedId(ids, parent, JsonUtils.getPositiveLong(row, field)));
             }
@@ -185,29 +194,17 @@ public class ProjectInfoImportExportService {
 
     /**
      * 为只在历史快照中存在的问题申请新 ID，随即删除临时行；无问题外键的历史结果仍可追溯。
+     * <p>前置条件：校验器已确认快照结构完整，且每条结果的问题都在所属任务的快照中，所以遍历任务快照即可覆盖全部结果引用。</p>
      * @param archive 来源文件
      * @param ids 各表新旧标识
      */
     private void reserveHistoricalQuestions(ObjectNode archive, Map<ProjectInfoImportExportTable, Map<Long, Long>> ids) {
-        // 方案快照和单条结果分别覆盖整轮问题、仍保留结果的问题，避免只扫描当前方案
+        // 按任务方案快照的整轮问题预留，不只扫描当前方案，已删除的问题同样拿到新标识
         for (JsonNode task : archive.withArray(TASK.section)) {
-            JsonNode snapshot = task.path("plan_snapshot");
-            if (!snapshot.isObject() || !snapshot.path("questions").isArray() || !snapshot.path("project").isObject()) {
-                throw new IllegalArgumentException("任务方案快照结构不完整");
-            }
             long planId = requireMappedId(ids, PLAN, JsonUtils.getPositiveLong(task, "plan_id"));
-            for (JsonNode question : snapshot.path("questions")) {
+            for (JsonNode question : task.path("plan_snapshot").path("questions")) {
                 reserveHistoricalQuestion(question, planId, ids);
             }
-        }
-        // 对照结果快照确认追溯标识已全部预留，不能保留来源问题 ID
-        for (JsonNode result : archive.withArray(RESULT.section)) {
-            JsonNode question = result.path("question_snapshot");
-            if (JsonUtils.getPositiveLong(question, "id") != JsonUtils.getPositiveLong(result, "question_id")) {
-                throw new IllegalArgumentException("诊断结果与问题快照标识不一致");
-            }
-            // 正常文件已由所属任务的完整方案快照覆盖，不允许结果引入快照之外的问题
-            requireMappedId(ids, QUESTION, JsonUtils.getPositiveLong(result, "question_id"));
         }
     }
 
@@ -278,10 +275,8 @@ public class ProjectInfoImportExportService {
             object.fieldNames().forEachRemaining(fields::add);
             for (String field : fields) {
                 JsonNode value = object.get(field);
-                boolean knownId = field.equals("id") && (Arrays.stream(values()).anyMatch(table -> table.section.equals(fieldContext))
-                        || fieldContext.equals("question_snapshot"));
-                if ((knownId || Set.of("project_id", "plan_id", "question_id", "task_id", "report_id", "task_result_id").contains(field)
-                        || REFERENCE_FIELDS.containsKey(field)) && !value.isNull()) {
+                boolean knownId = field.equals("id") && (SECTIONS.contains(fieldContext) || fieldContext.equals("question_snapshot"));
+                if ((knownId || FOREIGN_KEYS.containsKey(field) || REFERENCE_FIELDS.containsKey(field)) && !value.isNull()) {
                     object.put(field, Long.toString(JsonUtils.getPositiveLong(object, field)));
                 }
             }

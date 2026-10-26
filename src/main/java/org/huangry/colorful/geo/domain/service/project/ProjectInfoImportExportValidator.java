@@ -3,6 +3,10 @@ package org.huangry.colorful.geo.domain.service.project;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskReportStatus;
+import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskResultAnalysisStatus;
+import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskResultStatus;
+import org.huangry.colorful.geo.infrastructure.common.enums.DiagnosisTaskStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.ProjectInfoImportExportTable;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.Resource;
@@ -12,10 +16,15 @@ import org.huangry.colorful.geo.infrastructure.common.utils.JsonUtils;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.huangry.colorful.geo.infrastructure.common.enums.ProjectInfoImportExportTable.*;
 
-/** 项目迁移的版本、终态、字段及关联业务校验；复用项目和渠道服务的既有规则，不负责 JSON 读写或数据库写入。 */
+/**
+ * 项目导入导出文件的校验：检查文件版本、字段、状态和跨表关联，任一不合格则整份文件拒绝。
+ * <p>导出生成文件后、导入写库前各调用一次；项目地址和渠道编码复用项目、渠道服务的既有校验规则。</p>
+ * <p>不负责 JSON 读写和数据库写入。</p>
+ */
 @Service
 public class ProjectInfoImportExportValidator {
     @Resource
@@ -24,6 +33,14 @@ public class ProjectInfoImportExportValidator {
     private GeoLlmChannelService channelService;
     /** 迁移渠道快照允许保留的历史展示字段，连接配置不在迁移范围。 */
     public static final Set<String> CHANNEL_DISPLAY_FIELDS = Set.of("channelCode", "channelName", "providerCode", "modelName", "protocolType");
+    /** 任务、结果、报告的终态；其他状态会被后台继续领取执行，不能出现在文件中。 */
+    private static final Map<ProjectInfoImportExportTable, Set<String>> TERMINAL_STATUSES = Map.of(
+            TASK, Set.of(DiagnosisTaskStatus.SUCCEEDED.name(), DiagnosisTaskStatus.PARTIAL_FAILED.name(), DiagnosisTaskStatus.FAILED.name()),
+            RESULT, Set.of(DiagnosisTaskResultStatus.SUCCEEDED.name(), DiagnosisTaskResultStatus.FAILED.name()),
+            REPORT, Set.of(DiagnosisTaskReportStatus.SUCCEEDED.name(), DiagnosisTaskReportStatus.FAILED.name()));
+    /** 回答分析的全部有效状态；失败报告下的待判定记录不会被后台单独领取，可以保留。 */
+    private static final Set<String> ANALYSIS_STATUSES = Arrays.stream(DiagnosisTaskResultAnalysisStatus.values())
+            .map(Enum::name).collect(Collectors.toSet());
 
     /**
      * 校验版本、字段、唯一标识、终态及完整关联；任何错误使整个文件拒绝导入。
@@ -117,13 +134,11 @@ public class ProjectInfoImportExportValidator {
             validateProjectColumns(row);
         }
         // 3. 拒绝会被后台继续领取的主记录；失败报告的待判定子行可保留
-        if (table == TASK || table == RESULT || table == REPORT) {
-            Set<String> terminal = table == TASK ? Set.of("SUCCEEDED", "PARTIAL_FAILED", "FAILED") : Set.of("SUCCEEDED", "FAILED");
-            if (!terminal.contains(row.path("status").asText())) {
-                throw new IllegalArgumentException("存在未结束或状态无效的诊断任务、结果或报告，请完成处理后再导出");
-            }
+        Set<String> terminal = TERMINAL_STATUSES.get(table);
+        if (terminal != null && !terminal.contains(row.path("status").asText())) {
+            throw new IllegalArgumentException("存在未结束或状态无效的诊断任务、结果或报告，请完成处理后再导出");
         }
-        if (table == ANALYSIS && !Set.of("PENDING", "SUCCEEDED", "FAILED").contains(row.path("status").asText())) {
+        if (table == ANALYSIS && !ANALYSIS_STATUSES.contains(row.path("status").asText())) {
             throw new IllegalArgumentException("回答分析状态无效");
         }
     }
@@ -140,7 +155,7 @@ public class ProjectInfoImportExportValidator {
         if (JSON_COLUMNS.contains(field)) {
             validateJsonColumn(field, value);
         } else if (field.equals("id") || field.endsWith("_id") && !field.equals("request_id")) {
-            JsonUtils.getPositiveLong(com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode().set(field, value), field);
+            JsonUtils.confirmPositiveLong(value, field);
         } else if (field.endsWith("_at")) {
             try {
                 LocalDateTime.parse(value.asText());
@@ -263,7 +278,8 @@ public class ProjectInfoImportExportValidator {
         // 3. 成功报告不应包含待判定回答，失败报告的残留待判定记录不会被后台单独领取
         for (ObjectNode analysis : rows.get(ANALYSIS).values()) {
             ObjectNode report = rows.get(REPORT).get(JsonUtils.getPositiveLong(analysis, "report_id"));
-            if ("SUCCEEDED".equals(report.path("status").asText()) && "PENDING".equals(analysis.path("status").asText())) {
+            if (DiagnosisTaskReportStatus.SUCCEEDED.name().equals(report.path("status").asText())
+                    && DiagnosisTaskResultAnalysisStatus.PENDING.name().equals(analysis.path("status").asText())) {
                 throw new IllegalArgumentException("成功报告不能包含待判定的回答分析");
             }
         }

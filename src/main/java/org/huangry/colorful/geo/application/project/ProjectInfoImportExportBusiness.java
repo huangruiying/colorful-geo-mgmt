@@ -1,5 +1,6 @@
 package org.huangry.colorful.geo.application.project;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +13,10 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** 项目迁移的文件输入输出及接口模型组装；事务和业务关联重建交给领域服务，不直接操作数据库。 */
+/**
+ * 项目导入导出的文件处理：把导出数据生成 JSON 文件，把上传文件解析成 JSON 树，并组装导入结果。
+ * <p>负责文件不超过 50 MiB、JSON 语法正确且根节点为对象；事务和 ID 重建交给 {@link ProjectInfoImportExportService}，不直接操作数据库。</p>
+ */
 @Component
 @Slf4j
 public class ProjectInfoImportExportBusiness {
@@ -53,7 +57,8 @@ public class ProjectInfoImportExportBusiness {
         for (ProjectInfoImportExportTable table : ProjectInfoImportExportTable.values()) {
             counts.put(table.section, archive.withArray(table.section).size());
         }
-        return new ProjectImportResponse(Long.toString(projectId), archive.withArray("project").get(0).path("name").asText(), counts);
+        return new ProjectImportResponse(Long.toString(projectId),
+                archive.withArray(ProjectInfoImportExportTable.PROJECT.section).get(0).path("name").asText(), counts);
     }
 
     /**
@@ -68,7 +73,7 @@ public class ProjectInfoImportExportBusiness {
             throw new IllegalArgumentException("请选择非空且不超过 50 MiB 的项目 JSON 文件");
         }
         // 通用解析异常在应用边界转换为项目文件提示，不回显正文
-        com.fasterxml.jackson.databind.JsonNode root;
+        JsonNode root;
         try {
             root = JsonUtils.readTree(bytes);
         } catch (IllegalArgumentException exception) {

@@ -12,7 +12,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 
-/** 已登录管理员的项目文件迁移接口；限制文件体积，复用全局输入错误及现有 CSRF 防护。 */
+/**
+ * 项目导入导出接口：把单个项目导出为 JSON 文件下载，或上传 JSON 文件导入为一个新项目。
+ * <p>仅已登录管理员可用，沿用全局输入错误处理和 CSRF 防护；上传按 50 MiB 上限有界读取。</p>
+ * <p>数据库约束不满足返回 400，数据库访问失败返回 500，两种情况导入都已回滚。</p>
+ */
 @RestController
 @RequestMapping("project-info-import-export")
 @Slf4j
