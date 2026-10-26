@@ -1,0 +1,19 @@
+/** 数据迁移页只补充表格、上传区和结果间距，导航与控件复用管理后台样式。 */
+.import-export-page .list-panel + .list-panel { margin-top: 24px; }
+.import-export-page .panel-heading p { max-width: 900px; font-size: 13px; line-height: 1.7; }
+.import-export-page #project-search, .import-export-page #project-import { padding: 20px 24px; }
+.import-export-page #project-search label { white-space: nowrap; flex-shrink: 0; font-size: 13px; color: #304865; }
+.import-export-page #project-import { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.import-export-page table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; text-align: left; }
+.import-export-page th:first-child { width: 100px; }
+.import-export-page th:last-child { width: 110px; }
+.import-export-page td:last-child .text-button { white-space: nowrap; overflow-wrap: normal; }
+.import-export-page th, .import-export-page td { padding: 15px 24px; border-bottom: 1px solid #edf1f6; overflow-wrap: anywhere; }
+.import-export-page th { background: #f7f9fc; color: #73849b; font-size: 12px; }
+.import-export-page td { color: #304865; font-size: 13px; }
+.import-export-page #import-result { margin: 0 24px 24px; padding: 16px; background: #eef5ff; color: #3564a2; line-height: 1.8; overflow-wrap: anywhere; }
+.import-export-page #import-result[hidden] { display: none; }
+@media (max-width: 600px) {
+    .import-export-page th, .import-export-page td { padding: 12px; }
+    .import-export-page input[type="file"] { max-width: 100%; }
+}

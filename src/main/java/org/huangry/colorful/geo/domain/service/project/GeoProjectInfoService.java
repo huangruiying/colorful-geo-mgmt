@@ -49,7 +49,11 @@ public class GeoProjectInfoService extends ServiceImpl<GeoProjectInfoDao, GeoPro
                 GeoProjectInfoEntity::getName, keyword);
     }
 
-    /** 校验基础必填资料、URL 与可选配置，防止无效资料或超长字段落库。 */
+    /**
+     * 校验并规范化项目必填资料、URL 与可选配置，防止无效资料或超长字段落库。
+     * @param project 待保存项目资料
+     * @throws IllegalArgumentException 必填项、长度、列表或地址不符合要求
+     */
     private void validateProject(GeoProjectInfoEntity project) {
         // 1. 必填项为空或超过字段容量时，拒绝创建不完整档案。
         project.setName(validateText(project.getName(), "项目名称", 200, true));
@@ -58,7 +62,7 @@ public class GeoProjectInfoService extends ServiceImpl<GeoProjectInfoDao, GeoPro
         project.setCoreFeatures(validateText(project.getCoreFeatures(), "核心功能", 5000, true));
         project.setTargetAudience(validateText(project.getTargetAudience(), "目标用户群体", 5000, true));
         // 2. URL 只保存 HTTP(S) 资料地址，不在创建时抓取远程页面。
-        validateWebsiteUrl(project.getWebsiteUrl());
+        validateProjectWebsiteUrl(project.getWebsiteUrl());
         // 3. 可选字段保留空值，列表统一为空数组并限制单项长度。
         project.setTargetMarket(validateText(project.getTargetMarket(), "目标市场", 200, false));
         project.setTargetLanguage(validateText(project.getTargetLanguage(), "目标语言", 100, false));
@@ -84,12 +88,21 @@ public class GeoProjectInfoService extends ServiceImpl<GeoProjectInfoDao, GeoPro
         return entries.stream().map(value -> validateText(value, label, 200, true)).distinct().toList();
     }
 
-    /** 验证可解析的 HTTP(S) 地址；不接受脚本协议或无主机地址。 */
-    private void validateWebsiteUrl(String value) {
+    /**
+     * 项目创建与迁移共用的资料地址校验，不访问远程页面。
+     * @param value 官网或资料地址
+     * @throws IllegalArgumentException 地址不是有效的 HTTP(S) 地址
+     */
+    public void validateProjectWebsiteUrl(String value) {
         try {
-            URI uri = URI.create(value);
-            if (uri.getHost() == null || !("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme())))
+            if (value == null || value.isBlank()) {
                 throw new IllegalArgumentException();
+            }
+            URI uri = URI.create(value);
+            // 两个入口采用同一协议和主机边界，不允许文件绕过页面输入约束
+            if (uri.getHost() == null || !("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme()))) {
+                throw new IllegalArgumentException();
+            }
         } catch (IllegalArgumentException exception) {
             throw new IllegalArgumentException("官网或资料 URL 必须是有效的 HTTP(S) 地址");
         }

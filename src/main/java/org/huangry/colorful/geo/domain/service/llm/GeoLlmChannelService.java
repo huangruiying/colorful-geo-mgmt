@@ -94,11 +94,16 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
             q -> q.like(GeoLlmChannelEntity::getChannelName, keyword).or().like(GeoLlmChannelEntity::getChannelCode, keyword));
     }
 
-    /** 校验协议、连接与参数；模拟渠道不要求远程地址。 */
+    /**
+     * 校验并规范化渠道编码、策略、连接与参数，模拟渠道不要求远程地址。
+     * @param channel 待保存渠道配置
+     * @throws IllegalArgumentException 编码、策略、地址或参数不符合要求
+     */
     private void validateChannel(GeoLlmChannelEntity channel) {
         // 1. 渠道编码稳定关联配置，不允许空白、特殊字符和超长名称。
-        channel.setChannelCode(text(channel.getChannelCode(), "渠道编码", 100, true));
-        if (!channel.getChannelCode().matches("[a-zA-Z0-9_-]+")) throw new IllegalArgumentException("渠道编码只能使用字母、数字、下划线和短横线");
+        String channelCode = channel.getChannelCode() == null ? null : channel.getChannelCode().strip();
+        validateChannelCode(channelCode);
+        channel.setChannelCode(channelCode);
         channel.setChannelName(text(channel.getChannelName(), "渠道名称", 200, true));
         channel.setProviderCode(text(channel.getProviderCode(), "供应商标识", 100, true));
         channel.setStrategyBeanName(text(channel.getStrategyBeanName(), "调用策略 Bean", 100, true));
@@ -108,20 +113,54 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
         boolean remote = strategy.protocolType() != LLMProtocolType.MOCK;
         channel.setBaseUrl(text(channel.getBaseUrl(), "接口地址", 2048, remote));
         channel.setModelName(text(channel.getModelName(), "模型标识", 200, remote));
-        if (remote) validateUrl(channel.getBaseUrl());
+        if (remote) {
+            validateUrl(channel.getBaseUrl());
+        }
         // 3. 默认值与范围统一在领域层处理，页面和调用方遵循相同规则。
         if (channel.getTemperature() != null && (!Double.isFinite(channel.getTemperature())
                 || channel.getTemperature() < 0 || channel.getTemperature() > 2)) {
             throw new IllegalArgumentException("生成随机性必须在 0 到 2 之间");
         }
         // 未填写时给足推理与长回答余量：历史诊断最大输出 5502；上限较小的模型（如 ernie-4.5 为 12288）需在页面调低
-        if (channel.getMaxTokens() == null) channel.setMaxTokens(DEFAULT_MAX_TOKENS);
-        if (channel.getMaxTokens() < 1 || channel.getMaxTokens() > 1000000) throw new IllegalArgumentException("输出上限必须在 1 到 1000000 之间");
-        if (channel.getTimeoutSeconds() == null) channel.setTimeoutSeconds(60);
-        if (channel.getTimeoutSeconds() < 1 || channel.getTimeoutSeconds() > 600) throw new IllegalArgumentException("超时必须在 1 到 600 秒之间");
-        if (channel.getScore() == null) channel.setScore(0);
-        if (channel.getEnabled() == null) channel.setEnabled(false);
-        if (channel.getSslVerify() == null) channel.setSslVerify(true);
+        if (channel.getMaxTokens() == null) {
+            channel.setMaxTokens(DEFAULT_MAX_TOKENS);
+        }
+        if (channel.getMaxTokens() < 1 || channel.getMaxTokens() > 1000000) {
+            throw new IllegalArgumentException("输出上限必须在 1 到 1000000 之间");
+        }
+        if (channel.getTimeoutSeconds() == null) {
+            channel.setTimeoutSeconds(60);
+        }
+        if (channel.getTimeoutSeconds() < 1 || channel.getTimeoutSeconds() > 600) {
+            throw new IllegalArgumentException("超时必须在 1 到 600 秒之间");
+        }
+        if (channel.getScore() == null) {
+            channel.setScore(0);
+        }
+        if (channel.getEnabled() == null) {
+            channel.setEnabled(false);
+        }
+        if (channel.getSslVerify() == null) {
+            channel.setSslVerify(true);
+        }
+    }
+
+    /**
+     * 保存渠道与迁移引用共用的编码校验；调用者决定是否先清理输入，不在此修改编码。
+     * @param channelCode 渠道编码
+     * @throws IllegalArgumentException 编码为空、超过 100 字符或包含不允许的字符
+     */
+    public void validateChannelCode(String channelCode) {
+        // 编码参与环境间精确匹配，不能在校验阶段静默修正大小写或空白
+        if (channelCode == null || channelCode.isBlank()) {
+            throw new IllegalArgumentException("请填写渠道编码");
+        }
+        if (channelCode.length() > 100) {
+            throw new IllegalArgumentException("渠道编码最多 100 字符");
+        }
+        if (!channelCode.matches("[a-zA-Z0-9_-]+")) {
+            throw new IllegalArgumentException("渠道编码只能使用字母、数字、下划线和短横线");
+        }
     }
 
     /** 清理输入并限制字段长度。 */
