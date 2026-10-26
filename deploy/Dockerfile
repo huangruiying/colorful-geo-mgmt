@@ -2,8 +2,12 @@
 FROM maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /build
 COPY pom.xml ./
+COPY deploy/maven-settings.xml ./
 COPY src ./src
-RUN mvn -B -ntp -DskipTests package spring-boot:repackage dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=/build/dependencies
+# 依赖仓库挂载为构建缓存，跨次重建复用；只改代码不加依赖时不再重新下载
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -ntp -s maven-settings.xml -DskipTests package spring-boot:repackage \
+        dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=/build/dependencies
 
 FROM eclipse-temurin:17-jdk-noble
 ENV TZ=Asia/Shanghai PLAYWRIGHT_BROWSERS_PATH=/ms-playwright

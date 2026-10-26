@@ -17,6 +17,7 @@
 
 ## 当前交接：Linux Compose 部署（2026-10-22）
 
+- 2026-10-26 服务器 rebuild 耗时约 50 分钟，几乎全在镜像内 Maven 下载依赖（每次构建 ~/.m2 为空且直连 Maven Central）。已改：`deploy/Dockerfile` 的 Maven 构建使用 BuildKit 缓存挂载 `/root/.m2`，并通过新增的 `deploy/maven-settings.xml` 走阿里云镜像；README 补充说明。验证：`docker build --check` 无警告、settings XML 校验通过；本机沙箱无法访问国内站点，未实际完整构建，需在服务器 rebuild 确认耗时。
 - 用户确认：部署文件统一在 `deploy/`，使用 `docker compose -f "$DOCKER_DIR/docker-compose.yaml" --env-file "$DOCKER_DIR/.env" up -d` 启动应用和 MySQL；删除无用 install.sh。
 - 已新增 `deploy/docker-compose.yaml`、`deploy/Dockerfile`、本地 `.env` 和可提交 `.env.example`；更新 deploy/README、生产部署 SOP、Git/Docker 忽略规则，删除宿主机安装脚本。无 Java 业务方法变更；未修改用户的 SQL、缓存或 IDE 文件，未提交 Git。
 - Compose 使用 MySQL 8.4 持久卷，不公开数据库端口；空卷执行当前 001_init.sql，数据库账号可连接后启动应用。镜像构建执行可执行 JAR 打包并安装项目依赖对应的 Chromium、Xvfb 和字体，以非 root 运行应用。更新代码需 `up -d --build`，已有库升级不重放初始化脚本。
