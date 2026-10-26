@@ -3,6 +3,7 @@
 (() => {
     const byId = id => document.getElementById(id);
     const maxFileBytes = 50 * 1024 * 1024;
+    const pageSize = 20;
     let page = 0;
     let total = 0;
     let busy = false;
@@ -19,7 +20,7 @@
         busy = value;
         document.querySelectorAll("main button, main input").forEach(control => { control.disabled = value; });
         byId("previous-page").disabled = value || page === 0;
-        byId("next-page").disabled = value || (page + 1) * 20 >= total;
+        byId("next-page").disabled = value || (page + 1) * pageSize >= total;
     }
 
     /** 查询项目分页；序号防止先发后到的旧查询覆盖新结果。 */
@@ -27,7 +28,7 @@
         const sequence = ++loadSequence;
         notice("import-export-error");
         try {
-            const query = new URLSearchParams({page: String(page), size: "20", keyword: byId("keyword").value.trim()});
+            const query = new URLSearchParams({page: String(page), size: String(pageSize), keyword: byId("keyword").value.trim()});
             const result = await AdminHttp.requestJson("/projects?" + query);
             if (sequence !== loadSequence) { return; }
             total = result.total;
@@ -116,7 +117,7 @@
 
     byId("project-search").addEventListener("submit", event => { event.preventDefault(); page = 0; loadProjects(); });
     byId("previous-page").addEventListener("click", () => { if (page > 0) { page--; loadProjects(); } });
-    byId("next-page").addEventListener("click", () => { if ((page + 1) * 20 < total) { page++; loadProjects(); } });
+    byId("next-page").addEventListener("click", () => { if ((page + 1) * pageSize < total) { page++; loadProjects(); } });
     byId("project-import").addEventListener("submit", importProject);
     loadProjects();
 })();
