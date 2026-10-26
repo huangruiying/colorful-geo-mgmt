@@ -1,5 +1,19 @@
 # Project Handoff
 
+## 当前交接：项目数据导入导出（2026-10-24）
+
+- 用户已确认：基础配置增加数据导入导出，用于环境间迁移；一个项目一个 JSON，包含项目＋方案＋任务＋诊断结果＋报告＋回答分析八表全链路，不带内容优化与发布记录；渠道按编码匹配，缺失整批拒绝；API Key 不导出。存在未结束任务／结果／报告时拒绝导出。
+- 已实现 `data-transfer.html/js/css`、唯一导航入口及各页导航版本同步。服务端新增固定字段迁移仓储、文件格式及引用校验、迁移事务服务和 `/project-transfers` 文件接口；无数据库结构变更，未改已有任务执行器。复用统一登录、CSRF、ProblemDetail。
+- 导入始终新建项目，不覆盖旧项目；新旧主键、外键、快照及报告证据全部重映射；已删除历史问题只预留追溯 ID，不追加到当前方案。当前方案使用当前渠道编码，历史任务使用各自冻结编码；匹配的目标渠道随导入事务加锁。清空来源任务 request_id，历史状态保留且不自动执行。继续诊断请从导入方案创建新任务；重复成功导入会再建一份项目。
+- 文件版本 v1、最大 50 MiB；只含渠道编码及历史展示资料，不迁移地址、策略、生成参数或认证资料。项目 ID 以字符串输出避免浏览器精度损失。报告原有发布网址分类按历史保留，不重新匹配目标发布记录。
+- 用户截图反馈的导出异常已定位并修复：MySQL JDBC 可直接返回 `LocalDateTime`，原读取只转换 `Timestamp`，导致裸 ObjectMapper 序列化失败。两种驱动表示现统一输出 ISO 本地时间文本，保留毫秒、不转换时区；新增 3 项驱动边界回归，修复前已复现同一异常。导出按钮增加不换行约束，页面 CSS 版本 transfer2。后端修复仍需业务实例重载／重启才生效。
+- 验证：Java 17 定向测试 44 项通过（通用 JSON 5、驱动时间边界 3、迁移数据库 11、接口 4、原项目接口 2、项目校验 11、渠道校验 8）；导航 Node 13 项、JS 语法与 diff 检查通过；Playwright 静态页面＋接口替身验证下载、导入、缺失渠道、CSRF、XSS、按钮恢复和桌面／窄屏布局，pageErrors=[]。H2 仅 test scope，不进入生产包。
+- 本轮按用户确认调整分层和工具复用：Response 移至 application/project/model；ProjectTransferBusiness 负责文件大小、JSON 输入输出和响应组装，领域服务只返回新项目 ID。新增通用 JsonUtils 复用 Spring/Jackson 的读写和时间模块构建能力，提供对象遍历；原 ProjectArchiveReferences 取消，业务映射收回迁移服务。原 Format 收敛为 ProjectArchiveValidationService，项目地址和渠道编码分别调用既有业务服务的共享校验入口。未新建业务专用工具类，接口路径和 JSON v1 保持不变。
+- 已完成逐方法注释和架构复核，详见 [项目数据迁移验收](项目数据迁移验收.md)。前端原有全量 Node 63 项中 52 通过、11 失败，集中在未修改的浏览器登录／HTTP 测试桩 Cookie 与 document 上下文；未借本任务修改它们。
+- 限制：数据库回归使用隔离 H2 和生产 DDL 转换，不是 MySQL 实例联调；未重启业务服务，未完成运行实例／服务器登录迁移闭环，未提交 Git。下一步是部署或重启后，在真实 MySQL 用合成项目核对完整迁移与报告查看。
+- 2026-10-26 按用户确认统一命名（逻辑不变）：整组前缀改为 `ProjectInfoImportExport`——`MgmtProjectInfoImportExportController`、`ProjectInfoImportExportBusiness`、`ProjectInfoImportExportService`、`ProjectInfoImportExportValidator`（原 ProjectArchiveValidationService，校验单独成类）、`ProjectInfoImportExportDao`（原 ProjectArchiveRepository）、`ProjectInfoImportExportTable`（移至 `infrastructure/common/enums`），测试类同步；`ProjectImportResponse` 保留。接口路径 `/project-transfers` 改为 `/project-info-import-export`，页面 `data-transfer.*` 改为 `project-info-import-export.*`，页面内 `transfer-*` 标识改为 `import-export-*`，全部页面导航版本改为 `20261026-import-export1`，冒烟脚本改为 `.test/project-info-import-export-ui-smoke.js`。验证：JDK 17（ms-17）+ Maven 3.6.1 离线定向测试 44 项通过、导航 Node 13 项通过、JS 语法检查通过；未运行 Playwright，未重启服务。改名后的新文件均未暂存，旧文件在暂存区仍为新增，需用户 `git add -A` 后识别为重命名。
+- 用户已有的 `.test/__pycache__/diagnosis-task-api-test.cpython-312.pyc` 暂存、`.dockerignore`、`.vscode/` 保留。本轮不修改 `.claude/memory/`。
+
 ## 当前交接：Linux Compose 部署（2026-10-22）
 
 - 用户确认：部署文件统一在 `deploy/`，使用 `docker compose -f "$DOCKER_DIR/docker-compose.yaml" --env-file "$DOCKER_DIR/.env" up -d` 启动应用和 MySQL；删除无用 install.sh。
