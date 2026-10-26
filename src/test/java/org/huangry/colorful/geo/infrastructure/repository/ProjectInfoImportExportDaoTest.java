@@ -1,5 +1,6 @@
 package org.huangry.colorful.geo.infrastructure.repository;
 
+import org.huangry.colorful.geo.infrastructure.common.enums.ProjectInfoImportExportTable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -18,7 +19,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /** 模拟 JDBC 驱动返回值差异，验证迁移文件时间格式；不以 H2 的 Timestamp 行为代替 MySQL 边界。 */
-class ProjectArchiveRepositoryTest {
+class ProjectInfoImportExportDaoTest {
     /**
      * 提供相同日期时间的两种 JDBC 表示及数据库空值。
      * @return 驱动值和预期文件文本
@@ -52,10 +53,10 @@ class ProjectArchiveRepositoryTest {
             invocation.<RowCallbackHandler>getArgument(1).processRow(result);
             return null;
         }).when(jdbc).query(anyString(), any(RowCallbackHandler.class), any(Object[].class));
-        ProjectArchiveRepository repository = new ProjectArchiveRepository();
-        ReflectionTestUtils.setField(repository, "jdbcTemplate", jdbc);
+        ProjectInfoImportExportDao importExportDao = new ProjectInfoImportExportDao();
+        ReflectionTestUtils.setField(importExportDao, "jdbcTemplate", jdbc);
         // 2. 检查文件值，不能仅验证没有异常而放过数组时间或精度变化
-        var row = repository.listProjectRows(ProjectArchiveTable.PROJECT, 13).get(0);
+        var row = importExportDao.listProjectRows(ProjectInfoImportExportTable.PROJECT, 13).get(0);
         assertEquals(13, row.path("id").asLong());
         if (expectedText == null) {
             assertTrue(row.path("created_at").isNull());

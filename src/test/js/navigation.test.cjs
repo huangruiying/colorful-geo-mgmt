@@ -19,7 +19,7 @@ function createNavigation() {
     return {sidebar, breadcrumb, nodes, render:context.window.AdminNavigation.render};
 }
 
-const pages = ["projects", "project-create", "models", "model-config", "diagnose", "diagnosis-tasks", "history-report", "contents", "publications", "browser-login", "effect-recovery", "data-transfer"];
+const pages = ["projects", "project-create", "models", "model-config", "diagnose", "diagnosis-tasks", "history-report", "contents", "publications", "browser-login", "effect-recovery", "project-info-import-export"];
 for (const page of pages) {
     test(`${page} 只有一个当前导航且展开所属分组，包含项目数据迁移入口`, () => {
         const nav = createNavigation(); nav.render(nav.sidebar, page + ".html");

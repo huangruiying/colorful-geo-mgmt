@@ -1,10 +1,14 @@
 package org.huangry.colorful.geo.domain.service.project;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.huangry.colorful.geo.application.project.ProjectInfoImportExportBusiness;
+import org.huangry.colorful.geo.application.project.model.ProjectImportResponse;
+import org.huangry.colorful.geo.domain.service.llm.GeoLlmChannelService;
+import org.huangry.colorful.geo.infrastructure.common.utils.JsonUtils;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.huangry.colorful.geo.infrastructure.repository.ProjectArchiveRepository;
-import org.huangry.colorful.geo.infrastructure.repository.ProjectArchiveTable;
+import org.huangry.colorful.geo.infrastructure.repository.ProjectInfoImportExportDao;
+import org.huangry.colorful.geo.infrastructure.common.enums.ProjectInfoImportExportTable;
 import org.junit.jupiter.api.Test;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -19,19 +23,19 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Pattern;
 
-import static org.huangry.colorful.geo.infrastructure.repository.ProjectArchiveTable.*;
+import static org.huangry.colorful.geo.infrastructure.common.enums.ProjectInfoImportExportTable.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** 用生产 DDL 转换出的隔离 H2 表验证完整迁移及真实事务回滚；不代表 MySQL 或模型平台联调。 */
-class ProjectArchiveServiceTest {
-    private final ProjectArchiveFormat format = new ProjectArchiveFormat();
+class ProjectInfoImportExportServiceTest {
+    private final ProjectInfoImportExportBusiness files = new ProjectInfoImportExportBusiness();
 
     /** 完整迁移后全部外键、快照与报告证据指向新记录；渠道按编码匹配且凭据不出库。 */
     @Test
     void shouldRoundTripAllTablesAndRemapSnapshotsWithoutChannelCredentials() throws Exception {
         Fixture source = createFixture();
         seedProject(source, true);
-        byte[] exported = source.service.exportProject(10);
+        byte[] exported = source.business.exportProject(10);
         String json = new String(exported, StandardCharsets.UTF_8);
         assertFalse(json.contains("source-secret"));
         assertFalse(json.contains("must-not-leak"));
@@ -41,7 +45,7 @@ class ProjectArchiveServiceTest {
         assertFalse(json.contains("source-request"));
         Fixture target = createFixture();
         target.jdbc.update("UPDATE geo_llm_channel SET id = 700 WHERE id = 7");
-        ProjectImportResponse imported = target.service.importProject(format.parseArchive(exported));
+        ProjectImportResponse imported = target.business.importProject(exported);
         long projectId = Long.parseLong(imported.projectId());
         assertEquals(1, imported.counts().get("analyses"));
         assertEquals(projectId, target.jdbc.queryForObject("SELECT project_id FROM geo_diagnosis_task", Long.class));
@@ -57,14 +61,14 @@ class ProjectArchiveServiceTest {
         assertEquals(700, summary.path("evidence").get(0).path("channelId").asLong());
         assertTrue(summary.path("issues").get(0).path("channelId").isNull());
         assertEquals("P1", summary.path("issues").get(0).path("id").asText());
-        for (ProjectArchiveTable table : values()) {
+        for (ProjectInfoImportExportTable table : values()) {
             assertEquals(1, target.jdbc.queryForObject("SELECT COUNT(*) FROM " + table.table, Integer.class), table.section);
         }
         assertEquals("FAILED", target.jdbc.queryForObject("SELECT status FROM geo_diagnosis_task", String.class));
         assertEquals("SUCCEEDED", target.jdbc.queryForObject("SELECT status FROM geo_diagnosis_task_report", String.class));
         // 再次导出导入后的项目也必须满足文件契约，重复导入会生成第二份项目
-        target.service.exportProject(projectId);
-        target.service.importProject(format.parseArchive(exported));
+        target.business.exportProject(projectId);
+        target.business.importProject(exported);
         assertEquals(2, target.jdbc.queryForObject("SELECT COUNT(*) FROM geo_project_info", Integer.class));
     }
 
@@ -75,7 +79,7 @@ class ProjectArchiveServiceTest {
         seedProject(source, true);
         source.jdbc.update("DELETE FROM geo_diagnosis_plan_question WHERE id = 30");
         Fixture target = createFixture();
-        target.service.importProject(format.parseArchive(source.service.exportProject(10)));
+        target.business.importProject(source.business.exportProject(10));
         assertEquals(0, target.jdbc.queryForObject("SELECT COUNT(*) FROM geo_diagnosis_plan_question", Integer.class));
         long questionId = target.jdbc.queryForObject("SELECT question_id FROM geo_diagnosis_task_result", Long.class);
         assertNotEquals(30, questionId);
@@ -87,11 +91,11 @@ class ProjectArchiveServiceTest {
     void shouldRejectMissingChannelsBeforeWriting() throws Exception {
         Fixture source = createFixture();
         seedProject(source, true);
-        ObjectNode archive = format.parseArchive(source.service.exportProject(10));
+        ObjectNode archive = files.parseArchive(source.business.exportProject(10));
         ((ObjectNode) archive.withArray(PLAN_CHANNEL.section).get(0)).put("channel_code", "MISSING_A");
         ((ObjectNode) archive.withArray(REPORT.section).get(0).get("judge_channel_snapshot")).put("channelCode", "MISSING_B");
         Fixture target = createFixture();
-        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> target.service.importProject(archive));
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> target.business.importProject(JsonUtils.toPrettyBytes(archive)));
         assertTrue(error.getMessage().contains("MISSING_A"));
         assertTrue(error.getMessage().contains("MISSING_B"));
         assertEquals(0, target.jdbc.queryForObject("SELECT COUNT(*) FROM geo_project_info", Integer.class));
@@ -102,11 +106,11 @@ class ProjectArchiveServiceTest {
     void shouldRollBackEveryTableWhenLastInsertFails() throws Exception {
         Fixture source = createFixture();
         seedProject(source, true);
-        ObjectNode archive = format.parseArchive(source.service.exportProject(10));
+        ObjectNode archive = files.parseArchive(source.business.exportProject(10));
         ((ObjectNode) archive.withArray(ANALYSIS.section).get(0)).put("brand_sentiment", "INVALID");
         Fixture target = createFixture();
-        assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> target.service.importProject(archive));
-        for (ProjectArchiveTable table : values()) {
+        assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> target.business.importProject(JsonUtils.toPrettyBytes(archive)));
+        for (ProjectInfoImportExportTable table : values()) {
             assertEquals(0, target.jdbc.queryForObject("SELECT COUNT(*) FROM " + table.table, Integer.class), table.section);
         }
     }
@@ -116,17 +120,17 @@ class ProjectArchiveServiceTest {
     void shouldRejectActiveTasksReportsAndTamperedStatus() throws Exception {
         Fixture source = createFixture();
         seedProject(source, true);
-        ObjectNode archive = format.parseArchive(source.service.exportProject(10));
+        ObjectNode archive = files.parseArchive(source.business.exportProject(10));
         for (String state : List.of("PENDING", "RUNNING")) {
             source.jdbc.update("UPDATE geo_diagnosis_task SET status = ?", state);
-            assertThrows(IllegalArgumentException.class, () -> source.service.exportProject(10));
+            assertThrows(IllegalArgumentException.class, () -> source.business.exportProject(10));
             source.jdbc.update("UPDATE geo_diagnosis_task SET status = 'FAILED'");
             source.jdbc.update("UPDATE geo_diagnosis_task_report SET status = ?", state);
-            assertThrows(IllegalArgumentException.class, () -> source.service.exportProject(10));
+            assertThrows(IllegalArgumentException.class, () -> source.business.exportProject(10));
             source.jdbc.update("UPDATE geo_diagnosis_task_report SET status = 'SUCCEEDED'");
         }
         ((ObjectNode) archive.withArray(TASK.section).get(0)).put("status", "PENDING");
-        assertThrows(IllegalArgumentException.class, () -> source.service.importProject(archive));
+        assertThrows(IllegalArgumentException.class, () -> source.business.importProject(JsonUtils.toPrettyBytes(archive)));
     }
 
     /** 不含诊断数据的基础项目仍可独立迁移。 */
@@ -135,7 +139,7 @@ class ProjectArchiveServiceTest {
         Fixture source = createFixture();
         seedProject(source, false);
         Fixture target = createFixture();
-        ProjectImportResponse result = target.service.importProject(format.parseArchive(source.service.exportProject(10)));
+        ProjectImportResponse result = target.business.importProject(source.business.exportProject(10));
         assertEquals(0, result.counts().get("tasks"));
         assertEquals(1, target.jdbc.queryForObject("SELECT COUNT(*) FROM geo_project_info", Integer.class));
     }
@@ -145,19 +149,19 @@ class ProjectArchiveServiceTest {
     void shouldRejectInvalidVersionDuplicateIdsAndDanglingReferences() throws Exception {
         Fixture source = createFixture();
         seedProject(source, true);
-        byte[] bytes = source.service.exportProject(10);
-        ObjectNode version = format.parseArchive(bytes);
+        byte[] bytes = source.business.exportProject(10);
+        ObjectNode version = files.parseArchive(bytes);
         version.put("version", 2);
-        assertThrows(IllegalArgumentException.class, () -> source.service.importProject(version));
-        ObjectNode duplicate = format.parseArchive(bytes);
+        assertThrows(IllegalArgumentException.class, () -> source.business.importProject(JsonUtils.toPrettyBytes(version)));
+        ObjectNode duplicate = files.parseArchive(bytes);
         duplicate.withArray(PLAN.section).add(duplicate.withArray(PLAN.section).get(0).deepCopy());
-        assertThrows(IllegalArgumentException.class, () -> source.service.importProject(duplicate));
-        ObjectNode dangling = format.parseArchive(bytes);
+        assertThrows(IllegalArgumentException.class, () -> source.business.importProject(JsonUtils.toPrettyBytes(duplicate)));
+        ObjectNode dangling = files.parseArchive(bytes);
         ((ObjectNode) dangling.withArray(RESULT.section).get(0)).put("task_id", "999");
-        assertThrows(IllegalArgumentException.class, () -> source.service.importProject(dangling));
-        assertThrows(IllegalArgumentException.class, () -> format.parseArchive("{\"version\":1,\"version\":2}".getBytes(StandardCharsets.UTF_8)));
-        assertThrows(IllegalArgumentException.class, () -> format.parseArchive("{} {}".getBytes(StandardCharsets.UTF_8)));
-        assertThrows(IllegalArgumentException.class, () -> format.parseArchive(new byte[0]));
+        assertThrows(IllegalArgumentException.class, () -> source.business.importProject(JsonUtils.toPrettyBytes(dangling)));
+        assertThrows(IllegalArgumentException.class, () -> files.parseArchive("{\"version\":1,\"version\":2}".getBytes(StandardCharsets.UTF_8)));
+        assertThrows(IllegalArgumentException.class, () -> files.parseArchive("{} {}".getBytes(StandardCharsets.UTF_8)));
+        assertThrows(IllegalArgumentException.class, () -> files.parseArchive(new byte[0]));
     }
 
     /** 超过 JavaScript 精确整数范围的来源标识以字符串传输，避免错误关联。 */
@@ -167,7 +171,7 @@ class ProjectArchiveServiceTest {
         seedProject(source, false);
         long id = 9007199254740993L;
         source.jdbc.update("UPDATE geo_project_info SET id = ? WHERE id = 10", id);
-        ObjectNode archive = format.parseArchive(source.service.exportProject(id));
+        ObjectNode archive = files.parseArchive(source.business.exportProject(id));
         assertTrue(archive.withArray(PROJECT.section).get(0).path("id").isTextual());
         assertEquals(Long.toString(id), archive.withArray(PROJECT.section).get(0).path("id").asText());
     }
@@ -177,14 +181,14 @@ class ProjectArchiveServiceTest {
     void shouldRejectMismatchedSnapshotsAndInjectedCredentials() throws Exception {
         Fixture source = createFixture();
         seedProject(source, true);
-        byte[] bytes = source.service.exportProject(10);
+        byte[] bytes = source.business.exportProject(10);
         Fixture target = createFixture();
-        ObjectNode mismatch = format.parseArchive(bytes);
+        ObjectNode mismatch = files.parseArchive(bytes);
         ((ObjectNode) mismatch.withArray(TASK.section).get(0).path("plan_snapshot").path("project")).put("id", "999");
-        assertThrows(IllegalArgumentException.class, () -> target.service.importProject(mismatch));
-        ObjectNode injected = format.parseArchive(bytes);
+        assertThrows(IllegalArgumentException.class, () -> target.business.importProject(JsonUtils.toPrettyBytes(mismatch)));
+        ObjectNode injected = files.parseArchive(bytes);
         ((ObjectNode) injected.withArray(RESULT.section).get(0).path("channel_snapshot")).put("apiKey", "synthetic-secret");
-        assertThrows(IllegalArgumentException.class, () -> target.service.importProject(injected));
+        assertThrows(IllegalArgumentException.class, () -> target.business.importProject(JsonUtils.toPrettyBytes(injected)));
         assertEquals(0, target.jdbc.queryForObject("SELECT COUNT(*) FROM geo_project_info", Integer.class));
     }
 
@@ -193,11 +197,11 @@ class ProjectArchiveServiceTest {
     void shouldRollBackWhenReportEvidenceReferencesMissingResult() throws Exception {
         Fixture source = createFixture();
         seedProject(source, true);
-        ObjectNode archive = format.parseArchive(source.service.exportProject(10));
+        ObjectNode archive = files.parseArchive(source.business.exportProject(10));
         ((ObjectNode) archive.withArray(REPORT.section).get(0).path("summary").path("evidence").get(0)).put("resultId", "999");
         Fixture target = createFixture();
-        assertThrows(IllegalArgumentException.class, () -> target.service.importProject(archive));
-        for (ProjectArchiveTable table : values()) {
+        assertThrows(IllegalArgumentException.class, () -> target.business.importProject(JsonUtils.toPrettyBytes(archive)));
+        for (ProjectInfoImportExportTable table : values()) {
             assertEquals(0, target.jdbc.queryForObject("SELECT COUNT(*) FROM " + table.table, Integer.class), table.section);
         }
     }
@@ -208,12 +212,12 @@ class ProjectArchiveServiceTest {
         Fixture source = createFixture();
         seedProject(source, true);
         source.jdbc.update("UPDATE geo_llm_channel SET channel_code = 'CURRENT' WHERE id = 7");
-        ObjectNode archive = format.parseArchive(source.service.exportProject(10));
+        ObjectNode archive = files.parseArchive(source.business.exportProject(10));
         assertEquals("CURRENT", archive.withArray(PLAN_CHANNEL.section).get(0).path("channel_code").asText());
         assertEquals("TEST", archive.withArray(RESULT.section).get(0).path("channel_code").asText());
         Fixture target = createFixture();
         target.jdbc.update("INSERT INTO geo_llm_channel (id,channel_code,channel_name,provider_code,strategy_bean_name) VALUES (700,'CURRENT','当前渠道','MOCK','mock')");
-        target.service.importProject(archive);
+        target.business.importProject(JsonUtils.toPrettyBytes(archive));
         assertEquals(700, target.jdbc.queryForObject("SELECT channel_id FROM geo_diagnosis_plan_channel", Long.class));
         assertEquals(7, target.jdbc.queryForObject("SELECT channel_id FROM geo_diagnosis_task_result", Long.class));
         assertEquals(7, parseStored(target, "geo_diagnosis_task_report", "summary").path("evidence").get(0).path("channelId").asLong());
@@ -221,7 +225,7 @@ class ProjectArchiveServiceTest {
 
     /**
      * 从生产 DDL 创建内存库，仅替换 H2 不支持的 MySQL 存储和 JSON 类型语法，保留外键及检查约束。
-     * @return 带真实事务代理的隔离测试环境
+     * @return 带真实事务代理及应用入口的隔离测试环境
      * @throws Exception DDL 加载失败
      */
     private Fixture createFixture() throws Exception {
@@ -247,18 +251,20 @@ class ProjectArchiveServiceTest {
             }
         }
         jdbc.update("INSERT INTO geo_llm_channel (id,channel_code,channel_name,provider_code,strategy_bean_name,base_url,api_key,model_name,score,enabled) VALUES (7,'TEST','历史渠道','MOCK','mock','https://example.test','source-secret','model-a',1,TRUE)");
-        var repository = new ProjectArchiveRepository();
-        ReflectionTestUtils.setField(repository, "jdbcTemplate", jdbc);
-        var references = new ProjectArchiveReferences();
-        ReflectionTestUtils.setField(references, "format", format);
-        var service = new ProjectArchiveService();
-        ReflectionTestUtils.setField(service, "repository", repository);
-        ReflectionTestUtils.setField(service, "format", format);
-        ReflectionTestUtils.setField(service, "references", references);
+        var importExportDao = new ProjectInfoImportExportDao();
+        ReflectionTestUtils.setField(importExportDao, "jdbcTemplate", jdbc);
+        var validator = new ProjectInfoImportExportValidator();
+        ReflectionTestUtils.setField(validator, "projectService", new GeoProjectInfoService());
+        ReflectionTestUtils.setField(validator, "channelService", new GeoLlmChannelService());
+        var service = new ProjectInfoImportExportService();
+        ReflectionTestUtils.setField(service, "importExportDao", importExportDao);
+        ReflectionTestUtils.setField(service, "validator", validator);
         ProxyFactory proxy = new ProxyFactory(service);
         proxy.setProxyTargetClass(true);
         proxy.addAdvice(new TransactionInterceptor(new DataSourceTransactionManager(dataSource), new AnnotationTransactionAttributeSource()));
-        return new Fixture(jdbc, repository, (ProjectArchiveService) proxy.getProxy());
+        var business = new ProjectInfoImportExportBusiness();
+        ReflectionTestUtils.setField(business, "importExportService", proxy.getProxy());
+        return new Fixture(jdbc, importExportDao, business);
     }
 
     /**
@@ -297,9 +303,9 @@ class ProjectArchiveServiceTest {
      * @return JSON 值
      */
     private JsonNode parseStored(Fixture fixture, String table, String column) {
-        return format.parseArchive(fixture.jdbc.queryForObject("SELECT " + column + " FROM " + table, String.class).getBytes(StandardCharsets.UTF_8));
+        return files.parseArchive(fixture.jdbc.queryForObject("SELECT " + column + " FROM " + table, String.class).getBytes(StandardCharsets.UTF_8));
     }
 
-    /** 单个内存数据库及其仓储和事务代理，不连接应用实际数据库。 */
-    private record Fixture(JdbcTemplate jdbc, ProjectArchiveRepository repository, ProjectArchiveService service) { }
+    /** 单个内存数据库及其仓储和应用入口，不连接应用实际数据库。 */
+    private record Fixture(JdbcTemplate jdbc, ProjectInfoImportExportDao importExportDao, ProjectInfoImportExportBusiness business) { }
 }
