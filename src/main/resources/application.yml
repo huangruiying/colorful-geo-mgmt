@@ -12,7 +12,7 @@ server:
 admin:
   login:
     username: ${GEO_ADMIN_USERNAME:huangruiying}
-    # htpasswd -bnBC 10 "" '密码' | tr -d ':\n'
+    # htpasswd -bnBC 10 "" 'hxmsj' | tr -d ':\n'
     password-hash: ${GEO_ADMIN_PASSWORD_HASH:$2y$10$UFfoMWMNXW5P6veB78mjW.6ceKViE.lWTJjI9nBRV3966gKQS6jsW}
 
 # 模型 HTTP 客户端提前注册，所有模型调用使用同一超时和证书策略。
