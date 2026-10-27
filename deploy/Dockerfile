@@ -1,5 +1,7 @@
+# 基础镜像仓库地址；国内服务器访问 Docker Hub 很慢，默认走毫秒镜像，不可用时用 --build-arg BASE_REGISTRY=docker.io 切回官方
+ARG BASE_REGISTRY=docker.1ms.run
 # 在镜像内构建，不依赖宿主机 Maven 或 Java。
-FROM maven:3.9.9-eclipse-temurin-17 AS build
+FROM ${BASE_REGISTRY}/library/maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /build
 COPY pom.xml ./
 COPY deploy/maven-settings.xml ./
@@ -9,7 +11,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     mvn -B -ntp -s maven-settings.xml -DskipTests package spring-boot:repackage \
         dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=/build/dependencies
 
-FROM eclipse-temurin:17-jdk-noble
+FROM ${BASE_REGISTRY}/library/eclipse-temurin:17-jdk-noble
 ENV TZ=Asia/Shanghai PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 WORKDIR /app
 # 使用项目实际依赖安装对应浏览器，避免 Playwright 版本不匹配。
