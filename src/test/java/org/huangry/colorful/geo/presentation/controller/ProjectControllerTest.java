@@ -8,12 +8,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.List;
+import java.util.NoSuchElementException;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** 项目 HTTP 契约回归；创建返回 201 与标识，查询采用零起始分页，输入错误返回 400。 */
+/** 项目 HTTP 契约回归；创建返回 201 与标识，查询采用零起始分页，输入错误返回 400，删除返回 204 或 404。 */
 class ProjectControllerTest {
     private final ProjectBusiness business = mock(ProjectBusiness.class);
     private final MockMvc mvc = createMvc();
@@ -43,5 +44,15 @@ class ProjectControllerTest {
         when(business.createProject(any())).thenThrow(new IllegalArgumentException("请填写项目名称"));
         mvc.perform(post("/projects").contentType("application/json").content("{}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.detail").value("请填写项目名称"));
+    }
+
+    /** 删除成功返回无正文的 204，项目不存在返回 404 ProblemDetail。 */
+    @Test
+    void shouldReturnNoContentAfterDeleteAndNotFoundForMissingProject() throws Exception {
+        mvc.perform(delete("/projects/8")).andExpect(status().isNoContent());
+        verify(business).deleteProject(8L);
+        doThrow(new NoSuchElementException("项目不存在")).when(business).deleteProject(9L);
+        mvc.perform(delete("/projects/9"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.detail").value("项目不存在"));
     }
 }

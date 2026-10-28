@@ -1,5 +1,27 @@
 # Project Handoff
 
+## 当前交接：项目删除（2026-10-27）
+
+- 用户已确认：物理删除，强制删除。执行中的任务和报告也一起删除，不做状态拦截，也不做软删除。
+- 新增 `DELETE /projects/{id}`，成功返回 204，项目不存在返回 404 ProblemDetail。调用链为 `MgmtProjectInfoController.deleteProject` → `ProjectBusiness.deleteProject` → `GeoProjectInfoService.deleteProject`。
+- `GeoProjectInfoService.deleteProject` 在同一事务内执行：
+  - 先依次 `FOR UPDATE` 锁定项目、方案和任务，删除期间并发新建的方案、任务或报告会等待，之后因外键失效被拒绝。
+  - 删除顺序：回答分析 → 报告 → 诊断结果 → 任务 → 方案问题、方案渠道 → 方案 → 项目。
+  - 任务筛选口径与导出一致：执行时属于该项目，或来自该项目的方案。
+  - 不删除模型渠道、内容优化和发布记录。没有新增类或表结构变更。
+- 页面：项目列表每行增加“删除”按钮，确认框写明删除范围、执行中数据也会删除且无法恢复，并提示先导出。`projects.js` 版本改为 `20261027-delete1`，`projects.html` 与 `project-create.html` 同步引用。
+- 验证：
+  - 新增 `GeoProjectInfoServiceDeleteProjectTest` 4 项，使用生产 DDL 转换的 H2 和真实 MyBatis-Plus Mapper，覆盖：执行中数据全删且其他项目保留、方案改挂后历史任务随原项目删除、无诊断数据的项目、项目不存在。
+  - `ProjectControllerTest` 新增 204/404 用例。
+  - 全量 `mvn -o test`（JDK ms-17）426 项，425 项通过，唯一失败为既有的 `LLMStrategyRouterTest.shouldRejectDisabledExactTaskChannel`。
+  - `projects.js` 语法检查通过。
+- 限制：
+  - 未在 MySQL 实例上联调，未验证真实并发锁行为。
+  - 未做浏览器页面验证，服务未重启。
+  - 强制删除时，后台正在执行的任务或报告写回会失败，执行器捕获异常后记 error 日志并继续运行。
+  - 测试中的 H2 DDL 转换代码与 `ProjectInfoImportExportServiceTest` 重复，未抽取共用。
+  - 未提交。
+
 ## 当前交接：项目数据导入导出（2026-10-24）
 
 - 用户已确认：基础配置增加数据导入导出，用于环境间迁移；一个项目一个 JSON，包含项目＋方案＋任务＋诊断结果＋报告＋回答分析八表全链路，不带内容优化与发布记录；渠道按编码匹配，缺失整批拒绝；API Key 不导出。存在未结束任务／结果／报告时拒绝导出。
@@ -17,7 +39,7 @@
 
 ## 当前交接：Linux Compose 部署（2026-10-22）
 
-- 2026-10-26 服务器 rebuild 耗时约 50 分钟，几乎全在镜像内 Maven 下载依赖（每次构建 ~/.m2 为空且直连 Maven Central）。已改：`deploy/Dockerfile` 的 Maven 构建使用 BuildKit 缓存挂载 `/root/.m2`，并通过新增的 `deploy/maven-settings.xml` 走阿里云镜像；README 补充说明。验证：`docker build --check` 无警告、settings XML 校验通过；本机沙箱无法访问国内站点，未实际完整构建，需在服务器 rebuild 确认耗时。
+- 2026-10-26 服务器 rebuild 耗时约 50 分钟，几乎全在镜像内 Maven 下载依赖（每次构建 ~/.m2 为空且直连 Maven Central）。已改：`deploy/Dockerfile` 的 Maven 构建使用 BuildKit 缓存挂载 `/root/.m2`，并通过新增的 `deploy/maven-settings.xml` 走阿里云镜像；README 补充说明。验证：服务器 rebuild 成功（2026-10-27），Maven 构建 2999.5s → 325.8s（空缓存、走阿里云镜像），整体 3003s → 346.5s，app 与 mysql 容器已启动；缓存复用效果待下一次只改代码的重建确认，app 健康检查结果未确认。
 - 用户确认：部署文件统一在 `deploy/`，使用 `docker compose -f "$DOCKER_DIR/docker-compose.yaml" --env-file "$DOCKER_DIR/.env" up -d` 启动应用和 MySQL；删除无用 install.sh。
 - 已新增 `deploy/docker-compose.yaml`、`deploy/Dockerfile`、本地 `.env` 和可提交 `.env.example`；更新 deploy/README、生产部署 SOP、Git/Docker 忽略规则，删除宿主机安装脚本。无 Java 业务方法变更；未修改用户的 SQL、缓存或 IDE 文件，未提交 Git。
 - Compose 使用 MySQL 8.4 持久卷，不公开数据库端口；空卷执行当前 001_init.sql，数据库账号可连接后启动应用。镜像构建执行可执行 JAR 打包并安装项目依赖对应的 Chromium、Xvfb 和字体，以非 root 运行应用。更新代码需 `up -d --build`，已有库升级不重放初始化脚本。
