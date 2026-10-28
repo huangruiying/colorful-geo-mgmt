@@ -1,5 +1,7 @@
 # Project Handoff
 
+> 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
+
 ## 当前交接：诊断查询索引（2026-10-28）
 
 - 新增 `db/mysql/024_diagnosis_query_indexes.sql`，同步改 `001_init.sql`：
