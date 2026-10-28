@@ -156,6 +156,20 @@ class PlatformBrowserLoginServiceTest {
         assertEquals(java.util.List.of(PlatformScanLoginMethod.PLATFORM_APP), woshipm.scanMethods());
     }
 
+    /** 什么值得买只展示 App 扫码和原站微信码，不展示 QQ 授权；CSDN 仍保留 QQ。 */
+    @Test
+    void smzdmListsAppAndWechatScanWithoutQq() {
+        var smzdm = service.listPlatforms().stream()
+                .filter(platform -> platform.platformType().equals("SMZDM")).findFirst().orElseThrow();
+        var csdn = service.listPlatforms().stream()
+                .filter(platform -> platform.platformType().equals("CSDN")).findFirst().orElseThrow();
+
+        assertEquals(java.util.List.of(PlatformScanLoginMethod.PLATFORM_APP, PlatformScanLoginMethod.WECHAT),
+                smzdm.scanMethods());
+        assertEquals(java.util.List.of(PlatformScanLoginMethod.PLATFORM_APP,
+                PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ), csdn.scanMethods());
+    }
+
     /** 东方财富原生 App 码与微信、QQ 授权都通过扫码入口展示。 */
     @Test
     void eastmoneyListsConfirmedScanMethods() {

@@ -220,9 +220,10 @@ public class PlatformBrowserLoginRouter {
      * @return 可选扫码来源
      */
     public List<PlatformScanLoginMethod> scanMethods(PublicationPlatformType platform) {
+        // CSDN、什么值得买的微信码在原站登录页，其余授权方式仍以第三方入口表为准
         if (platform == PublicationPlatformType.CSDN || platform == PublicationPlatformType.SMZDM) {
-            return List.of(PlatformScanLoginMethod.PLATFORM_APP,
-                    PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ);
+            return Stream.concat(Stream.of(PlatformScanLoginMethod.PLATFORM_APP, PlatformScanLoginMethod.WECHAT),
+                    PlatformThirdPartyScanLoginClient.listScanMethods(platform).stream()).toList();
         }
         if (platform == PublicationPlatformType.BAIJIAHAO) return List.of(PlatformScanLoginMethod.PLATFORM_APP);
         if (PlatformScanLoginClient.supportsPlatform(platform)) {

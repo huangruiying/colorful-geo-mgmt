@@ -22,7 +22,7 @@ class PlatformThirdPartyLoginClientTest {
                 PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.WECHAT_OFFICIAL_ACCOUNT));
         assertEquals(List.of(),
                 PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.SEGMENTFAULT));
-        assertEquals(List.of(PlatformScanLoginMethod.QQ),
+        assertEquals(List.of(),
                 PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.SMZDM));
         assertEquals(List.of(PlatformScanLoginMethod.QQ),
                 PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.CSDN));

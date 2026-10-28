@@ -520,6 +520,10 @@ public class PlatformScanLoginClient {
                 requestOptions.setHeader("Origin", "https://creator.xiaohongshu.com")
                         .setHeader("Referer", "https://creator.xiaohongshu.com/");
             }
+            if (platform == PublicationPlatformType.SMZDM) {
+                // 什么值得买账号接口不带站内来源时，已登录也返回 smzdm_id=0，必须带上站内 Referer
+                requestOptions.setHeader("Referer", "https://www.smzdm.com/");
+            }
             APIResponse response = context.request().get(requireSite(platform).accountUrl(), requestOptions);
             // 2. HTTP 认证拒绝优先；知乎访问限制只标记未知，避免误判会话失效
             if (platform == PublicationPlatformType.ZHIHU && response.status() == 403) {

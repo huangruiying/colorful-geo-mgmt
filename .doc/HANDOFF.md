@@ -2,6 +2,19 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：什么值得买登录识别修复（2026-10-29）
+
+- 现象：用微信扫码授权后一直显示“等待登录”。实测发现自动化浏览器里已写入 `sess`、`user`、`smzdm_id` 登录 Cookie，说明登录已成功；问题出在核验接口 `jsonp_get_current` 一直返回 `smzdm_id=0`。
+- 原因：用用户的会话对比过请求，该接口不带站内 Referer 时，已登录也返回 0；带上 `Referer: https://www.smzdm.com/` 后返回真实 ID 和昵称；未登录时带 Referer 仍返回 0，可以区分。
+- 修复：`PlatformScanLoginClient.probeAccount` 对什么值得买补上 Referer，解析逻辑不变。
+- 补充：什么值得买 App 二维码用微信扫描也能选择微信登录，所以“微信”入口沿用同一个二维码，不需要单独的微信码。
+- 风险：短时间内反复打开登录页会触发腾讯验证码“操作过于频繁”。用户需等风控恢复后重启服务并扫码复测，暂未复测。测试中 26、17 项均通过。未提交。
+
+## 当前交接：什么值得买取消 QQ 登录（2026-10-29）
+
+- 删除第三方入口表中什么值得买的 QQ 授权条目。`PlatformBrowserLoginRouter.scanMethods` 对 CSDN 和什么值得买改为“App 扫码 + 原站微信码 + 第三方入口表”，QQ 只在入口表里维护一处：什么值得买只剩 App 扫码和微信，CSDN 仍保留 QQ。
+- 新增用例 `smzdmListsAppAndWechatScanWithoutQq`，全量测试只有既有的 `LLMStrategyRouterTest` 失败。未提交。
+
 ## 当前交接：网易号密码登录修复（2026-10-29）
 
 - 现象：提交密码后 39ms 即报 PlaywrightException。

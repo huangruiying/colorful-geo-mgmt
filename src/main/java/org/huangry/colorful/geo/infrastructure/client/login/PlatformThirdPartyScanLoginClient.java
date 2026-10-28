@@ -71,9 +71,7 @@ public class PlatformThirdPartyScanLoginClient {
             entry(PublicationPlatformType.TOUTIAO, PlatformScanLoginMethod.WECHAT,
                     "li[aria-label='微信登录']"),
             entry(PublicationPlatformType.TOUTIAO, PlatformScanLoginMethod.QQ, "li[aria-label='QQ登录']"),
-            entry(PublicationPlatformType.CSDN, PlatformScanLoginMethod.QQ, ".login-third-qq"),
-            entry(PublicationPlatformType.SMZDM, PlatformScanLoginMethod.QQ,
-                    ".login-container__social-item:has-text('QQ 登录')"));
+            entry(PublicationPlatformType.CSDN, PlatformScanLoginMethod.QQ, ".login-third-qq"));
 
     private final PlatformAccountLoginClient formClient;
     private final PlatformScanLoginClient qrClient;
