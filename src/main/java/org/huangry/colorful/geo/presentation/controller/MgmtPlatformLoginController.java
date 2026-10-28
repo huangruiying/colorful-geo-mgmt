@@ -255,10 +255,30 @@ public class MgmtPlatformLoginController {
      */
     @ExceptionHandler(PlatformBrowserLoginException.class)
     public ProblemDetail handleLoginError(PlatformBrowserLoginException exception) {
-        log.warn("浏览器登录接口 response httpStatus=400 reason={} causeType={}",
+        log.warn("浏览器登录接口 response httpStatus=400 reason={} causeType={} causeSummary={}",
                 exception.getMessage(), exception.getCause() == null ? "NONE"
-                        : exception.getCause().getClass().getSimpleName());
+                        : exception.getCause().getClass().getSimpleName(), summarizeCause(exception.getCause()));
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    /**
+     * 提取底层异常的首行原因，供日志定位哪个页面控件或步骤失败。
+     * <p>Playwright 异常的 message 字段首行写明失败原因及定位器，例如严格模式下匹配到多个元素；
+     * 其后的调用日志会附带页面元素片段，可能含用户输入的账号，因此只保留首行，并截断到 300 字。</p>
+     *
+     * @param cause 登录异常的底层原因，可为空
+     * @return 首行原因；没有底层原因时返回 NONE
+     */
+    private String summarizeCause(Throwable cause) {
+        if (cause == null || cause.getMessage() == null) {
+            return "NONE";
+        }
+        String message = cause.getMessage();
+        // Playwright Java 把原始错误包在 "Error {\n  message='...'" 结构里，真正的原因从 message=' 之后开始
+        int start = message.indexOf("message='");
+        String reason = start >= 0 ? message.substring(start + "message='".length()) : message;
+        String firstLine = reason.lines().findFirst().orElse("").strip();
+        return firstLine.length() > 300 ? firstLine.substring(0, 300) : firstLine;
     }
 
     /**

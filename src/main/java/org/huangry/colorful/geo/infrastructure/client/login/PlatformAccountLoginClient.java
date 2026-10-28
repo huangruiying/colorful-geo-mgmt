@@ -68,7 +68,7 @@ public class PlatformAccountLoginClient {
                     "https://www.imooc.com/u/card", true, true)),
             Map.entry(PublicationPlatformType.NETEASE, new FormLoginSite(
                     "https://mp.163.com/login.html",
-                    "https://mp.163.com/wemedia/navinfo.do", true, true)),
+                    "https://mp.163.com/wemedia/navinfo.do", false, true)),
             Map.entry(PublicationPlatformType.SOHU, new FormLoginSite(
                     "https://mp.sohu.com/", "https://mp.sohu.com/mpbp/bp/account/list", false, true)),
             Map.entry(PublicationPlatformType.YIDIAN, new FormLoginSite(
@@ -233,7 +233,8 @@ public class PlatformAccountLoginClient {
                     FrameLocator loginFrame = activePage.frameLocator("iframe[id^='x-URS-iframe']");
                     loginFrame.getByText("邮箱登录", new FrameLocator.GetByTextOptions().setExact(true)).click();
                     loginFrame.getByPlaceholder("网易邮箱号").fill(account);
-                    loginFrame.getByPlaceholder("密码").fill(password);
+                    // 表单里还有一个“显示密码”用的隐藏文本框，占位文字同为“密码”，只能按真实密码框定位
+                    loginFrame.locator("input[type='password'][name='password']").fill(password);
                     loginFrame.getByRole(AriaRole.LINK,
                             new FrameLocator.GetByRoleOptions().setName("登录 / 注册")).click();
                     return pendingSnapshot();
@@ -299,14 +300,6 @@ public class PlatformAccountLoginClient {
                 } else if (platform == PublicationPlatformType.SEGMENTFAULT) {
                     activePage.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("手机号")).fill(phone);
                     activePage.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("获取验证码")).click();
-                } else if (platform == PublicationPlatformType.NETEASE) {
-                    requirePlatformAgreement(agreedToPlatformTerms, platform);
-                    FrameLocator loginFrame = activePage.frameLocator("iframe[id^='x-URS-iframe']");
-                    loginFrame.getByText("手机号登录", new FrameLocator.GetByTextOptions().setExact(true)).click();
-                    loginFrame.getByPlaceholder("请输入手机号").fill(phone);
-                    acceptPlatformAgreement(platform);
-                    loginFrame.getByRole(AriaRole.LINK,
-                            new FrameLocator.GetByRoleOptions().setName("获取验证码")).click();
                 } else {
                     activePage.getByText("验证码登录", new Page.GetByTextOptions().setExact(true)).click();
                     activePage.getByPlaceholder("短信登录仅限中国大陆用户").fill(phone);
@@ -338,19 +331,12 @@ public class PlatformAccountLoginClient {
                     case OSCHINA -> "短信验证码";
                     case SEGMENTFAULT -> "请输入验证码";
                     case IMOOC -> "请输入短信验证码";
-                    case NETEASE -> "请输入短信验证码";
                     default -> "验证码";
                 };
                 if (platform == PublicationPlatformType.ZHIHU) {
                     activePage.getByPlaceholder("输入 6 位短信验证码").fill(code);
                     activePage.getByRole(AriaRole.BUTTON,
                             new Page.GetByRoleOptions().setName("登录/注册").setExact(true)).click();
-                    return pendingSnapshot();
-                }
-                if (platform == PublicationPlatformType.NETEASE) {
-                    FrameLocator loginFrame = activePage.frameLocator("iframe[id^='x-URS-iframe']");
-                    loginFrame.getByPlaceholder(codeName).fill(code);
-                    loginFrame.getByText("登录", new FrameLocator.GetByTextOptions().setExact(true)).click();
                     return pendingSnapshot();
                 }
                 if (platform == PublicationPlatformType.IMOOC) activePage.getByPlaceholder(codeName).fill(code);
@@ -706,12 +692,6 @@ public class PlatformAccountLoginClient {
         if (platform == PublicationPlatformType.SOHU) {
             var agreement = activePage.locator("em[data-role='radio-protocol']");
             if (!agreement.getAttribute("class").contains("radio-icon-sel")) agreement.click();
-            return;
-        }
-        if (platform == PublicationPlatformType.NETEASE) {
-            var agreement = activePage.frameLocator("iframe[id^='x-URS-iframe']")
-                    .getByRole(AriaRole.CHECKBOX);
-            if (!agreement.isChecked()) agreement.check();
             return;
         }
         var agreement = activePage.getByRole(AriaRole.CHECKBOX,

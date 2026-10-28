@@ -46,6 +46,14 @@ class FormPlatformPlaywrightLoginClientTest {
                 JSON.parseObject("{\"code\":1,\"result\":{\"userId\":7673532}}")).status());
     }
 
+    /** 网易号只开放邮箱密码登录，不展示手机号验证码入口。 */
+    @Test
+    void 网易号只支持邮箱密码登录() {
+        assertTrue(PlatformAccountLoginClient.supportsPlatform(PublicationPlatformType.NETEASE));
+        assertTrue(PlatformAccountLoginClient.supportsPasswordLogin(PublicationPlatformType.NETEASE));
+        assertFalse(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.NETEASE));
+    }
+
     /** 已核对的平台页面存在短信入口。 */
     @Test
     void 博客园和百家号支持短信登录() {

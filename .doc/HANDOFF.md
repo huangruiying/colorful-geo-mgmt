@@ -2,6 +2,16 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：网易号密码登录修复（2026-10-29）
+
+- 现象：提交密码后 39ms 即报 PlaywrightException。
+- 定位：用 Playwright 打开 `mp.163.com/login.html` 实测。网易登录 iframe 中有两个占位文字为“密码”的输入框：可见的真实密码框，以及“显示密码”用的隐藏文本框。`getByPlaceholder("密码")` 匹配到两个元素，触发严格模式报错。
+- 修复：`PlatformAccountLoginClient` 的网易号分支改为按 `input[type='password'][name='password']` 定位。实测邮箱、密码框和“登录 / 注册”按钮均能唯一定位，但未提交真实登录。短信路径的各定位也都只匹配一个元素。
+- 网易号登录页只有“邮箱登录”和“手机号登录”，没有扫码入口。
+- 按用户要求删除网易号手机号验证码登录，只保留邮箱密码登录。站点的短信开关已关闭；发码、提交短信码中的网易分支，以及网易专用的协议勾选，都已删除。新增用例 `网易号只支持邮箱密码登录`。全量测试 441 项，只有既有的 `LLMStrategyRouterTest` 失败。
+- `MgmtPlatformLoginController` 的登录异常日志新增 `causeSummary`，只记录 Playwright 报错首行（截断 300 字），不含调用日志中的页面片段。
+- 未提交，需重启服务后由用户验证。
+
 ## 当前交接：移除豆瓣、雪球（2026-10-29）
 
 - 从 `PublicationPlatformType` 删除 `DOUBAN`、`XUEQIU`；这两个平台没有登录和发布实现。
