@@ -8,6 +8,7 @@ const scanPreview = document.getElementById('scan-preview');
 const scanPlaceholder = document.getElementById('scan-placeholder');
 const scanPlaceholderText = document.getElementById('scan-placeholder-text');
 const loginScreenshot = document.getElementById('login-screenshot');
+const loginFailureScreenshot = document.getElementById('login-failure-screenshot');
 const loginFeedback = document.getElementById('login-feedback');
 const platformAgreementLinks = {
     BAIJIAHAO: ['https://baijiahao.baidu.com/docs/#/markdownsingle/BaiJiaHaoFuWuXieYi', '《百家号用户协议》'],
@@ -329,6 +330,8 @@ async function startLogin(platform, scanMethod = 'PLATFORM_APP', requestedMode) 
         scanPlaceholderText.textContent = '正在加载扫码图片…';
         loginScreenshot.hidden = true;
         loginScreenshot.removeAttribute('src');
+        loginFailureScreenshot.hidden = true;
+        loginFailureScreenshot.removeAttribute('src');
         loginFeedback.textContent = mode === 'qr' ? '正在加载扫码图片…' : '正在打开平台登录页…';
         loginFeedback.classList.toggle('login-feedback-error', false);
         if (!loginTask.open) loginTask.showModal();
@@ -350,6 +353,11 @@ async function startLogin(platform, scanMethod = 'PLATFORM_APP', requestedMode) 
         loginFeedback.classList.toggle('login-feedback-error', true);
         scanPreview.hidden = true;
         loginScreenshot.removeAttribute('src');
+        // 服务端附带失败时的登录页截图，直接展示页面卡住的位置（如滑块验证）
+        if (error.screenshotBase64) {
+            loginFailureScreenshot.src = `data:image/png;base64,${error.screenshotBase64}`;
+            loginFailureScreenshot.hidden = false;
+        }
         const retryButton = document.getElementById('refresh-login');
         retryButton.hidden = false;
         retryButton.textContent = '重试打开登录页';

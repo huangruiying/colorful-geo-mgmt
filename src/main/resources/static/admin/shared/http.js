@@ -55,15 +55,18 @@
         }
         if (!response.ok) {
             const detail = typeof body?.detail === "string" ? body.detail.trim() : "";
-            throw createResponseError(detail || "请求失败（HTTP " + response.status + "）", response.status);
+            // 登录页打开失败时服务端附带页面截图，供浏览器登录弹窗展示失败现场
+            const screenshotBase64 = typeof body?.screenshotBase64 === "string" ? body.screenshotBase64 : undefined;
+            throw createResponseError(detail || "请求失败（HTTP " + response.status + "）", response.status,
+                screenshotBase64);
         }
         // DELETE 等接口可以返回 204；普通成功响应为空时也不强行解析 JSON。
         return body;
     }
 
-    /** 仅保留状态供调用方判断，不把请求、密钥或完整响应挂到错误对象上。 */
-    function createResponseError(message, status) {
-        return Object.assign(new Error(message), {status});
+    /** 仅保留状态和登录失败截图供调用方使用，不把请求、密钥或完整响应挂到错误对象上。 */
+    function createResponseError(message, status, screenshotBase64) {
+        return Object.assign(new Error(message), {status, screenshotBase64});
     }
 
     /**
