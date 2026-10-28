@@ -170,8 +170,10 @@ public class PlatformAccountLoginClient {
                 }, LOGIN_LIFETIME.toSeconds(), TimeUnit.SECONDS);
                 return pendingSnapshot();
             } catch (PlaywrightException exception) {
+                // 关闭浏览器前截取失败现场，供用户对照页面判断原因
+                PlatformBrowserLoginException failure = PlatformLoginPageFailure.toException(activePage, platform, exception);
                 closeActiveLogin();
-                throw new PlatformBrowserLoginException(platform.getDisplayName() + "登录页打开失败，请检查网络", exception);
+                throw failure;
             }
         });
     }

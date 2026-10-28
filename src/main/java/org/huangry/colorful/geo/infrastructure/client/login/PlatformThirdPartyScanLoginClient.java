@@ -174,8 +174,10 @@ public class PlatformThirdPartyScanLoginClient {
                 closeActiveLogin();
                 throw exception;
             } catch (PlaywrightException exception) {
+                // 关闭浏览器前截取平台登录页的失败现场，供用户对照页面判断原因
+                PlatformBrowserLoginException failure = PlatformLoginPageFailure.toException(loginPage, platform, exception);
                 closeActiveLogin();
-                throw new PlatformBrowserLoginException(platform.getDisplayName() + "第三方登录页打开失败", exception);
+                throw failure;
             }
         });
     }

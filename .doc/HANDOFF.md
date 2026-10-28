@@ -2,6 +2,23 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：登录页打开失败的通用提示与截图（2026-10-29）
+
+- 新增 `infrastructure/client/login/PlatformLoginPageFailure`：
+  - 三种登录客户端（扫码、表单、第三方授权）的 `startLogin` 出现 PlaywrightException 时，在关闭浏览器前调用它，截取当前视口。
+  - 有截图时提示“××登录页未能正常打开，请对照下方页面截图确认原因后重试”；截不到图时提示“××登录页打开失败，请检查网络后重试”。
+- 用户确认不在代码里逐家识别失败原因（滑块厂商各不相同）：最初的腾讯验证码域名识别已删除；各客户端原先各自的失败文案，以及扫码类中只用于拼文案的 `phase` 变量，也一并删除。
+- 截图的传递与展示：
+  - `PlatformBrowserLoginException` 新增 `screenshotBase64` 字段。
+  - `MgmtPlatformLoginController` 有截图时写入 ProblemDetail 的 `screenshotBase64` 字段，不写日志。
+  - `shared/http.js` 的错误对象保留这一个字段，所有页面的 http.js 版本统一改为 `20261029-failure1`。
+  - 登录弹窗打开失败时，在红色提示下展示截图（`#login-failure-screenshot`）。
+- 验证：
+  - `PlatformLoginPageFailureTest` 3 项（有截图、截图失败、无页面），控制器测试新增截图用例。
+  - Java 全量测试只有既有的 `LLMStrategyRouterTest` 失败。
+  - `browser-login.test.cjs` 仍是既有的 9 项失败。
+- 未提交，需重启服务。
+
 ## 当前交接：什么值得买登录识别修复（2026-10-29）
 
 - 现象：用微信扫码授权后一直显示“等待登录”。实测发现自动化浏览器里已写入 `sess`、`user`、`smzdm_id` 登录 Cookie，说明登录已成功；问题出在核验接口 `jsonp_get_current` 一直返回 `smzdm_id=0`。

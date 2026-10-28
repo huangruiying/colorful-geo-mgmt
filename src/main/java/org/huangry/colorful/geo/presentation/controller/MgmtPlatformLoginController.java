@@ -249,16 +249,21 @@ public class MgmtPlatformLoginController {
 
     /**
      * 将独立流程错误转换成可读提示，不输出内部异常或敏感会话。
+     * <p>打开登录页失败时附带的页面截图放在 screenshotBase64 字段返回给登录弹窗，不写入日志。</p>
      *
      * @param exception 登录流程异常
-     * @return HTTP 400 及失败提示，与其他接口一样放在 ProblemDetail 的 detail 字段
+     * @return HTTP 400 及失败提示，与其他接口一样放在 ProblemDetail 的 detail 字段；有截图时另带 screenshotBase64
      */
     @ExceptionHandler(PlatformBrowserLoginException.class)
     public ProblemDetail handleLoginError(PlatformBrowserLoginException exception) {
         log.warn("浏览器登录接口 response httpStatus=400 reason={} causeType={} causeSummary={}",
                 exception.getMessage(), exception.getCause() == null ? "NONE"
                         : exception.getCause().getClass().getSimpleName(), summarizeCause(exception.getCause()));
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+        if (exception.getScreenshotBase64() != null) {
+            problem.setProperty("screenshotBase64", exception.getScreenshotBase64());
+        }
+        return problem;
     }
 
     /**

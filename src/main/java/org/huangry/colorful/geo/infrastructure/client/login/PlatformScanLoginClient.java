@@ -201,7 +201,6 @@ public class PlatformScanLoginClient {
     private BrowserLoginSnapshot startLogin(PublicationPlatformType platform, QrLoginSite site) {
         return onBrowserThread(() -> {
             closeActiveLogin();
-            String phase = "打开登录页";
             try {
                 // 1. 为目标平台创建隔离浏览器，不读取本机 Chrome 或其他平台的登录态。
                 activeSession = browserComponent.openBrowser(
@@ -213,7 +212,6 @@ public class PlatformScanLoginClient {
                 log.info("打开平台扫码页，platformType={}", platform);
                 activePage.navigate(site.loginUrl(), new Page.NavigateOptions()
                         .setWaitUntil(WaitUntilState.DOMCONTENTLOADED).setTimeout(20_000));
-                phase = "加载二维码";
                 if (site.qrToggleSelector() != null) {
                     activePage.locator(site.qrToggleSelector()).first().click();
                 }
@@ -250,9 +248,10 @@ public class PlatformScanLoginClient {
                 closeActiveLogin();
                 throw exception;
             } catch (PlaywrightException exception) {
+                // 关闭浏览器前截取失败现场，供用户对照页面判断原因
+                PlatformBrowserLoginException failure = PlatformLoginPageFailure.toException(activePage, platform, exception);
                 closeActiveLogin();
-                throw new PlatformBrowserLoginException(platform.getDisplayName() + phase
-                        + "失败，请检查网络后重试", exception);
+                throw failure;
             }
         });
     }
