@@ -25,7 +25,6 @@ import org.huangry.colorful.geo.infrastructure.common.exceptions.PlatformBrowser
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
-import java.net.URLDecoder;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -50,8 +49,6 @@ public class PlatformAccountLoginClient {
     private static final Pattern SEGMENTFAULT_ACCOUNT = Pattern.compile("href=\"/u/([^\"]+)\"");
     private static final Pattern WOSHIPM_ACCOUNT = Pattern.compile(
             "var\\s+userSettings\\s*=\\s*\\{[^}]*\"uid\"\\s*:\\s*\"(\\d+)\"");
-    private static final Pattern YUQUE_APP_DATA = Pattern.compile(
-            "window\\.appData\\s*=\\s*JSON\\.parse\\(decodeURIComponent\\(\"([^\"]+)\"\\)\\)");
     private static final Map<PublicationPlatformType, FormLoginSite> LOGIN_SITES = Map.ofEntries(
             Map.entry(PublicationPlatformType.ZHIHU, new FormLoginSite(
                     "https://www.zhihu.com/signin", "https://www.zhihu.com/api/v4/me", true, true)),
@@ -79,8 +76,6 @@ public class PlatformAccountLoginClient {
                     "https://www.woshipm.com/writing", false, true)),
             Map.entry(PublicationPlatformType.SOHU, new FormLoginSite(
                     "https://mp.sohu.com/", "https://mp.sohu.com/mpbp/bp/account/list", false, true)),
-            Map.entry(PublicationPlatformType.YUQUE, new FormLoginSite(
-                    "https://www.yuque.com/login", "https://www.yuque.com/dashboard", false, false)),
             Map.entry(PublicationPlatformType.YIDIAN, new FormLoginSite(
                     "https://mp.yidianzixun.com/", "https://mp.yidianzixun.com/model/Agreement?type=1",
                     false, false)));
@@ -486,9 +481,6 @@ public class PlatformAccountLoginClient {
             if (platform == PublicationPlatformType.WOSHIPM) {
                 return probeWoshipmAccount(context, response);
             }
-            if (platform == PublicationPlatformType.YUQUE) {
-                return parseYuqueAccount(new String(response.body(), StandardCharsets.UTF_8));
-            }
             JSONObject accountResponse = JSON.parseObject(new String(response.body(), StandardCharsets.UTF_8));
             return switch (platform) {
                 case ZHIHU -> parseZhihuAccount(accountResponse);
@@ -720,30 +712,6 @@ public class PlatformAccountLoginClient {
                 ? new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null)
                 : new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
                         accountName.isBlank() ? accountId : accountName);
-    }
-
-    /**
-     * 语雀服务端页面数据必须含当前用户 ID，匿名页的默认头像不能证明已登录。
-     * @param html 当前会话收到的语雀页面
-     * @return 账号核验结论，解析失败为未知
-     */
-    AccountProbe parseYuqueAccount(String html) {
-        // 提取服务端页面中的账号数据，普通页面或损坏的编码不作为登录证据
-        Matcher data = YUQUE_APP_DATA.matcher(html);
-        if (!data.find()) return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
-        try {
-            Object me = JSONPath.eval(JSON.parseObject(URLDecoder.decode(data.group(1), StandardCharsets.UTF_8)), "$.me");
-            // 解析成功仍需非空账号标识；匿名数据不能因默认头像被判定成功
-            String accountId = readAccountText(me, "$.id", "");
-            String accountName = readAccountText(me, "$.name", "");
-            if (!accountId.isBlank()) {
-                return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
-                        accountName.isBlank() ? accountId : accountName);
-            }
-            return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
-        } catch (JSONException exception) {
-            return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
-        }
     }
 
     /**

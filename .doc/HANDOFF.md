@@ -2,6 +2,12 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：移除语雀平台（2026-10-29）
+
+- 用户要求删除语雀：`PublicationPlatformType.YUQUE`，表单登录站点与 `parseYuqueAccount`，第三方微信授权入口及协议勾选，页面协议链接，以及相关单测和 `config/browser-login.md` 中的提及，都已删除。`browser-login.js` 版本改为 `20261029-login1`。
+- 没有发布策略使用语雀；登录表只按平台名查询，库里如有遗留的 YUQUE 行，不会被读到，也不会报错，未删除数据库数据。
+- 验证：全量测试 422 项，421 项通过，唯一失败为既有的 `LLMStrategyRouterTest.shouldRejectDisabledExactTaskChannel`；前端脚本语法检查通过。未提交。
+
 ## 当前交接：一点号登录核验修正（2026-10-29）
 
 - 问题：扫码登录成功但一直显示“无法确认”。原核验接口 `api/refact-get-main-data2` 只返回统计数据，没有账号字段，已登录也无法识别。

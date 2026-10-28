@@ -29,7 +29,6 @@ class QrPlatformPlaywrightLoginClientTest {
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.CSDN));
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.SMZDM));
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.EASTMONEY));
-        assertFalse(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.YUQUE));
     }
 
     /** 东方财富只接受创作平台返回的作者 ID 与昵称，不把业务成功码单独当成登录。 */

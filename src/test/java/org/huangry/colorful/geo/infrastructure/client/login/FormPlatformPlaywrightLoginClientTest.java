@@ -5,9 +5,6 @@ import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLogin
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformType;
 import org.junit.jupiter.api.Test;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -26,20 +23,7 @@ class FormPlatformPlaywrightLoginClientTest {
         assertFalse(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.JIANSHU));
     }
 
-    /** 语雀第三方授权只在服务端页面明确给出用户 ID 后才可保存会话。 */
-    @Test
-    void 语雀账号核验不把匿名默认头像判为登录() {
-        assertTrue(PlatformAccountLoginClient.supportsPlatform(PublicationPlatformType.YUQUE));
-        assertFalse(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.YUQUE));
-        String anonymous = yuquePage("{\"me\":{\"avatar_url\":\"default.png\"}}");
-        String loggedIn = yuquePage("{\"me\":{\"id\":42,\"name\":\"作者\"}}");
-
-        assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN, client.parseYuqueAccount(anonymous).status());
-        assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, client.parseYuqueAccount(loggedIn).status());
-        assertEquals("作者", client.parseYuqueAccount(loggedIn).accountName());
-    }
-
-    /** 一点号无媒体标识时不把普通统计响应判为已登录。 */
+    /** 一点号以协议接口签署人账号 ID 判定登录，统计响应或异常业务码不算登录。 */
     @Test
     void 一点号按协议接口签署人账号ID判定登录() throws Exception {
         assertTrue(PlatformAccountLoginClient.supportsPlatform(PublicationPlatformType.YIDIAN));
@@ -60,11 +44,6 @@ class FormPlatformPlaywrightLoginClientTest {
                 JSON.parseObject("{\"code\":0,\"result\":{\"viewSum\":0}}")).status());
         assertEquals(PlatformBrowserLoginStatus.UNKNOWN, client.parseYidianAccount(
                 JSON.parseObject("{\"code\":1,\"result\":{\"userId\":7673532}}")).status());
-    }
-
-    private String yuquePage(String appData) {
-        return "<script>window.appData = JSON.parse(decodeURIComponent(\""
-                + URLEncoder.encode(appData, StandardCharsets.UTF_8) + "\"))</script>";
     }
 
     /** 已核对的平台页面存在短信入口。 */

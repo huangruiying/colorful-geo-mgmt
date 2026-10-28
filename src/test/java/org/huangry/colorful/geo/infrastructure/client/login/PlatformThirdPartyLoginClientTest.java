@@ -28,8 +28,6 @@ class PlatformThirdPartyLoginClientTest {
                 PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.CSDN));
         assertEquals(List.of(PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ),
                 PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.SOHU));
-        assertEquals(List.of(PlatformScanLoginMethod.WECHAT),
-                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.YUQUE));
         assertEquals(List.of(PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ),
                 PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.EASTMONEY));
         assertEquals(List.of(PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ),

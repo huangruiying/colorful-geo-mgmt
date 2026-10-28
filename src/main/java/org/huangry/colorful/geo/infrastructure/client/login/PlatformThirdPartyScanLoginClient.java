@@ -61,8 +61,6 @@ public class PlatformThirdPartyScanLoginClient {
                     "a[data-login='weChat']"),
             entry(PublicationPlatformType.SOHU, PlatformScanLoginMethod.QQ,
                     "a[data-login='qq']"),
-            entry(PublicationPlatformType.YUQUE, PlatformScanLoginMethod.WECHAT,
-                    "a.third-login-a-wechat"),
             entry(PublicationPlatformType.EASTMONEY, PlatformScanLoginMethod.WECHAT, "#btn_wx"),
             entry(PublicationPlatformType.EASTMONEY, PlatformScanLoginMethod.QQ, "#btn_qq"),
             entry(PublicationPlatformType.YIDIAN, PlatformScanLoginMethod.WECHAT, "a[href*='open.weixin.qq.com/connect/qrconnect']"),
@@ -153,7 +151,6 @@ public class PlatformThirdPartyScanLoginClient {
                 if (platform == PublicationPlatformType.OSCHINA) acceptOschinaAgreement(agreedToPlatformTerms);
                 if (platform == PublicationPlatformType.TOUTIAO) acceptToutiaoAgreement(agreedToPlatformTerms);
                 if (platform == PublicationPlatformType.SOHU) acceptSohuAgreement(agreedToPlatformTerms);
-                if (platform == PublicationPlatformType.YUQUE) acceptYuqueAgreement(agreedToPlatformTerms);
                 if (platform == PublicationPlatformType.EASTMONEY) acceptEastmoneyAgreement(agreedToPlatformTerms);
                 List<Page> previousPages = List.copyOf(activeContext.pages());
                 String pageUrlBeforeAuthorization = loginPage.url();
@@ -366,14 +363,6 @@ public class PlatformThirdPartyScanLoginClient {
         loginPage.getByText("登录/注册", new Page.GetByTextOptions().setExact(true)).click();
         var agreement = loginPage.locator("em[data-role='radio-protocol']");
         if (!agreement.getAttribute("class").contains("radio-icon-sel")) agreement.click();
-    }
-
-    /** 语雀微信授权前须由用户明确同意本站协议。 */
-    private void acceptYuqueAgreement(boolean agreedToPlatformTerms) {
-        if (!agreedToPlatformTerms) throw new PlatformBrowserLoginException("请先阅读并同意语雀用户协议");
-        var agreement = loginPage.getByRole(AriaRole.CHECKBOX,
-                new Page.GetByRoleOptions().setName("我已阅读并同意语雀 服务协议 和 隐私权政策"));
-        if (!agreement.isChecked()) agreement.check();
     }
 
     /** 东方财富授权按钮由登录 iframe 的协议勾选控制，用户未同意时不代为授权。 */

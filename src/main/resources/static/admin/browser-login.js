@@ -12,7 +12,6 @@ const loginFeedback = document.getElementById('login-feedback');
 const platformAgreementLinks = {
     BAIJIAHAO: ['https://baijiahao.baidu.com/docs/#/markdownsingle/BaiJiaHaoFuWuXieYi', '《百家号用户协议》'],
     SOHU: ['https://mp.sohu.com/baike#/dashboard?id=435536343', '《搜狐号用户服务协议》'],
-    YUQUE: ['https://www.yuque.com/terms', '《语雀服务协议》'],
     EASTMONEY: ['https://mp.eastmoney.com/', '在东方财富登录页查看《隐私政策》和《服务协议》'],
     OSCHINA: ['https://www.oschina.net/home/login', '在开源中国登录页查看《服务条例》和《隐私声明》'],
     TOUTIAO: ['https://mp.toutiao.com/profile_v3_public/public/protocol/agreement', '《头条号用户协议》'],

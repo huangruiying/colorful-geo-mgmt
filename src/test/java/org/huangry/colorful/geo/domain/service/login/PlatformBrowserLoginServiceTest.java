@@ -145,17 +145,6 @@ class PlatformBrowserLoginServiceTest {
                 PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ), zhihu.scanMethods());
     }
 
-    /** 语雀当前仅开放已核对的微信授权，不误展示尚未接通的表单入口。 */
-    @Test
-    void yuqueOnlyListsConnectedWechatMethod() {
-        var yuque = service.listPlatforms().stream()
-                .filter(platform -> platform.platformType().equals("YUQUE")).findFirst().orElseThrow();
-
-        assertTrue(yuque.supported());
-        assertEquals(java.util.List.of("qr"), yuque.loginMethods());
-        assertEquals(java.util.List.of(PlatformScanLoginMethod.WECHAT), yuque.scanMethods());
-    }
-
     /** 东方财富原生 App 码与微信、QQ 授权都通过扫码入口展示。 */
     @Test
     void eastmoneyListsConfirmedScanMethods() {

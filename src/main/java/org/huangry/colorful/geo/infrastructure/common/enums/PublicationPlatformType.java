@@ -29,9 +29,6 @@ public enum PublicationPlatformType {
     /** CSDN，用于技术文章草稿投放。 */
     CSDN("CSDN 博客"),
 
-    /** 语雀，用于知识文档草稿投放。 */
-    YUQUE("语雀"),
-
     /** 豆瓣，用于文章草稿投放。 */
     DOUBAN("豆瓣"),
 
