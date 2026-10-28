@@ -1,5 +1,14 @@
 # Project Handoff
 
+## 当前交接：诊断查询索引（2026-10-28）
+
+- 新增 `db/mysql/024_diagnosis_query_indexes.sql`，同步改 `001_init.sql`：
+  - `geo_diagnosis_task_report` 加 `idx_diagnosis_task_report_status (status)`：报告后台按状态 `FOR UPDATE` 领取，原来扫全表并锁全部报告行。
+  - `geo_diagnosis_task` 加 `idx_diagnosis_task_project (project_id)`：项目删除按 `project_id OR plan_id IN` 加锁查任务，原来扫全表并锁所有项目的任务；导出同口径受益。
+- 其余查询核对后现有索引已覆盖；名称 `LIKE '%x%'` 用不上索引，表小未处理。
+- 验证：`GeoProjectInfoServiceDeleteProjectTest` 4 项、`ProjectInfoImportExportServiceTest` 11 项通过（H2 转换会去掉普通 KEY，只证明 DDL 仍可解析）。
+- 限制：未在 MySQL 上执行 024，未看 `EXPLAIN`；服务器已有库需手工执行 024（在线 DDL，无需停服务）。未提交。
+
 ## 当前交接：项目删除（2026-10-27）
 
 - 用户已确认：物理删除，强制删除。执行中的任务和报告也一起删除，不做状态拦截，也不做软删除。

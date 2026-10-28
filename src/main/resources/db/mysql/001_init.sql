@@ -146,6 +146,7 @@ CREATE TABLE IF NOT EXISTS geo_diagnosis_task (
     UNIQUE KEY uk_diagnosis_task_request (request_id),
     KEY idx_diagnosis_task_plan_created (plan_id, created_at),
     KEY idx_diagnosis_task_status (status, created_at),
+    KEY idx_diagnosis_task_project (project_id),
     CONSTRAINT fk_diagnosis_task_plan FOREIGN KEY (plan_id) REFERENCES geo_diagnosis_plan(id),
     CONSTRAINT chk_diagnosis_task_status CHECK (status IN ('PENDING','RUNNING','SUCCEEDED','PARTIAL_FAILED','FAILED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='诊断任务：诊断方案的一次执行';
@@ -196,6 +197,7 @@ CREATE TABLE IF NOT EXISTS geo_diagnosis_task_report (
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
     KEY idx_diagnosis_task_report_task (task_id, created_at),
+    KEY idx_diagnosis_task_report_status (status),
     CONSTRAINT fk_diagnosis_task_report_task FOREIGN KEY (task_id) REFERENCES geo_diagnosis_task(id),
     CONSTRAINT chk_diagnosis_task_report_status CHECK (status IN ('PENDING','RUNNING','SUCCEEDED','FAILED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='诊断报告：针对一次诊断任务生成，每次生成一份';
