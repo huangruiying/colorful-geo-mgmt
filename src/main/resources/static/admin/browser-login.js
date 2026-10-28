@@ -220,7 +220,7 @@ function selectScanMethod(scanMethod) {
         button.classList.toggle('selected', button.dataset.scanMethod === scanMethod);
     }
     const nativeScanner = {
-        WECHAT_OFFICIAL_ACCOUNT: '微信', ZHIHU: '知乎 App', JUEJIN: '稀土掘金 App',
+        WECHAT_OFFICIAL_ACCOUNT: '微信', WOSHIPM: '微信', ZHIHU: '知乎 App', JUEJIN: '稀土掘金 App',
         WEIBO: '微博 App', BILIBILI: '哔哩哔哩客户端', TOUTIAO: '今日头条 App',
         XIAOHONGSHU: '小红书 App', DOUYIN: '抖音 App', DAYU: 'UC 浏览器'
     }[activePlatform] || `${platformNames[activePlatform]} App`;

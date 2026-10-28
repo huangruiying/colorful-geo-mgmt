@@ -47,8 +47,6 @@ public class PlatformAccountLoginClient {
     private static final Duration LOGIN_LIFETIME = Duration.ofMinutes(10);
     private static final Pattern CNBLOGS_ACCOUNT = Pattern.compile("href=\"/u/([^/\"]+)/\"");
     private static final Pattern SEGMENTFAULT_ACCOUNT = Pattern.compile("href=\"/u/([^\"]+)\"");
-    private static final Pattern WOSHIPM_ACCOUNT = Pattern.compile(
-            "var\\s+userSettings\\s*=\\s*\\{[^}]*\"uid\"\\s*:\\s*\"(\\d+)\"");
     private static final Map<PublicationPlatformType, FormLoginSite> LOGIN_SITES = Map.ofEntries(
             Map.entry(PublicationPlatformType.ZHIHU, new FormLoginSite(
                     "https://www.zhihu.com/signin", "https://www.zhihu.com/api/v4/me", true, true)),
@@ -71,9 +69,6 @@ public class PlatformAccountLoginClient {
             Map.entry(PublicationPlatformType.NETEASE, new FormLoginSite(
                     "https://mp.163.com/login.html",
                     "https://mp.163.com/wemedia/navinfo.do", true, true)),
-            Map.entry(PublicationPlatformType.WOSHIPM, new FormLoginSite(
-                    "https://www.woshipm.com/wp-login.php",
-                    "https://www.woshipm.com/writing", false, true)),
             Map.entry(PublicationPlatformType.SOHU, new FormLoginSite(
                     "https://mp.sohu.com/", "https://mp.sohu.com/mpbp/bp/account/list", false, true)),
             Map.entry(PublicationPlatformType.YIDIAN, new FormLoginSite(
@@ -242,11 +237,6 @@ public class PlatformAccountLoginClient {
                     loginFrame.getByRole(AriaRole.LINK,
                             new FrameLocator.GetByRoleOptions().setName("登录 / 注册")).click();
                     return pendingSnapshot();
-                } else if (platform == PublicationPlatformType.WOSHIPM) {
-                    activePage.getByRole(AriaRole.TEXTBOX,
-                            new Page.GetByRoleOptions().setName("用户名或邮箱地址")).fill(account);
-                    activePage.getByRole(AriaRole.TEXTBOX,
-                            new Page.GetByRoleOptions().setName("密码")).fill(password);
                 } else if (platform == PublicationPlatformType.SOHU) {
                     requirePlatformAgreement(agreedToPlatformTerms, platform);
                     activePage.getByText("账号登录", new Page.GetByTextOptions().setExact(true)).click();
@@ -478,9 +468,6 @@ public class PlatformAccountLoginClient {
             if (platform == PublicationPlatformType.IMOOC) {
                 return parseImoocAccount(new String(response.body(), StandardCharsets.UTF_8));
             }
-            if (platform == PublicationPlatformType.WOSHIPM) {
-                return probeWoshipmAccount(context, response);
-            }
             JSONObject accountResponse = JSON.parseObject(new String(response.body(), StandardCharsets.UTF_8));
             return switch (platform) {
                 case ZHIHU -> parseZhihuAccount(accountResponse);
@@ -709,38 +696,6 @@ public class PlatformAccountLoginClient {
         String accountId = readAccountText(account, "$.id", "");
         String accountName = readAccountText(account, "$.nickName", "");
         return accountId.isBlank()
-                ? new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null)
-                : new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
-                        accountName.isBlank() ? accountId : accountName);
-    }
-
-    /**
-     * 人人都是产品经理先确认进入写作页，再用账号 ID 请求个人资料；主页内容不算登录。
-     *
-     * @param context 当前浏览器上下文
-     * @param response 写作页响应
-     * @return 登录结论
-     */
-    private AccountProbe probeWoshipmAccount(BrowserContext context, APIResponse response) {
-        // 1. 确认写作页地址并提取当前用户标识，公开主页不是登录证据
-        if (!response.url().contains("/writing")) {
-            return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
-        }
-        Matcher account = WOSHIPM_ACCOUNT.matcher(new String(response.body(), StandardCharsets.UTF_8));
-        if (!account.find()) return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
-        // 2. 继续请求个人资料，HTTP 和业务码均成功后才读取账号
-        APIResponse profile = context.request().get("https://www.woshipm.com/api2/user/profile?uid=" + account.group(1),
-                RequestOptions.create().setTimeout(10_000).setHeader("X-Requested-With", "XMLHttpRequest"));
-        if (!profile.ok()) return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
-        Object profileResponse = JSON.parseObject(new String(profile.body(), StandardCharsets.UTF_8));
-        if ((int) readAccountNumber(profileResponse, "$.CODE", -1) != 200) {
-            return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
-        }
-        // 3. 资料账号必须与写作页标识一致，避免把其他作者资料当成当前会话
-        Object user = JSONPath.eval(profileResponse, "$.RESULT.userInfoVo");
-        String accountId = readAccountText(user, "$.uid", "");
-        String accountName = readAccountText(user, "$.nickName", "");
-        return accountId.isBlank() || !accountId.equals(account.group(1))
                 ? new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null)
                 : new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
                         accountName.isBlank() ? accountId : accountName);

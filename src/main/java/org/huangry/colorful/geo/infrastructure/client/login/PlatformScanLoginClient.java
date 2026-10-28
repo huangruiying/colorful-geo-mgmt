@@ -58,6 +58,8 @@ public class PlatformScanLoginClient {
     private static final Pattern DAYU_TOKEN = Pattern.compile("\\butoken\\s*:\\s*['\"]([^'\"]+)['\"]");
     private static final Pattern DAYU_ACCOUNT_ID = Pattern.compile("\\bwmid\\s*:\\s*['\"]?([0-9]+)");
     private static final Pattern DAYU_ACCOUNT_NAME = Pattern.compile("\\bweMediaName\\s*:\\s*['\"]([^'\"]+)['\"]");
+    private static final Pattern WOSHIPM_ACCOUNT = Pattern.compile(
+            "var\\s+userSettings\\s*=\\s*\\{[^}]*\"uid\"\\s*:\\s*\"(\\d+)\"");
     private static final Pattern DOUYIN_PAGE_ACCOUNT_ID = Pattern.compile("抖音号\\s*[：:]\\s*([A-Za-z0-9._-]{3,32})");
     private static final String CSDN_ACCOUNT_URL = "https://bizapi.csdn.net/blog-console-api/v1/user/info";
     private static final QrLoginSite CSDN_WECHAT_SITE = new QrLoginSite(
@@ -109,6 +111,12 @@ public class PlatformScanLoginClient {
                     "https://zhiyou.smzdm.com/user/login/window/",
                     "canvas.login-container__qrcode-real", ".login-container__qrcode-content",
                     "https://zhiyou.smzdm.com/user/info/jsonp_get_current")),
+            // 人人都是产品经理微信登录页直接展示公众号二维码，扫码后由本站轮询结果并跳回主站。
+            Map.entry(PublicationPlatformType.WOSHIPM, new QrLoginSite(
+                    "https://passport.woshipm.com/user/wechatServiceLogin.html?FS=PM&REDIRECT=https://www.woshipm.com/",
+                    "img[src^='https://mp.weixin.qq.com/cgi-bin/showqrcode']",
+                    "img[src^='https://mp.weixin.qq.com/cgi-bin/showqrcode']",
+                    "https://www.woshipm.com/writing")),
             Map.entry(PublicationPlatformType.EASTMONEY, new QrLoginSite(
                     "https://mp.eastmoney.com/", "#qrcode", "#qrcode",
                     "https://caifuhaoapi.eastmoney.com/api/v2/getauthorinfo")));
@@ -533,6 +541,9 @@ public class PlatformScanLoginClient {
             if (platform == PublicationPlatformType.DAYU) {
                 return parseDayuAccountHtml(response.url(), new String(response.body(), StandardCharsets.UTF_8));
             }
+            if (platform == PublicationPlatformType.WOSHIPM) {
+                return probeWoshipmAccount(context, response);
+            }
             return parseAccountResponse(platform, JSON.parseObject(new String(response.body(), StandardCharsets.UTF_8)));
         } catch (JSONException | PlaywrightException exception) {
             log.debug("扫码平台账号核验暂时无法确认，platformType={} errorType={}",
@@ -589,6 +600,38 @@ public class PlatformScanLoginClient {
             log.debug("东方财富创作平台账号核验暂时无法确认，errorType={}", exception.getClass().getSimpleName());
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
+    }
+
+    /**
+     * 人人都是产品经理先确认进入写作页，再用账号 ID 请求个人资料；主页内容不算登录。
+     *
+     * @param context 当前浏览器上下文
+     * @param response 写作页响应
+     * @return 登录结论
+     */
+    private AccountProbe probeWoshipmAccount(BrowserContext context, APIResponse response) {
+        // 1. 确认写作页地址并提取当前用户标识，公开主页不是登录证据
+        if (!response.url().contains("/writing")) {
+            return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
+        }
+        Matcher account = WOSHIPM_ACCOUNT.matcher(new String(response.body(), StandardCharsets.UTF_8));
+        if (!account.find()) return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
+        // 2. 继续请求个人资料，HTTP 和业务码均成功后才读取账号
+        APIResponse profile = context.request().get("https://www.woshipm.com/api2/user/profile?uid=" + account.group(1),
+                RequestOptions.create().setTimeout(10_000).setHeader("X-Requested-With", "XMLHttpRequest"));
+        if (!profile.ok()) return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
+        Object profileResponse = JSON.parseObject(new String(profile.body(), StandardCharsets.UTF_8));
+        if ((int) readAccountNumber(profileResponse, "$.CODE", -1) != 200) {
+            return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
+        }
+        // 3. 资料账号必须与写作页标识一致，避免把其他作者资料当成当前会话
+        Object user = JSONPath.eval(profileResponse, "$.RESULT.userInfoVo");
+        String accountId = readAccountText(user, "$.uid", "");
+        String accountName = readAccountText(user, "$.nickName", "");
+        return accountId.isBlank() || !accountId.equals(account.group(1))
+                ? new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null)
+                : new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
+                        accountName.isBlank() ? accountId : accountName);
     }
 
     /**

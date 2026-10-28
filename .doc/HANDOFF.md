@@ -2,6 +2,23 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：移除豆瓣、雪球（2026-10-29）
+
+- 从 `PublicationPlatformType` 删除 `DOUBAN`、`XUEQIU`；这两个平台没有登录和发布实现。
+- 测试调整：`PlatformBrowserLoginServiceTest` 的“未接入平台”用例改用 `CTO_51`；`browser-login.test.cjs` 的样例平台名改为 51CTO。
+- 验证：
+  - Java 全量测试只有既有的 `LLMStrategyRouterTest` 失败。
+  - `browser-login.test.cjs` 13 项中 9 项失败；在 HEAD 版本上也是同样的 9 项失败，为既有问题，与本次无关，未处理。
+- 未提交。
+
+## 当前交接：人人都是产品经理改为微信扫码（2026-10-29）
+
+- 用户要求只用微信扫码，不要账号密码。本站微信登录页 `passport.woshipm.com/user/wechatServiceLogin.html` 直接展示公众号二维码（`mp.weixin.qq.com/cgi-bin/showqrcode`），扫码后由页面轮询结果并跳回主站，属于原站扫码，不走第三方授权。
+- 改动：
+  - 站点配置和账号核验 `probeWoshipmAccount`（写作页 uid → 个人资料 uid 一致）整段从 `PlatformAccountLoginClient` 移到 `PlatformScanLoginClient`，核验规则不变。
+  - 删除密码填写分支；页面扫码提示为“微信”，`browser-login.js` 版本改为 `20261029-login2`；`config/browser-login.md` 同步。
+- 验证：全量测试 423 项，422 项通过，唯一失败为既有的 `LLMStrategyRouterTest`；新增登录方式只剩扫码的用例。未做真实扫码，核验接口也没有用真实扫码会话核对过。微信未绑定账号时，站点会跳到绑定页，需要先在官网绑定。未提交。
+
 ## 当前交接：移除语雀平台（2026-10-29）
 
 - 用户要求删除语雀：`PublicationPlatformType.YUQUE`，表单登录站点与 `parseYuqueAccount`，第三方微信授权入口及协议勾选，页面协议链接，以及相关单测和 `config/browser-login.md` 中的提及，都已删除。`browser-login.js` 版本改为 `20261029-login1`。

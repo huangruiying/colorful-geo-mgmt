@@ -145,6 +145,17 @@ class PlatformBrowserLoginServiceTest {
                 PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ), zhihu.scanMethods());
     }
 
+    /** 人人都是产品经理只用本站微信公众号二维码登录，不再展示账号密码表单。 */
+    @Test
+    void woshipmListsOnlyNativeWechatScan() {
+        var woshipm = service.listPlatforms().stream()
+                .filter(platform -> platform.platformType().equals("WOSHIPM")).findFirst().orElseThrow();
+
+        assertTrue(woshipm.supported());
+        assertEquals(java.util.List.of("qr"), woshipm.loginMethods());
+        assertEquals(java.util.List.of(PlatformScanLoginMethod.PLATFORM_APP), woshipm.scanMethods());
+    }
+
     /** 东方财富原生 App 码与微信、QQ 授权都通过扫码入口展示。 */
     @Test
     void eastmoneyListsConfirmedScanMethods() {
@@ -256,6 +267,6 @@ class PlatformBrowserLoginServiceTest {
     @Test
     void unsupportedPlatformIsRejected() {
         assertThrows(PlatformBrowserLoginException.class, () -> service.startLogin(
-                PublicationPlatformType.DOUBAN, PlatformScanLoginMethod.PLATFORM_APP, false));
+                PublicationPlatformType.CTO_51, PlatformScanLoginMethod.PLATFORM_APP, false));
     }
 }
