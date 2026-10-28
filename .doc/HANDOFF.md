@@ -7,7 +7,8 @@
   - `geo_diagnosis_task` 加 `idx_diagnosis_task_project (project_id)`：项目删除按 `project_id OR plan_id IN` 加锁查任务，原来扫全表并锁所有项目的任务；导出同口径受益。
 - 其余查询核对后现有索引已覆盖；名称 `LIKE '%x%'` 用不上索引，表小未处理。
 - 验证：`GeoProjectInfoServiceDeleteProjectTest` 4 项、`ProjectInfoImportExportServiceTest` 11 项通过（H2 转换会去掉普通 KEY，只证明 DDL 仍可解析）。
-- 限制：未在 MySQL 上执行 024，未看 `EXPLAIN`；服务器已有库需手工执行 024（在线 DDL，无需停服务）。未提交。
+- 限制：未看 `EXPLAIN`。
+- 2026-10-29 用户确认删除 002～024 全部增量脚本，`db/mysql` 只保留 `001_init.sql`（完整最新结构，已含上述两条索引）；`deploy/独立部署mysql/README.md`、`生产部署SOP.md`、`config/browser-login.md` 已改为只引用 001。`.doc/` 设计文档中的旧脚本名为历史记录未改。旧脚本可从 git 历史找回；服务器库是否已加这两条索引以 `SHOW INDEX` 为准，未加时手工执行两句 `ALTER TABLE ... ADD KEY`。未提交。
 
 ## 当前交接：项目删除（2026-10-27）
 
