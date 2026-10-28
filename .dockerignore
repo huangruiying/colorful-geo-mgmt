@@ -1,0 +1,10 @@
+.git
+.idea
+.vscode
+.claude
+.doc
+.test
+target
+deploy/.env
+**/*.log
+**/.DS_Store

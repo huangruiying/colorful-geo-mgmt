@@ -33,6 +33,7 @@ hs_err_pid*
 # target
 target/
 deploy/.env
+output/
 
 # iml
 *.iml

@@ -4,7 +4,7 @@
 
 ## 首次启用
 
-1. 全新数据库执行 `db/mysql/004_platform_browser_login.sql`；如果已执行旧版 004，则备份该表后执行 `db/mysql/005_simplify_platform_browser_login.sql`。旧版密文记录保留，但需要重新扫码才能写入可用会话。
+1. 登录表 `platform_browser_login` 由 `db/mysql/001_init.sql` 创建，空库初始化后即可使用。
 2. 安装与项目 Playwright Java 版本一致的 Chromium 及运行依赖。当前父 POM 固定 Playwright `1.58.0`；Linux 部署需要对应系统依赖，不要只复制本机浏览器目录。
 3. 启动 Java 服务并打开 `/admin/browser-login.html`。页面按平台展示已经核对过的入口：知乎支持扫码、短信和密码；微信公众号、掘金、微博、哔哩哔哩、今日头条、小红书、抖音、大鱼号支持扫码；简书、博客园、百度百家号、开源中国、思否、慕课网、网易号、人人都是产品经理、搜狐号支持部分或全部表单方式。其余枚举平台暂显示“待接入”，不因为能打开网站就开放按钮。
 

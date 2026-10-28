@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-    const version = "20261017-http1";
+    const version = "20261027-delete1";
     const request = window.AdminHttp.requestJson;
     const error = document.getElementById("project-error");
     const showError = message => { error.textContent = message; error.hidden = !message; };
@@ -56,7 +56,9 @@
                 const date = document.createElement("td"); date.textContent = new Date(project.createdAt).toLocaleString("zh-CN"); row.append(date);
                 const action = document.createElement("td"), button = document.createElement("button");
                 button.className = "text-button"; button.type = "button"; button.textContent = "查看信息"; button.addEventListener("click", () => showDetail(project));
-                action.append(button); row.append(action); rows.append(row);
+                const remove = document.createElement("button");
+                remove.className = "text-button"; remove.type = "button"; remove.textContent = "删除"; remove.addEventListener("click", () => deleteProject(project, remove));
+                action.append(button, remove); row.append(action); rows.append(row);
             }
             if (!result.items.length) {
                 const row = document.createElement("tr"), cell = document.createElement("td"); cell.colSpan = 6; cell.className = "table-message";
@@ -67,6 +69,20 @@
             previous.disabled = page === 0; next.disabled = (page + 1) * 20 >= result.total;
         } catch (failure) { showError(failure.message); document.getElementById("project-total").textContent = "加载失败"; }
         finally { loading = false; }
+    }
+    /** 二次确认后删除项目及其全部诊断数据；执行中的任务和报告也会被删除，删除后回到当前页刷新。 */
+    async function deleteProject(project, button) {
+        const message = `确定删除项目 #${project.id}（${project.name}）吗？\n将同时删除该项目的诊断方案、诊断任务、诊断结果、诊断报告和回答分析，执行中的任务和报告也会被删除，删除后无法恢复。\n如需保留，请先在“数据导入导出”中导出。`;
+        if (loading || !window.confirm(message)) return;
+        button.disabled = true; showError("");
+        const notice = document.getElementById("project-success");
+        try {
+            await request(`/projects/${encodeURIComponent(project.id)}`, {method: "DELETE"});
+            // 删除的是当前页最后一条时回到上一页，避免停留在空页
+            if (rows.children.length === 1 && page > 0) page--;
+            await loadProjects();
+            notice.textContent = `项目 #${project.id}（${project.name}）及其诊断数据已删除`; notice.hidden = false;
+        } catch (failure) { showError(`删除失败：${failure.message}`); button.disabled = false; }
     }
     document.getElementById("project-search").addEventListener("submit", event => {
         event.preventDefault(); if (loading) return; keyword = document.getElementById("keyword").value.trim(); page = 0; loadProjects();

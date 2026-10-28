@@ -7,7 +7,9 @@ import org.huangry.colorful.geo.application.project.model.CreateProjectRequest;
 import org.huangry.colorful.geo.application.project.model.ProjectInfoResponse;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 项目管理接口；POST 创建基础档案，GET 分页查询，不管理监测或分析任务。 */
+/** 项目管理接口；POST 创建基础档案，GET 分页查询，DELETE 删除项目及其全部诊断数据，不管理监测或分析任务。 */
 @RestController
 @RequestMapping("projects")
 @Slf4j
@@ -45,5 +47,16 @@ public class MgmtProjectInfoController {
                                         @RequestParam(value = "page", defaultValue = "0") int page,
                                         @RequestParam(value = "size", defaultValue = "20") int size) {
         return projectBusiness.listProjects(keyword, page, size);
+    }
+
+    /**
+     * 删除项目及其全部诊断方案、任务、诊断结果、报告和回答分析，执行中的任务和报告一并删除。
+     *
+     * @param id 项目 ID
+     */
+    @DeleteMapping("{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteProject(@PathVariable("id") long id) {
+        projectBusiness.deleteProject(id);
     }
 }

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 仅供 deploy/Dockerfile 镜像内构建使用；本地开发沿用 IDE 的 Maven 配置。 -->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+    <mirrors>
+        <!-- 服务器在国内，直连 Maven Central 下载极慢；阿里云镜像完整代理 Central，依赖与插件都从这里取 -->
+        <mirror>
+            <id>aliyun</id>
+            <mirrorOf>*</mirrorOf>
+            <name>Aliyun Maven Mirror</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </mirror>
+    </mirrors>
+</settings>

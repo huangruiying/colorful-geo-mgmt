@@ -1,6 +1,6 @@
 # Linux 一键部署
 
-服务器需安装 Docker Engine 和 Compose v2，上传整个项目（不能只上传 deploy）。宿主机无需安装 Java、Maven 或浏览器；构建需要访问镜像仓库、Maven Central、Ubuntu 软件源和 Playwright 下载源。
+服务器需安装 Docker Engine 和 Compose v2，上传整个项目（不能只上传 deploy）。宿主机无需安装 Java、Maven 或浏览器；构建需要访问镜像仓库、阿里云 Maven 镜像、Ubuntu 软件源和 Playwright 下载源。
 
 ## 首次启动
 
@@ -26,6 +26,8 @@ docker compose -f "$DOCKER_DIR/docker-compose.yaml" --env-file "$DOCKER_DIR/.env
 docker compose -f "$DOCKER_DIR/docker-compose.yaml" --env-file "$DOCKER_DIR/.env" logs --tail=100 -f app
 docker compose -f "$DOCKER_DIR/docker-compose.yaml" --env-file "$DOCKER_DIR/.env" down
 ```
+
+Maven 依赖从 `deploy/maven-settings.xml` 配置的阿里云镜像下载，并保存在 Docker 构建缓存中：首次构建需下载全部依赖，之后只改代码的重建直接复用。缓存依赖 BuildKit（Compose v2 默认启用）；执行 `docker builder prune` 会清掉缓存，下次构建重新下载。
 
 数据库保存在 `colorful-geo-mgmt_mysql-data` 命名卷，更新和普通 down 保留数据。**不要执行 `down -v`，会删除数据库。** 初始化 SQL 只对空卷执行，已有库结构升级需要执行对应迁移脚本。初始化后更改 `.env` 数据库密码不会更改数据库账号，必须先在数据库完成密码变更。
 

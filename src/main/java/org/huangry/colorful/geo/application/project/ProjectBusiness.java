@@ -9,7 +9,7 @@ import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.project.GeoProjectInfoService;
 import org.springframework.stereotype.Service;
 
-/** 项目应用编排；创建输入转换与列表分页在此处理，资料规则由项目领域服务负责。 */
+/** 项目应用编排；创建输入转换、列表分页与删除入口在此处理，资料规则及删除范围由项目领域服务负责。 */
 @Service
 public class ProjectBusiness {
     @Resource
@@ -53,6 +53,16 @@ public class ProjectBusiness {
             .toList();
         long total = projectService.countProjects(pageQuery.keyword());
         return pageQuery.toResponse(items, total);
+    }
+
+    /**
+     * 删除项目及其全部诊断方案、任务、诊断结果、报告和回答分析，执行中的任务和报告一并删除。
+     *
+     * @param projectId 项目 ID
+     * @throws java.util.NoSuchElementException 项目不存在
+     */
+    public void deleteProject(long projectId) {
+        projectService.deleteProject(projectId);
     }
 
     /** 显式转换接口字段，持久化实体只在内部流转。 */
