@@ -1,7 +1,5 @@
 package org.huangry.colorful.geo.infrastructure.client.login;
 
-import org.huangry.colorful.geo.infrastructure.client.playwright.PlaywrightBrowserComponent;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.alibaba.fastjson.JSON;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginStatus;
@@ -15,23 +13,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** 扫码平台账号响应的状态判定测试；不启动浏览器或访问真实账号。 */
 class QrPlatformPlaywrightLoginClientTest {
 
-    private final QrPlatformPlaywrightLoginClient client = new QrPlatformPlaywrightLoginClient();
+    private final PlatformScanLoginClient client = new PlatformScanLoginClient();
 
     /** 只有含扫码页及账号核验规则的平台才开放独立登录入口。 */
     @Test
     void 仅已实现的扫码平台显示登录入口() {
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.JUEJIN));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.WEIBO));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.WECHAT_OFFICIAL_ACCOUNT));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.BILIBILI));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.TOUTIAO));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.XIAOHONGSHU));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.DOUYIN));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.DAYU));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.CSDN));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.SMZDM));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.EASTMONEY));
-        assertFalse(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.YUQUE));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.JUEJIN));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.WEIBO));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.WECHAT_OFFICIAL_ACCOUNT));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.BILIBILI));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.TOUTIAO));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.XIAOHONGSHU));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.DOUYIN));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.DAYU));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.CSDN));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.SMZDM));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.EASTMONEY));
+        assertFalse(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.YUQUE));
     }
 
     /** 东方财富只接受创作平台返回的作者 ID 与昵称，不把业务成功码单独当成登录。 */

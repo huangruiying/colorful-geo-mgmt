@@ -1,7 +1,5 @@
 package org.huangry.colorful.geo.infrastructure.client.login;
 
-import org.huangry.colorful.geo.infrastructure.client.playwright.PlaywrightBrowserComponent;
-
 import com.alibaba.fastjson.JSON;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformType;
@@ -19,20 +17,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class FormPlatformPlaywrightLoginClientTest {
 
-    private final FormPlatformPlaywrightLoginClient client = new FormPlatformPlaywrightLoginClient();
+    private final PlatformAccountLoginClient client = new PlatformAccountLoginClient();
 
     /** 简书只开放已核对的密码入口。 */
     @Test
     void 简书只有密码登录() {
-        assertTrue(FormPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.JIANSHU));
-        assertFalse(FormPlatformPlaywrightLoginClient.supportsSmsLogin(PublicationPlatformType.JIANSHU));
+        assertTrue(PlatformAccountLoginClient.supportsPlatform(PublicationPlatformType.JIANSHU));
+        assertFalse(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.JIANSHU));
     }
 
     /** 语雀第三方授权只在服务端页面明确给出用户 ID 后才可保存会话。 */
     @Test
     void 语雀账号核验不把匿名默认头像判为登录() {
-        assertTrue(FormPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.YUQUE));
-        assertFalse(FormPlatformPlaywrightLoginClient.supportsSmsLogin(PublicationPlatformType.YUQUE));
+        assertTrue(PlatformAccountLoginClient.supportsPlatform(PublicationPlatformType.YUQUE));
+        assertFalse(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.YUQUE));
         String anonymous = yuquePage("{\"me\":{\"avatar_url\":\"default.png\"}}");
         String loggedIn = yuquePage("{\"me\":{\"id\":42,\"name\":\"作者\"}}");
 
@@ -44,8 +42,8 @@ class FormPlatformPlaywrightLoginClientTest {
     /** 一点号无媒体标识时不把普通统计响应判为已登录。 */
     @Test
     void 一点号账号核验要求媒体标识和名称() throws Exception {
-        assertTrue(FormPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.YIDIAN));
-        assertFalse(FormPlatformPlaywrightLoginClient.supportsSmsLogin(PublicationPlatformType.YIDIAN));
+        assertTrue(PlatformAccountLoginClient.supportsPlatform(PublicationPlatformType.YIDIAN));
+        assertFalse(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.YIDIAN));
         assertEquals(PlatformBrowserLoginStatus.UNKNOWN, client.parseYidianAccount(
                 JSON.parseObject("{\"code\":0,\"result\":{}}")).status());
         assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, client.parseYidianAccount(
@@ -61,11 +59,11 @@ class FormPlatformPlaywrightLoginClientTest {
     /** 已核对的平台页面存在短信入口。 */
     @Test
     void 博客园和百家号支持短信登录() {
-        assertTrue(FormPlatformPlaywrightLoginClient.supportsSmsLogin(PublicationPlatformType.CNBLOGS));
-        assertTrue(FormPlatformPlaywrightLoginClient.supportsSmsLogin(PublicationPlatformType.BAIJIAHAO));
-        assertTrue(FormPlatformPlaywrightLoginClient.supportsSmsLogin(PublicationPlatformType.OSCHINA));
-        assertTrue(FormPlatformPlaywrightLoginClient.supportsSmsLogin(PublicationPlatformType.SEGMENTFAULT));
-        assertFalse(FormPlatformPlaywrightLoginClient.supportsPasswordLogin(PublicationPlatformType.SEGMENTFAULT));
+        assertTrue(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.CNBLOGS));
+        assertTrue(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.BAIJIAHAO));
+        assertTrue(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.OSCHINA));
+        assertTrue(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.SEGMENTFAULT));
+        assertFalse(PlatformAccountLoginClient.supportsPasswordLogin(PublicationPlatformType.SEGMENTFAULT));
     }
 
     /** 简书仅在响应中同时有账号标识和昵称时认定登录。 */

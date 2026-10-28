@@ -1,9 +1,9 @@
 package org.huangry.colorful.geo.domain.service.login;
 
-import org.huangry.colorful.geo.infrastructure.client.login.FormPlatformPlaywrightLoginClient;
+import org.huangry.colorful.geo.infrastructure.client.login.PlatformAccountLoginClient;
 import org.huangry.colorful.geo.infrastructure.client.login.PlatformBrowserLoginRouter;
-import org.huangry.colorful.geo.infrastructure.client.login.PlatformThirdPartyLoginClient;
-import org.huangry.colorful.geo.infrastructure.client.login.QrPlatformPlaywrightLoginClient;
+import org.huangry.colorful.geo.infrastructure.client.login.PlatformThirdPartyScanLoginClient;
+import org.huangry.colorful.geo.infrastructure.client.login.PlatformScanLoginClient;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginTaskStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.DouyinIdentityVerificationMethod;
@@ -30,17 +30,17 @@ import static org.mockito.Mockito.when;
 class PlatformBrowserLoginServiceTest {
 
     private PlatformBrowserLoginDao dao;
-    private QrPlatformPlaywrightLoginClient qrClient;
-    private FormPlatformPlaywrightLoginClient formClient;
-    private PlatformThirdPartyLoginClient thirdPartyClient;
+    private PlatformScanLoginClient qrClient;
+    private PlatformAccountLoginClient formClient;
+    private PlatformThirdPartyScanLoginClient thirdPartyClient;
     private PlatformBrowserLoginService service;
 
     @BeforeEach
     void setUp() {
         dao = mock(PlatformBrowserLoginDao.class);
-        qrClient = mock(QrPlatformPlaywrightLoginClient.class);
-        formClient = mock(FormPlatformPlaywrightLoginClient.class);
-        thirdPartyClient = mock(PlatformThirdPartyLoginClient.class);
+        qrClient = mock(PlatformScanLoginClient.class);
+        formClient = mock(PlatformAccountLoginClient.class);
+        thirdPartyClient = mock(PlatformThirdPartyScanLoginClient.class);
         when(qrClient.handlesScanMethod(any(), any())).thenAnswer(invocation -> {
             PublicationPlatformType platform = invocation.getArgument(0);
             PlatformScanLoginMethod method = invocation.getArgument(1);
@@ -56,7 +56,7 @@ class PlatformBrowserLoginServiceTest {
     @Test
     void zhihuAppUsesQrClient() {
         when(qrClient.startLogin(PublicationPlatformType.ZHIHU))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "qr", null));
 
         var result = service.startLogin(PublicationPlatformType.ZHIHU,
@@ -73,7 +73,7 @@ class PlatformBrowserLoginServiceTest {
         for (PlatformScanLoginMethod method : new PlatformScanLoginMethod[] {
                 PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ }) {
             when(thirdPartyClient.startLogin(PublicationPlatformType.ZHIHU, method, false))
-                    .thenReturn(new PlatformThirdPartyLoginClient.BrowserLoginSnapshot(
+                    .thenReturn(new PlatformThirdPartyScanLoginClient.BrowserLoginSnapshot(
                             PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "social", null));
 
             assertEquals("social", service.startLogin(PublicationPlatformType.ZHIHU, method, false)
@@ -87,11 +87,11 @@ class PlatformBrowserLoginServiceTest {
     @Test
     void zhihuFormSubmissionDoesNotSaveSession() {
         when(formClient.requestSmsCode(PublicationPlatformType.ZHIHU, "13800138000", false))
-                .thenReturn(new FormPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformAccountLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, null));
         when(formClient.submitPasswordLogin(PublicationPlatformType.ZHIHU,
                 "user@example.com", "password", false))
-                .thenReturn(new FormPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformAccountLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, null));
 
         service.requestSmsCode(PublicationPlatformType.ZHIHU, "13800138000", false);
@@ -106,7 +106,7 @@ class PlatformBrowserLoginServiceTest {
     void activeZhihuQrLoginSavesConfirmedSession() {
         when(qrClient.isActiveFor(PublicationPlatformType.ZHIHU)).thenReturn(true);
         when(qrClient.readLoginProgress(PublicationPlatformType.ZHIHU))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGGED_IN, "见微", null, "state"));
 
         assertEquals(PlatformBrowserLoginTaskStatus.LOGGED_IN,
@@ -123,7 +123,7 @@ class PlatformBrowserLoginServiceTest {
         when(dao.findByPlatform("ZHIHU")).thenReturn(saved);
         when(qrClient.isActiveFor(PublicationPlatformType.ZHIHU)).thenReturn(true);
         when(qrClient.readLoginProgress(PublicationPlatformType.ZHIHU))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.NOT_STARTED, null, null, null));
 
         assertEquals(PlatformBrowserLoginTaskStatus.NOT_STARTED,
@@ -185,7 +185,7 @@ class PlatformBrowserLoginServiceTest {
     void juejinQrLoginKeepsItsOwnAccount() {
         when(qrClient.isActiveFor(PublicationPlatformType.JUEJIN)).thenReturn(true);
         when(qrClient.readLoginProgress(PublicationPlatformType.JUEJIN))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGGED_IN, "掘金作者", null, "juejin-state"));
 
         assertEquals(PlatformBrowserLoginTaskStatus.LOGGED_IN,
@@ -198,7 +198,7 @@ class PlatformBrowserLoginServiceTest {
     void pendingQrLoginDoesNotSaveSession() {
         when(qrClient.isActiveFor(PublicationPlatformType.ZHIHU)).thenReturn(true);
         when(qrClient.readLoginProgress(PublicationPlatformType.ZHIHU))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "image", null));
 
         service.readLoginProgress(PublicationPlatformType.ZHIHU);
@@ -211,11 +211,11 @@ class PlatformBrowserLoginServiceTest {
     void douyinVerificationRemainsPendingUntilAccountIsConfirmed() {
         when(qrClient.isActiveFor(PublicationPlatformType.DOUYIN)).thenReturn(true);
         when(qrClient.readLoginProgress(PublicationPlatformType.DOUYIN))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "verification-page", null,
                         PlatformLoginInteractionStage.DOUYIN_IDENTITY_VERIFICATION));
         when(qrClient.selectDouyinVerificationMethod(DouyinIdentityVerificationMethod.RECEIVE_SMS))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "sms-page", null,
                         PlatformLoginInteractionStage.DOUYIN_SMS_CODE));
 
@@ -240,7 +240,7 @@ class PlatformBrowserLoginServiceTest {
     void thirdPartyResultSavesTargetPlatformOnly() {
         when(thirdPartyClient.isActiveFor(PublicationPlatformType.JIANSHU)).thenReturn(true);
         when(thirdPartyClient.readLoginProgress(PublicationPlatformType.JIANSHU))
-                .thenReturn(new PlatformThirdPartyLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformThirdPartyScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGGED_IN, "简书作者", null, "jianshu-state"));
 
         service.readLoginProgress(PublicationPlatformType.JIANSHU);
@@ -255,7 +255,7 @@ class PlatformBrowserLoginServiceTest {
         saved.setStorageState("{\"cookies\":[]}");
         when(dao.findByPlatform("ZHIHU")).thenReturn(saved);
         when(formClient.verifySavedLogin(PublicationPlatformType.ZHIHU, saved.getStorageState()))
-                .thenReturn(new FormPlatformPlaywrightLoginClient.AccountProbe(
+                .thenReturn(new PlatformAccountLoginClient.AccountProbe(
                         PlatformBrowserLoginStatus.UNKNOWN, null));
 
         assertEquals(PlatformBrowserLoginStatus.UNKNOWN,

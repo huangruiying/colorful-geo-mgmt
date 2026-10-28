@@ -49,7 +49,7 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Component
-public class QrPlatformPlaywrightLoginClient {
+public class PlatformScanLoginClient {
 
     private static final Duration LOGIN_LIFETIME = Duration.ofMinutes(10);
     private static final Pattern WECHAT_TOKEN = Pattern.compile("\\bt:\\s*['\"]([0-9]+)['\"]");

@@ -15,24 +15,24 @@ class PlatformThirdPartyLoginClientTest {
     @Test
     void 只展示已接入的微信和QQ登录方式() {
         assertEquals(List.of(PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ),
-                PlatformThirdPartyLoginClient.listScanMethods(PublicationPlatformType.JIANSHU));
+                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.JIANSHU));
         assertEquals(List.of(PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ),
-                PlatformThirdPartyLoginClient.listScanMethods(PublicationPlatformType.CNBLOGS));
+                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.CNBLOGS));
         assertEquals(List.of(),
-                PlatformThirdPartyLoginClient.listScanMethods(PublicationPlatformType.WECHAT_OFFICIAL_ACCOUNT));
+                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.WECHAT_OFFICIAL_ACCOUNT));
         assertEquals(List.of(),
-                PlatformThirdPartyLoginClient.listScanMethods(PublicationPlatformType.SEGMENTFAULT));
+                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.SEGMENTFAULT));
         assertEquals(List.of(PlatformScanLoginMethod.QQ),
-                PlatformThirdPartyLoginClient.listScanMethods(PublicationPlatformType.SMZDM));
+                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.SMZDM));
         assertEquals(List.of(PlatformScanLoginMethod.QQ),
-                PlatformThirdPartyLoginClient.listScanMethods(PublicationPlatformType.CSDN));
+                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.CSDN));
         assertEquals(List.of(PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ),
-                PlatformThirdPartyLoginClient.listScanMethods(PublicationPlatformType.SOHU));
+                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.SOHU));
         assertEquals(List.of(PlatformScanLoginMethod.WECHAT),
-                PlatformThirdPartyLoginClient.listScanMethods(PublicationPlatformType.YUQUE));
+                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.YUQUE));
         assertEquals(List.of(PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ),
-                PlatformThirdPartyLoginClient.listScanMethods(PublicationPlatformType.EASTMONEY));
+                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.EASTMONEY));
         assertEquals(List.of(PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ),
-                PlatformThirdPartyLoginClient.listScanMethods(PublicationPlatformType.YIDIAN));
+                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.YIDIAN));
     }
 }

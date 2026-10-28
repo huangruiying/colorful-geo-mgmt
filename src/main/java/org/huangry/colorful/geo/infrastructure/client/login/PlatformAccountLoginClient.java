@@ -43,7 +43,7 @@ import java.util.regex.Pattern;
  * 只在平台账号响应明确给出身份时导出会话，不接管内容发布。
  */
 @Component
-public class FormPlatformPlaywrightLoginClient {
+public class PlatformAccountLoginClient {
 
     private static final Duration LOGIN_LIFETIME = Duration.ofMinutes(10);
     private static final Pattern CNBLOGS_ACCOUNT = Pattern.compile("href=\"/u/([^/\"]+)/\"");

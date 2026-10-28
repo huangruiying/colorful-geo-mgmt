@@ -38,7 +38,7 @@ import java.util.function.Function;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class PlatformThirdPartyLoginClient {
+public class PlatformThirdPartyScanLoginClient {
 
     private static final Duration LOGIN_LIFETIME = Duration.ofMinutes(10);
     private static final Map<LoginKey, LoginEntry> LOGIN_ENTRIES = Map.ofEntries(
@@ -77,8 +77,8 @@ public class PlatformThirdPartyLoginClient {
             entry(PublicationPlatformType.SMZDM, PlatformScanLoginMethod.QQ,
                     ".login-container__social-item:has-text('QQ 登录')"));
 
-    private final FormPlatformPlaywrightLoginClient formClient;
-    private final QrPlatformPlaywrightLoginClient qrClient;
+    private final PlatformAccountLoginClient formClient;
+    private final PlatformScanLoginClient qrClient;
     private final PlaywrightBrowserComponent browserComponent;
     private final BrowserTaskRunner taskRunner = new BrowserTaskRunner("third-party-login-browser");
 
@@ -140,9 +140,9 @@ public class PlatformThirdPartyLoginClient {
                 activeContext = activeSession.context();
                 loginPage = activeSession.newPage();
                 loginPage.setDefaultTimeout(15_000);
-                String loginUrl = FormPlatformPlaywrightLoginClient.supportsPlatform(platform)
-                        ? FormPlatformPlaywrightLoginClient.loginUrl(platform)
-                        : QrPlatformPlaywrightLoginClient.loginUrl(platform);
+                String loginUrl = PlatformAccountLoginClient.supportsPlatform(platform)
+                        ? PlatformAccountLoginClient.loginUrl(platform)
+                        : PlatformScanLoginClient.loginUrl(platform);
                 loginPage.navigate(loginUrl, new Page.NavigateOptions()
                         .setWaitUntil(WaitUntilState.DOMCONTENTLOADED).setTimeout(20_000));
                 if (platform == PublicationPlatformType.YIDIAN) {
@@ -245,11 +245,11 @@ public class PlatformThirdPartyLoginClient {
      */
     private AccountProbe probeTargetAccount(PublicationPlatformType platform) {
         // 表单平台与原生扫码平台各有账号接口；第三方授权只复用其成功判定。
-        if (FormPlatformPlaywrightLoginClient.supportsPlatform(platform)) {
-            FormPlatformPlaywrightLoginClient.AccountProbe probe = formClient.probeAccount(platform, activeContext);
+        if (PlatformAccountLoginClient.supportsPlatform(platform)) {
+            PlatformAccountLoginClient.AccountProbe probe = formClient.probeAccount(platform, activeContext);
             return new AccountProbe(probe.status(), probe.accountName());
         }
-        QrPlatformPlaywrightLoginClient.AccountProbe probe = qrClient.probeAccount(platform, activeContext);
+        PlatformScanLoginClient.AccountProbe probe = qrClient.probeAccount(platform, activeContext);
         return new AccountProbe(probe.status(), probe.accountName());
     }
 
