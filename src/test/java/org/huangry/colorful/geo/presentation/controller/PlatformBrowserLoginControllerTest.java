@@ -16,6 +16,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -167,5 +168,17 @@ class PlatformBrowserLoginControllerTest {
 
         assertEquals(400, problem.getStatus());
         assertEquals(exception.getMessage(), problem.getDetail());
+        assertNull(problem.getProperties());
+    }
+
+    /** 打开登录页失败时附带的页面截图随 ProblemDetail 返回，供登录弹窗展示。 */
+    @Test
+    void 登录异常附带失败截图() {
+        PlatformBrowserLoginService service = mock(PlatformBrowserLoginService.class);
+        var exception = new PlatformBrowserLoginException("什么值得买登录页未能正常打开，请对照下方页面截图确认原因后重试", null, "cGFnZQ==");
+
+        var problem = new MgmtPlatformLoginController(service).handleLoginError(exception);
+
+        assertEquals("cGFnZQ==", problem.getProperties().get("screenshotBase64"));
     }
 }
