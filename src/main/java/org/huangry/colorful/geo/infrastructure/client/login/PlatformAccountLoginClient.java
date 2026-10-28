@@ -82,7 +82,7 @@ public class PlatformAccountLoginClient {
             Map.entry(PublicationPlatformType.YUQUE, new FormLoginSite(
                     "https://www.yuque.com/login", "https://www.yuque.com/dashboard", false, false)),
             Map.entry(PublicationPlatformType.YIDIAN, new FormLoginSite(
-                    "https://mp.yidianzixun.com/", "https://mp.yidianzixun.com/api/refact-get-main-data2",
+                    "https://mp.yidianzixun.com/", "https://mp.yidianzixun.com/model/Agreement?type=1",
                     false, false)));
 
     @Resource
@@ -466,9 +466,6 @@ public class PlatformAccountLoginClient {
             }
             APIResponse response = context.request().get(accountUrl, requestOptions);
             // 2. 先解释 HTTP 状态；知乎访问限制无法证明会话失效，其余认证拒绝才判未登录
-            if (platform == PublicationPlatformType.YIDIAN && response.status() == 204) {
-                return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
-            }
             if (platform == PublicationPlatformType.ZHIHU && response.status() == 403) {
                 return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
             }
@@ -508,23 +505,30 @@ public class PlatformAccountLoginClient {
     }
 
     /**
-     * 一点号统计接口只有在业务成功且返回媒体标识时才证明登录。
-     * @param response 平台账号响应
-     * @return 账号核验结论
+     * 一点号用户协议接口按当前会话填入签署人账号 ID，以此判断是否登录。
+     * <p>已登录时 result.userId 为正数账号 ID，未登录时为空字符串；统计接口不含账号身份，不能用于核验。
+     * 账号名取签署人名称 userName，为空时用账号 ID；手机号不读取。</p>
+     *
+     * @param response 一点号用户协议接口响应
+     * @return 已登录（签署人名称或账号 ID）、未登录，或结构不符时无法确认
      */
     AccountProbe parseYidianAccount(JSONObject response) {
-        // 先核对平台业务状态，明确未登录与无法确认分别处理
+        // 1. 未登录同样返回成功码，业务码只用于排除异常响应，不能据此判断登录状态
         if ((int) readAccountNumber(response, "$.code", -1) != 0) {
-            return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
-        }
-        // 再核验响应中的账号资料；业务成功不等于已有有效身份标识
-        Object media = JSONPath.eval(response, "$.result.media");
-        String mediaId = readAccountText(media, "$.id", "");
-        String name = readAccountText(media, "$.media_name", "");
-        if (mediaId.isBlank() || name.isBlank()) {
             return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
         }
-        return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN, name);
+        // 2. 签署人 ID 为空字符串是平台对匿名会话的明确返回
+        if ("".equals(JSONPath.eval(response, "$.result.userId"))) {
+            return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
+        }
+        // 3. 只有正数账号 ID 才确认登录；缺失或其他结构保持无法确认，名称缺失时以 ID 展示
+        long accountId = readAccountNumber(response, "$.result.userId", 0);
+        if (accountId <= 0) {
+            return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
+        }
+        String accountName = readAccountText(response, "$.result.userName", "");
+        return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
+                accountName.isBlank() ? Long.toString(accountId) : accountName);
     }
 
     /**

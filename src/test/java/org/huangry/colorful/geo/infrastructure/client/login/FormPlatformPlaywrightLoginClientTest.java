@@ -41,14 +41,25 @@ class FormPlatformPlaywrightLoginClientTest {
 
     /** 一点号无媒体标识时不把普通统计响应判为已登录。 */
     @Test
-    void 一点号账号核验要求媒体标识和名称() throws Exception {
+    void 一点号按协议接口签署人账号ID判定登录() throws Exception {
         assertTrue(PlatformAccountLoginClient.supportsPlatform(PublicationPlatformType.YIDIAN));
         assertFalse(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.YIDIAN));
-        assertEquals(PlatformBrowserLoginStatus.UNKNOWN, client.parseYidianAccount(
-                JSON.parseObject("{\"code\":0,\"result\":{}}")).status());
-        assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, client.parseYidianAccount(
-                JSON.parseObject("{\"code\":0,\"result\":{\"media\":{\"id\":123,\"media_name\":\"作者\"}}}"))
+        // 真实响应结构：已登录 userId 为数字，未登录为空字符串；姓名、手机号已脱敏
+        var loggedIn = client.parseYidianAccount(JSON.parseObject(
+                "{\"status\":\"success\",\"code\":0,\"result\":{\"type\":1,\"userName\":\"张三\","
+                        + "\"userMobile\":\"138****0000\",\"userId\":7673532}}"));
+        assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, loggedIn.status());
+        assertEquals("张三", loggedIn.accountName());
+        assertEquals("7673532", client.parseYidianAccount(JSON.parseObject(
+                "{\"code\":0,\"result\":{\"userName\":\"\",\"userId\":7673532}}")).accountName());
+        assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN, client.parseYidianAccount(JSON.parseObject(
+                "{\"status\":\"success\",\"code\":0,\"result\":{\"userName\":\"\",\"userMobile\":\"\",\"userId\":\"\"}}"))
                 .status());
+        // 统计接口那种不含签署人字段的响应，或业务码异常，都不能判为登录
+        assertEquals(PlatformBrowserLoginStatus.UNKNOWN, client.parseYidianAccount(
+                JSON.parseObject("{\"code\":0,\"result\":{\"viewSum\":0}}")).status());
+        assertEquals(PlatformBrowserLoginStatus.UNKNOWN, client.parseYidianAccount(
+                JSON.parseObject("{\"code\":1,\"result\":{\"userId\":7673532}}")).status());
     }
 
     private String yuquePage(String appData) {

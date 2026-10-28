@@ -2,6 +2,13 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：一点号登录核验修正（2026-10-29）
+
+- 问题：扫码登录成功但一直显示“无法确认”。原核验接口 `api/refact-get-main-data2` 只返回统计数据，没有账号字段，已登录也无法识别。
+- 修正：`PlatformAccountLoginClient` 改用 `model/Agreement?type=1`，按 `result.userId` 判断，正数为已登录，空字符串为未登录，其他情况为无法确认。账号名取 `result.userName`（用户确认显示名称），为空时显示 ID；不读取手机号和协议正文。删除原接口专用的 204 判定。两种返回都已用真实会话核对过。
+- 验证：登录相关单测通过，包括 `FormPlatformPlaywrightLoginClientTest` 19 项。服务需重启后重新扫码，未在页面复测。
+- 风险：其他平台的核验接口和字段大多没有用真实返回核对过，可能存在同类误判；出现“无法确认”时，按真实 curl 响应逐个修正。
+
 ## 当前交接：诊断查询索引（2026-10-28）
 
 - 新增 `db/mysql/024_diagnosis_query_indexes.sql`，同步改 `001_init.sql`：
