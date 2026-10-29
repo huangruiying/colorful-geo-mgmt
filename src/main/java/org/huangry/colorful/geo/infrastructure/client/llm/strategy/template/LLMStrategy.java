@@ -17,14 +17,20 @@ public interface LLMStrategy {
 
 
     /**
-     * 声明交互协议，供页面展示和路由识别本地模拟。
+     * 声明交互协议，供页面展示和选择对应的请求参数。
      * @return 实际请求和响应使用的协议，不代表联网能力
      */
     LLMProtocolType protocolType();
 
     /**
+     * 声明配置页面展示的策略名称，如“豆包”“通用兼容”；渠道仍按 Bean 名保存和路由。
+     * @return 策略中文名称
+     */
+    String displayName();
+
+    /**
      * 声明厂商获取 API Key 的控制台页面，供配置页面引导填写密钥；不参与调用或路由。
-     * @return 控制台地址；通用协议策略和本地模拟没有固定厂商，返回 null
+     * @return 控制台地址；通用协议策略没有固定厂商，返回 null
      */
     default String apiKeyConsoleUrl() {
         return null;

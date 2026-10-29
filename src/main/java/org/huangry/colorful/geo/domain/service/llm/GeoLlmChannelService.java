@@ -7,7 +7,6 @@ import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMS
 import java.util.Map;
 import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,9 +42,7 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
         channel.setApiKey(key == null || key.isEmpty() ? null : key);
         boolean keyConfigured = channel.getApiKey() != null
             || (existing != null && existing.getApiKey() != null && !existing.getApiKey().isBlank());
-        if (channel.getEnabled()
-                && strategies.get(channel.getStrategyBeanName()).protocolType() != LLMProtocolType.MOCK
-                && !keyConfigured)
+        if (channel.getEnabled() && !keyConfigured)
             throw new IllegalArgumentException("启用远程模型前请保存 API 密钥");
         // 3. 保存并回读，时间由数据库维护。
         boolean saved = id == null ? save(channel) : updateById(channel);
@@ -77,8 +74,7 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
         if (channel == null) throw new NoSuchElementException("模型渠道不存在");
         if (enabled && !strategies.containsKey(channel.getStrategyBeanName()))
             throw new IllegalArgumentException("调用策略 Bean 未注册，请重新选择");
-        if (enabled && strategies.get(channel.getStrategyBeanName()).protocolType() != LLMProtocolType.MOCK
-                && (channel.getApiKey() == null || channel.getApiKey().isBlank()))
+        if (enabled && (channel.getApiKey() == null || channel.getApiKey().isBlank()))
             throw new IllegalArgumentException("启用远程模型前请保存 API 密钥");
         // 仅更新状态，不使用实体的可空字段更新规则覆盖其他配置。
         if (!lambdaUpdate().eq(GeoLlmChannelEntity::getId, id)
@@ -95,7 +91,7 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
     }
 
     /**
-     * 校验并规范化渠道编码、策略、连接与参数，模拟渠道不要求远程地址。
+     * 校验并规范化渠道编码、策略、连接与参数。
      * @param channel 待保存渠道配置
      * @throws IllegalArgumentException 编码、策略、地址或参数不符合要求
      */
@@ -108,14 +104,10 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
         channel.setProviderCode(text(channel.getProviderCode(), "供应商标识", 100, true));
         channel.setStrategyBeanName(text(channel.getStrategyBeanName(), "调用策略 Bean", 100, true));
         // 2. 远程地址不允许用户凭据、查询串和片段，密钥单独保存且不回传。
-        LLMStrategy strategy = strategies.get(channel.getStrategyBeanName());
-        if (strategy == null) throw new IllegalArgumentException("调用策略 Bean 未注册，请重新选择");
-        boolean remote = strategy.protocolType() != LLMProtocolType.MOCK;
-        channel.setBaseUrl(text(channel.getBaseUrl(), "接口地址", 2048, remote));
-        channel.setModelName(text(channel.getModelName(), "模型标识", 200, remote));
-        if (remote) {
-            validateUrl(channel.getBaseUrl());
-        }
+        if (!strategies.containsKey(channel.getStrategyBeanName())) throw new IllegalArgumentException("调用策略 Bean 未注册，请重新选择");
+        channel.setBaseUrl(text(channel.getBaseUrl(), "接口地址", 2048, true));
+        channel.setModelName(text(channel.getModelName(), "模型标识", 200, true));
+        validateUrl(channel.getBaseUrl());
         // 3. 默认值与范围统一在领域层处理，页面和调用方遵循相同规则。
         if (channel.getTemperature() != null && (!Double.isFinite(channel.getTemperature())
                 || channel.getTemperature() < 0 || channel.getTemperature() > 2)) {

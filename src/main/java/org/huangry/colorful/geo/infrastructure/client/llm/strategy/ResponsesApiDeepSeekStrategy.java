@@ -17,6 +17,15 @@ import java.util.List;
  */
 @Component
 public class ResponsesApiDeepSeekStrategy extends AbstractResponsesApiStrategy {
+    /**
+     * 声明配置页面展示的策略名称。
+     * @return DeepSeek
+     */
+    @Override
+    public String displayName() {
+        return "DeepSeek";
+    }
+
     /** DeepSeek 在 open_page 地址末尾追加的工具调用标识，不属于网页地址。 */
     private static final String WEB_SEARCH_CALL_ID_MARKER = "ws_call_id=";
 

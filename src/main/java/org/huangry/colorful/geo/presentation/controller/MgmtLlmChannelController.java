@@ -22,16 +22,18 @@ public class MgmtLlmChannelController {
     @Resource
     private Map<String, LLMStrategy> strategies;
 
-    /** 页面只展示 Spring 实际注册的策略，协议和密钥获取页由策略声明。 */
+    /** 页面只展示 Spring 实际注册的策略，中文名称、协议和密钥获取页由策略声明。 */
     @GetMapping("/strategies")
     public List<StrategyOption> strategies() {
         return strategies.entrySet().stream().sorted(Map.Entry.comparingByKey())
-            .map(entry -> new StrategyOption(entry.getKey(), entry.getValue().protocolType(),
+            .map(entry -> new StrategyOption(entry.getKey(), entry.getValue().displayName(),
+                    entry.getValue().protocolType(), entry.getValue().protocolType().getDescription(),
                     entry.getValue().apiKeyConsoleUrl())).toList();
     }
 
-    /** 实际 Bean、协议及厂商 API Key 控制台地址（通用策略为 null），不携带连接或凭据。 */
-    public record StrategyOption(String beanName, LLMProtocolType protocolType, String apiKeyConsoleUrl) {}
+    /** 实际 Bean（保存值）、策略中文名称、协议及其展示名称、厂商 API Key 控制台地址（通用策略为 null），不携带连接或凭据。 */
+    public record StrategyOption(String beanName, String displayName, LLMProtocolType protocolType,
+                                 String protocolName, String apiKeyConsoleUrl) {}
 
     /** 创建共享渠道，返回数据库生成标识。 */
     @PostMapping
