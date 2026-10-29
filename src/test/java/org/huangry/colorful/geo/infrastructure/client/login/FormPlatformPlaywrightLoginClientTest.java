@@ -56,12 +56,8 @@ class FormPlatformPlaywrightLoginClientTest {
 
     /** 已核对的平台页面存在短信入口。 */
     @Test
-    void 博客园和百家号支持短信登录() {
-        assertTrue(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.CNBLOGS));
+    void 百家号支持短信登录() {
         assertTrue(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.BAIJIAHAO));
-        assertTrue(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.OSCHINA));
-        assertTrue(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.SEGMENTFAULT));
-        assertFalse(PlatformAccountLoginClient.supportsPasswordLogin(PublicationPlatformType.SEGMENTFAULT));
     }
 
     /** 简书仅在响应中同时有账号标识和昵称时认定登录。 */
@@ -70,15 +66,6 @@ class FormPlatformPlaywrightLoginClientTest {
         var probe = client.parseJianshuAccount(JSON.parseObject("{\"data\":{}}"));
 
         assertEquals(PlatformBrowserLoginStatus.UNKNOWN, probe.status());
-    }
-
-    /** 博客园登录链接不能把未登录页面误判为成功。 */
-    @Test
-    void 博客园未登录页面明确返回未登录() {
-        var probe = client.parseCnblogsAccount("<div id=\"header_user_right\">"
-                + "<a onclick=\"return login();\">登录</a></div>");
-
-        assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN, probe.status());
     }
 
     /** 百家号业务错误码代表登录已退出，即使 HTTP 是 200。 */
@@ -97,42 +84,6 @@ class FormPlatformPlaywrightLoginClientTest {
 
         assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, probe.status());
         assertEquals("作者", probe.accountName());
-    }
-
-    /** 开源中国的未登录业务码不能被 HTTP 200 掩盖。 */
-    @Test
-    void 开源中国未登录业务码返回未登录() throws Exception {
-        var probe = client.parseOschinaAccount(JSON.parseObject(
-                "{\"success\":false,\"code\":40001,\"result\":null}"));
-
-        assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN, probe.status());
-    }
-
-    /** 开源中国需要明确 userId 才可保存会话。 */
-    @Test
-    void 开源中国有用户标识才确认登录() throws Exception {
-        var probe = client.parseOschinaAccount(JSON.parseObject(
-                "{\"success\":true,\"result\":{\"userId\":123,\"userVo\":{\"name\":\"作者\"}}}"));
-
-        assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, probe.status());
-        assertEquals("作者", probe.accountName());
-    }
-
-    /** 思否登录页没有当前用户链接，不保存访客会话。 */
-    @Test
-    void 思否访客页面返回未登录() {
-        var probe = client.parseSegmentfaultAccount("<h3>注册登录</h3>");
-
-        assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN, probe.status());
-    }
-
-    /** 思否个人设置页上的账号链接作为身份依据。 */
-    @Test
-    void 思否个人设置页取得账号() {
-        var probe = client.parseSegmentfaultAccount("<a href=\"/u/writer\">作者</a>");
-
-        assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, probe.status());
-        assertEquals("writer", probe.accountName());
     }
 
     /** 慕课网未登录 JSONP 返回明确的访客业务码。 */

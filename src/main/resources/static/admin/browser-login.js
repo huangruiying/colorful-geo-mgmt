@@ -14,7 +14,6 @@ const platformAgreementLinks = {
     BAIJIAHAO: ['https://baijiahao.baidu.com/docs/#/markdownsingle/BaiJiaHaoFuWuXieYi', '《百家号用户协议》'],
     SOHU: ['https://mp.sohu.com/baike#/dashboard?id=435536343', '《搜狐号用户服务协议》'],
     EASTMONEY: ['https://mp.eastmoney.com/', '在东方财富登录页查看《隐私政策》和《服务协议》'],
-    OSCHINA: ['https://www.oschina.net/home/login', '在开源中国登录页查看《服务条例》和《隐私声明》'],
     TOUTIAO: ['https://mp.toutiao.com/profile_v3_public/public/protocol/agreement', '《头条号用户协议》'],
     NETEASE: ['https://hc.reg.163.com/iTerm/doc.html?id=542', '《网易服务条款》']
 };
@@ -223,7 +222,7 @@ function selectScanMethod(scanMethod) {
     const nativeScanner = {
         WECHAT_OFFICIAL_ACCOUNT: '微信', WOSHIPM: '微信', ZHIHU: '知乎 App', JUEJIN: '稀土掘金 App',
         WEIBO: '微博 App', BILIBILI: '哔哩哔哩客户端', TOUTIAO: '今日头条 App',
-        XIAOHONGSHU: '小红书 App', DOUYIN: '抖音 App', DAYU: 'UC 浏览器'
+        XIAOHONGSHU: '小红书 App', DOUYIN: '抖音 App'
     }[activePlatform] || `${platformNames[activePlatform]} App`;
     const scanner = { PLATFORM_APP: nativeScanner, WECHAT: '微信', QQ: 'QQ' }[scanMethod];
     const platformName = platformNames[activePlatform];

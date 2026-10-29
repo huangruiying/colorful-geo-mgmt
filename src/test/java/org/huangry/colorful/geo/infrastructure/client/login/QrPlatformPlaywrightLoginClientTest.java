@@ -25,7 +25,6 @@ class QrPlatformPlaywrightLoginClientTest {
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.TOUTIAO));
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.XIAOHONGSHU));
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.DOUYIN));
-        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.DAYU));
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.CSDN));
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.SMZDM));
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.EASTMONEY));
@@ -271,24 +270,6 @@ class QrPlatformPlaywrightLoginClientTest {
         assertEquals(PlatformBrowserLoginStatus.UNKNOWN,
                 client.parseDouyinPageAccount("https://creator.douyin.com/login",
                         "抖音号：28398064639").status());
-    }
-
-    /** 大鱼号后台重定向到登录页时不能按 HTTP 200 判定已登录。 */
-    @Test
-    void 大鱼号跳回登录页应返回未登录() {
-        var probe = client.parseDayuAccountHtml("https://mp.dayu.com/?redirect_url=/dashboard/index", "登录");
-
-        assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN, probe.status());
-    }
-
-    /** 大鱼号后台配置必须同时包含令牌和账号 ID。 */
-    @Test
-    void 大鱼号后台账号配置可以确认身份() {
-        var probe = client.parseDayuAccountHtml("https://mp.dayu.com/dashboard/index",
-                "var globalConfig = {utoken:'session',wmid:123,weMediaName:'大鱼作者'};");
-
-        assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, probe.status());
-        assertEquals("大鱼作者", probe.accountName());
     }
 
 }
