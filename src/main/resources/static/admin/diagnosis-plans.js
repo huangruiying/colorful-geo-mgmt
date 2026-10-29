@@ -47,7 +47,7 @@
             const copy = document.createElement("span");
             copy.textContent = channel.channelName + (channel.enabled ? "" : "（已停用）");
             const detail = document.createElement("small");
-            detail.textContent = (channel.modelName || "本地模拟") + " · " + channel.strategyBeanName;
+            detail.textContent = channel.modelName + " · " + channel.strategyBeanName;
             copy.append(detail); label.append(checkbox, copy); byId("test-channels").append(label);
             if (channel.enabled) byId("generation-channel").add(new Option(channel.channelName, channel.channelCode));
         }

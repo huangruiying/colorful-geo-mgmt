@@ -295,7 +295,7 @@
         for (const channel of snapshot.channels || []) {
             content.append(detailTable("模型配置 · " + (channel.channelName || "未命名渠道"), ["配置项", "冻结值"], [
                 ["渠道名称", channel.channelName], ["渠道编码", channel.channelCode], ["供应商", channel.providerCode], ["模型", channel.modelName],
-                ["协议", {MOCK:"模拟响应",OPENAI_CHAT_COMPLETIONS:"Chat Completions 接口",OPENAI_RESPONSES:"Responses 接口"}[channel.protocolType] || channel.protocolType], ["策略 Bean", channel.strategyBeanName], ["接口地址", channel.baseUrl],
+                ["协议", {OPENAI_CHAT_COMPLETIONS:"Chat Completions 接口",OPENAI_RESPONSES:"Responses 接口"}[channel.protocolType] || channel.protocolType], ["策略 Bean", channel.strategyBeanName], ["接口地址", channel.baseUrl],
                 ["随机性（temperature）", channel.temperature ?? "未设置，使用模型默认值"], ["最大输出 Token", channel.maxTokens ?? "未设置，使用模型默认值"]]));
         }
     }
