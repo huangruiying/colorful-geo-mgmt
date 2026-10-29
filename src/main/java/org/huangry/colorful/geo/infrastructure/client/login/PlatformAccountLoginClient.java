@@ -45,24 +45,14 @@ import java.util.regex.Pattern;
 public class PlatformAccountLoginClient {
 
     private static final Duration LOGIN_LIFETIME = Duration.ofMinutes(10);
-    private static final Pattern CNBLOGS_ACCOUNT = Pattern.compile("href=\"/u/([^/\"]+)/\"");
-    private static final Pattern SEGMENTFAULT_ACCOUNT = Pattern.compile("href=\"/u/([^\"]+)\"");
     private static final Map<PublicationPlatformType, FormLoginSite> LOGIN_SITES = Map.ofEntries(
             Map.entry(PublicationPlatformType.ZHIHU, new FormLoginSite(
                     "https://www.zhihu.com/signin", "https://www.zhihu.com/api/v4/me", true, true)),
             Map.entry(PublicationPlatformType.JIANSHU, new FormLoginSite(
                     "https://www.jianshu.com/sign_in", "https://www.jianshu.com/settings/basic.json", false, true)),
-            Map.entry(PublicationPlatformType.CNBLOGS, new FormLoginSite(
-                    "https://account.cnblogs.com/signin", "https://home.cnblogs.com/user/CurrentUserInfo", true, true)),
             Map.entry(PublicationPlatformType.BAIJIAHAO, new FormLoginSite(
                     "https://baijiahao.baidu.com/builder/theme/bjh/login",
                     "https://baijiahao.baidu.com/builder/app/appinfo", true, true)),
-            Map.entry(PublicationPlatformType.OSCHINA, new FormLoginSite(
-                    "https://www.oschina.net/home/login",
-                    "https://apiv1.oschina.net/oschinapi/user/myDetails", true, true)),
-            Map.entry(PublicationPlatformType.SEGMENTFAULT, new FormLoginSite(
-                    "https://segmentfault.com/user/login",
-                    "https://segmentfault.com/user/settings", true, false)),
             Map.entry(PublicationPlatformType.IMOOC, new FormLoginSite(
                     "https://www.imooc.com/user/newlogin",
                     "https://www.imooc.com/u/card", true, true)),
@@ -215,11 +205,6 @@ public class PlatformAccountLoginClient {
                 } else if (platform == PublicationPlatformType.JIANSHU) {
                     activePage.getByPlaceholder("手机号或邮箱").fill(account);
                     activePage.getByPlaceholder("密码").fill(password);
-                } else if (platform == PublicationPlatformType.CNBLOGS) {
-                    activePage.getByRole(AriaRole.TAB, new Page.GetByRoleOptions().setName("密码登录")).click();
-                    activePage.getByRole(AriaRole.TEXTBOX,
-                            new Page.GetByRoleOptions().setName("登录用户名 / 邮箱")).fill(account);
-                    activePage.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("密码")).fill(password);
                 } else if (platform == PublicationPlatformType.BAIJIAHAO) {
                     requirePlatformAgreement(agreedToPlatformTerms, platform);
                     activePage.getByText("百度账号登录", new Page.GetByTextOptions().setExact(true)).click();
@@ -240,23 +225,16 @@ public class PlatformAccountLoginClient {
                     loginFrame.getByRole(AriaRole.LINK,
                             new FrameLocator.GetByRoleOptions().setName("登录 / 注册")).click();
                     return pendingSnapshot();
-                } else if (platform == PublicationPlatformType.SOHU) {
+                } else {
+                    // 其余支持密码登录的只有搜狐号
                     requirePlatformAgreement(agreedToPlatformTerms, platform);
                     activePage.getByText("账号登录", new Page.GetByTextOptions().setExact(true)).click();
                     activePage.getByPlaceholder("请输入邮箱/手机号").fill(account);
                     activePage.getByPlaceholder("请输入密码").fill(password);
                     acceptPlatformAgreement(platform);
-                } else {
-                    requirePlatformAgreement(agreedToPlatformTerms, platform);
-                    activePage.getByRole(AriaRole.TAB, new Page.GetByRoleOptions().setName("密码登录")).click();
-                    activePage.getByRole(AriaRole.TEXTBOX,
-                            new Page.GetByRoleOptions().setName("手机号/用户名/邮箱")).fill(account);
-                    activePage.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("密码")).fill(password);
-                    acceptPlatformAgreement(platform);
                 }
-                String buttonName = platform == PublicationPlatformType.OSCHINA ? "登 录" : "登录";
                 activePage.getByRole(AriaRole.BUTTON,
-                        new Page.GetByRoleOptions().setName(buttonName).setExact(true)).click();
+                        new Page.GetByRoleOptions().setName("登录").setExact(true)).click();
                 return pendingSnapshot();
             } catch (PlaywrightException exception) {
                 throw new PlatformBrowserLoginException(platform.getDisplayName() + "密码登录操作失败，请查看页面提示", exception);
@@ -282,26 +260,12 @@ public class PlatformAccountLoginClient {
                     activePage.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("验证码登录")).click();
                     activePage.getByPlaceholder("手机号").fill(phone);
                     activePage.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("获取短信验证码")).click();
-                } else if (platform == PublicationPlatformType.CNBLOGS) {
-                    activePage.getByRole(AriaRole.TAB, new Page.GetByRoleOptions().setName("短信登录")).click();
-                    activePage.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("手机号")).fill(phone);
-                    activePage.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("获取验证码")).click();
                 } else if (platform == PublicationPlatformType.BAIJIAHAO) {
                     requirePlatformAgreement(agreedToPlatformTerms, platform);
                     activePage.getByText("短信快捷登录", new Page.GetByTextOptions().setExact(true)).click();
                     activePage.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("手机号")).fill(phone);
                     acceptPlatformAgreement(platform);
                     activePage.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("发送验证码")).click();
-                } else if (platform == PublicationPlatformType.OSCHINA) {
-                    requirePlatformAgreement(agreedToPlatformTerms, platform);
-                    activePage.getByRole(AriaRole.TAB, new Page.GetByRoleOptions().setName("免密登录")).click();
-                    activePage.getByRole(AriaRole.TEXTBOX,
-                            new Page.GetByRoleOptions().setName("手机号码")).fill(phone);
-                    acceptPlatformAgreement(platform);
-                    activePage.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("发送验证码")).click();
-                } else if (platform == PublicationPlatformType.SEGMENTFAULT) {
-                    activePage.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("手机号")).fill(phone);
-                    activePage.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("获取验证码")).click();
                 } else {
                     activePage.getByText("验证码登录", new Page.GetByTextOptions().setExact(true)).click();
                     activePage.getByPlaceholder("短信登录仅限中国大陆用户").fill(phone);
@@ -309,10 +273,7 @@ public class PlatformAccountLoginClient {
                 }
                 return pendingSnapshot();
             } catch (PlaywrightException exception) {
-                String reason = platform == PublicationPlatformType.OSCHINA
-                        ? "获取验证码未完成；开源中国可能要求人机验证，当前窗口暂不能操作，请尝试密码登录"
-                        : "获取验证码失败，请查看页面提示";
-                throw new PlatformBrowserLoginException(platform.getDisplayName() + reason, exception);
+                throw new PlatformBrowserLoginException(platform.getDisplayName() + "获取验证码失败，请查看页面提示", exception);
             }
         });
     }
@@ -329,12 +290,7 @@ public class PlatformAccountLoginClient {
         return onBrowserThread(() -> {
             requireActivePage(platform);
             try {
-                String codeName = switch (platform) {
-                    case OSCHINA -> "短信验证码";
-                    case SEGMENTFAULT -> "请输入验证码";
-                    case IMOOC -> "请输入短信验证码";
-                    default -> "验证码";
-                };
+                String codeName = platform == PublicationPlatformType.IMOOC ? "请输入短信验证码" : "验证码";
                 if (platform == PublicationPlatformType.ZHIHU) {
                     activePage.getByPlaceholder("输入 6 位短信验证码").fill(code);
                     activePage.getByRole(AriaRole.BUTTON,
@@ -345,9 +301,8 @@ public class PlatformAccountLoginClient {
                 else activePage.getByRole(AriaRole.TEXTBOX,
                         new Page.GetByRoleOptions().setName(codeName)).fill(code);
                 if (platform == PublicationPlatformType.BAIJIAHAO) acceptPlatformAgreement(platform);
-                String buttonName = platform == PublicationPlatformType.OSCHINA ? "登录/注册" : "登录";
                 activePage.getByRole(AriaRole.BUTTON,
-                        new Page.GetByRoleOptions().setName(buttonName).setExact(true)).click();
+                        new Page.GetByRoleOptions().setName("登录").setExact(true)).click();
                 return pendingSnapshot();
             } catch (PlaywrightException exception) {
                 throw new PlatformBrowserLoginException(platform.getDisplayName() + "短信登录操作失败，请查看页面提示", exception);
@@ -447,12 +402,6 @@ public class PlatformAccountLoginClient {
             }
             if (!response.ok()) return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
             // 3. 按平台分别解析 HTML、JSONP 或 JSON，解析失败保持未知而非登录成功
-            if (platform == PublicationPlatformType.CNBLOGS
-                    || platform == PublicationPlatformType.SEGMENTFAULT) {
-                String html = new String(response.body(), StandardCharsets.UTF_8);
-                return platform == PublicationPlatformType.CNBLOGS
-                        ? parseCnblogsAccount(html) : parseSegmentfaultAccount(html);
-            }
             if (platform == PublicationPlatformType.IMOOC) {
                 return parseImoocAccount(new String(response.body(), StandardCharsets.UTF_8));
             }
@@ -460,7 +409,6 @@ public class PlatformAccountLoginClient {
             return switch (platform) {
                 case ZHIHU -> parseZhihuAccount(accountResponse);
                 case BAIJIAHAO -> parseBaijiahaoAccount(accountResponse);
-                case OSCHINA -> parseOschinaAccount(accountResponse);
                 case NETEASE -> parseNeteaseAccount(accountResponse);
                 case SOHU -> parseSohuAccount(accountResponse);
                 case YIDIAN -> parseYidianAccount(accountResponse);
@@ -529,22 +477,6 @@ public class PlatformAccountLoginClient {
     }
 
     /**
-     * 博客园当前用户片段只含个人账号链接，不能借公开文章作者判断登录。
-     *
-     * @param html 当前用户区 HTML
-     * @return 登录结论
-     */
-    AccountProbe parseCnblogsAccount(String html) {
-        if (html.contains("onclick=\"return login();\"")) {
-            return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
-        }
-        Matcher account = CNBLOGS_ACCOUNT.matcher(html);
-        return account.find()
-                ? new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN, account.group(1))
-                : new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
-    }
-
-    /**
      * 百家号业务错误码优先于数据体；只有成功响应同时带账号 ID 才能保存会话。
      *
      * @param response 百家号账号 JSON
@@ -566,43 +498,6 @@ public class PlatformAccountLoginClient {
                 ? new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null)
                 : new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
                         accountName.isBlank() ? accountId : accountName);
-    }
-
-    /**
-     * 开源中国用 success 和 result.userId 共同证明当前账号有效。
-     *
-     * @param response 开源中国账号 JSON
-     * @return 登录结论
-     */
-    AccountProbe parseOschinaAccount(JSONObject response) {
-        // 先核对平台业务状态，明确未登录与无法确认分别处理
-        if ((int) readAccountNumber(response, "$.code", -1) == 40001) {
-            return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
-        }
-        if (!readAccountBoolean(response, "$.success")) {
-            return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
-        }
-        // 再核验响应中的账号资料；业务成功不等于已有有效身份标识
-        Object account = JSONPath.eval(response, "$.result");
-        String accountId = readAccountText(account, "$.userId", "");
-        String accountName = readAccountText(account, "$.userVo.name", "");
-        return accountId.isBlank()
-                ? new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null)
-                : new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
-                        accountName.isBlank() ? accountId : accountName);
-    }
-
-    /**
-     * 思否个人设置页只有登录后才包含当前账号链接，登录页没有该链接。
-     *
-     * @param html 个人设置页或被重定向的登录页
-     * @return 登录结论
-     */
-    AccountProbe parseSegmentfaultAccount(String html) {
-        Matcher account = SEGMENTFAULT_ACCOUNT.matcher(html);
-        if (account.find()) return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN, account.group(1));
-        return new AccountProbe(html.contains("注册登录")
-                ? PlatformBrowserLoginStatus.NOT_LOGGED_IN : PlatformBrowserLoginStatus.UNKNOWN, null);
     }
 
     /**
@@ -696,9 +591,7 @@ public class PlatformAccountLoginClient {
             if (!agreement.getAttribute("class").contains("radio-icon-sel")) agreement.click();
             return;
         }
-        var agreement = activePage.getByRole(AriaRole.CHECKBOX,
-                new Page.GetByRoleOptions().setName(platform == PublicationPlatformType.BAIJIAHAO
-                        ? "请阅读并同意" : "我已阅读并同意 《服务条例》 和 《隐私声明》"));
+        var agreement = activePage.getByRole(AriaRole.CHECKBOX, new Page.GetByRoleOptions().setName("请阅读并同意"));
         if (!agreement.isChecked()) agreement.check();
     }
 
@@ -760,7 +653,7 @@ public class PlatformAccountLoginClient {
     }
 
     /**
-     * 思否当前密码表单未能在浏览器中稳定切换，不向用户展示不可用入口。
+     * 密码入口仅对已确认存在密码表单的平台开放，不向用户展示不可用入口。
      *
      * @param platform 目标平台
      */
@@ -837,18 +730,6 @@ public class PlatformAccountLoginClient {
         } catch (NumberFormatException exception) {
             return fallback;
         }
-    }
-
-    /**
-     * 读取平台明确声明的成功标志，字段缺失时不能推定登录成功。
-     * @param response 平台响应或账号子对象
-     * @param path 字段路径
-     * @return 是否明确成功
-     */
-    private static boolean readAccountBoolean(Object response, String path) {
-        Object value = JSONPath.eval(response, path);
-        return Boolean.TRUE.equals(value) || "true".equals(value)
-                || value instanceof Number number && number.intValue() != 0;
     }
 
 }

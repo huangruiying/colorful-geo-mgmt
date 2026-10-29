@@ -48,11 +48,6 @@ public class PlatformThirdPartyScanLoginClient {
                     "button.Login-socialButton:has(svg.ZDI--Qq24)"),
             entry(PublicationPlatformType.JIANSHU, PlatformScanLoginMethod.WECHAT, "#weixin"),
             entry(PublicationPlatformType.JIANSHU, PlatformScanLoginMethod.QQ, "#qq"),
-            entry(PublicationPlatformType.CNBLOGS, PlatformScanLoginMethod.WECHAT,
-                    "img[src*='oauth/WeChat.png']"),
-            entry(PublicationPlatformType.CNBLOGS, PlatformScanLoginMethod.QQ, "img[src*='oauth/QQ.png']"),
-            entry(PublicationPlatformType.OSCHINA, PlatformScanLoginMethod.WECHAT, "div.social-btn", 0),
-            entry(PublicationPlatformType.OSCHINA, PlatformScanLoginMethod.QQ, "div.social-btn", 1),
             entry(PublicationPlatformType.IMOOC, PlatformScanLoginMethod.WECHAT, "a.pop-sns-weixin"),
             entry(PublicationPlatformType.IMOOC, PlatformScanLoginMethod.QQ, "a.pop-sns-qq"),
             entry(PublicationPlatformType.JUEJIN, PlatformScanLoginMethod.WECHAT,
@@ -146,7 +141,6 @@ public class PlatformThirdPartyScanLoginClient {
                     loginPage.getByText("登录", new Page.GetByTextOptions().setExact(true)).click();
                 }
                 // 2. 用户已同意协议时才勾选平台登录页协议，再打开微信或 QQ 授权。
-                if (platform == PublicationPlatformType.OSCHINA) acceptOschinaAgreement(agreedToPlatformTerms);
                 if (platform == PublicationPlatformType.TOUTIAO) acceptToutiaoAgreement(agreedToPlatformTerms);
                 if (platform == PublicationPlatformType.SOHU) acceptSohuAgreement(agreedToPlatformTerms);
                 if (platform == PublicationPlatformType.EASTMONEY) acceptEastmoneyAgreement(agreedToPlatformTerms);
@@ -157,7 +151,7 @@ public class PlatformThirdPartyScanLoginClient {
                     loginPage.frameLocator("iframe[src*='exaccount2.eastmoney.com/Home/Login4']")
                             .locator(entry.selector()).click();
                 } else {
-                    loginPage.locator(entry.selector()).nth(entry.index()).click();
+                    loginPage.locator(entry.selector()).first().click();
                 }
                 authorizationPage = waitForAuthorizationPage(previousPages, pageUrlBeforeAuthorization);
                 if (authorizationPage == null) {
@@ -273,14 +267,13 @@ public class PlatformThirdPartyScanLoginClient {
     /**
      * 判断二维码授权页是否仍未回到目标平台，避免轮询阻塞在账号接口。
      *
-     * @return 是否仍在微信、QQ 或博客园微信授权页面
+     * @return 是否仍在微信或 QQ 授权页面
      */
     private boolean awaitingThirdPartyAuthorization() {
         if (authorizationPage == null || authorizationPage.isClosed()) return false;
         String url = authorizationPage.url();
         return url.contains("open.weixin.qq.com/connect/qrconnect")
-                || url.contains("graph.qq.com/oauth2.0/show")
-                || url.contains("account.cnblogs.com/signin/wechat-mp");
+                || url.contains("graph.qq.com/oauth2.0/show");
     }
 
     /**
@@ -313,8 +306,6 @@ public class PlatformThirdPartyScanLoginClient {
             } else if (authorizationPage.url().contains("graph.qq.com")) {
                 screenshot = authorizationPage.frameLocator("#ptlogin_iframe")
                         .locator("#qrlogin_img").screenshot();
-            } else if (authorizationPage.url().contains("account.cnblogs.com/signin/wechat-mp")) {
-                screenshot = authorizationPage.locator("img[alt='微信二维码']").screenshot();
             } else {
                 screenshot = authorizationPage.screenshot(new Page.ScreenshotOptions().setFullPage(false));
             }
@@ -327,18 +318,6 @@ public class PlatformThirdPartyScanLoginClient {
                 ? PlatformLoginInteractionStage.WAITING_FOR_THIRD_PARTY
                 : PlatformLoginInteractionStage.RETURNED_TO_PLATFORM;
         return new BrowserLoginSnapshot(status, null, Base64.getEncoder().encodeToString(screenshot), null, stage);
-    }
-
-    /**
-     * 开源中国授权入口要求先同意本站协议；不能由后台默认为同意。
-     *
-     * @param agreedToPlatformTerms 用户在页面是否已明确同意
-     */
-    private void acceptOschinaAgreement(boolean agreedToPlatformTerms) {
-        if (!agreedToPlatformTerms) throw new PlatformBrowserLoginException("请先阅读并同意开源中国用户协议");
-        var agreement = loginPage.getByRole(AriaRole.CHECKBOX,
-                new Page.GetByRoleOptions().setName("我已阅读并同意 《服务条例》 和 《隐私声明》"));
-        if (!agreement.isChecked()) agreement.check();
     }
 
     /**
@@ -420,17 +399,12 @@ public class PlatformThirdPartyScanLoginClient {
 
     private static Map.Entry<LoginKey, LoginEntry> entry(PublicationPlatformType platform,
                                                          PlatformScanLoginMethod method, String selector) {
-        return entry(platform, method, selector, 0);
-    }
-
-    private static Map.Entry<LoginKey, LoginEntry> entry(PublicationPlatformType platform,
-                                                         PlatformScanLoginMethod method, String selector, int index) {
-        return Map.entry(new LoginKey(platform, method), new LoginEntry(selector, index));
+        return Map.entry(new LoginKey(platform, method), new LoginEntry(selector));
     }
 
     private record LoginKey(PublicationPlatformType platform, PlatformScanLoginMethod method) { }
 
-    private record LoginEntry(String selector, int index) { }
+    private record LoginEntry(String selector) { }
 
     private record AccountProbe(PlatformBrowserLoginStatus status, String accountName) { }
 

@@ -55,9 +55,6 @@ public class PlatformScanLoginClient {
     private static final Pattern WECHAT_TOKEN = Pattern.compile("\\bt:\\s*['\"]([0-9]+)['\"]");
     private static final Pattern WECHAT_ACCOUNT = Pattern.compile("\\bnick_name:\\s*['\"]([^'\"]+)['\"]");
     private static final Pattern WEIBO_CONFIG = Pattern.compile("config:\\s*JSON\\.parse\\('(.+?)'\\)", Pattern.DOTALL);
-    private static final Pattern DAYU_TOKEN = Pattern.compile("\\butoken\\s*:\\s*['\"]([^'\"]+)['\"]");
-    private static final Pattern DAYU_ACCOUNT_ID = Pattern.compile("\\bwmid\\s*:\\s*['\"]?([0-9]+)");
-    private static final Pattern DAYU_ACCOUNT_NAME = Pattern.compile("\\bweMediaName\\s*:\\s*['\"]([^'\"]+)['\"]");
     private static final Pattern WOSHIPM_ACCOUNT = Pattern.compile(
             "var\\s+userSettings\\s*=\\s*\\{[^}]*\"uid\"\\s*:\\s*\"(\\d+)\"");
     private static final Pattern DOUYIN_PAGE_ACCOUNT_ID = Pattern.compile("抖音号\\s*[：:]\\s*([A-Za-z0-9._-]{3,32})");
@@ -99,10 +96,6 @@ public class PlatformScanLoginClient {
                     "https://creator.douyin.com/creator-micro/home", "img[aria-label='二维码']",
                     "img[aria-label='二维码']",
                     "https://creator.douyin.com/aweme/v1/creator/pc/user/info/")),
-            Map.entry(PublicationPlatformType.DAYU, new QrLoginSite(
-                    "https://mp.dayu.com/", "img[src^='data:image/png;base64,']",
-                    "img[src^='data:image/png;base64,']", "https://mp.dayu.com/dashboard/index",
-                    ".loginPage-login_scan")),
             Map.entry(PublicationPlatformType.CSDN, new QrLoginSite(
                     "https://passport.csdn.net/login", "img[alt='Scan me!']",
                     "img[alt='Scan me!']", CSDN_ACCOUNT_URL,
@@ -541,9 +534,6 @@ public class PlatformScanLoginClient {
             if (platform == PublicationPlatformType.WEIBO) {
                 return parseWeiboAccountHtml(new String(response.body(), StandardCharsets.UTF_8));
             }
-            if (platform == PublicationPlatformType.DAYU) {
-                return parseDayuAccountHtml(response.url(), new String(response.body(), StandardCharsets.UTF_8));
-            }
             if (platform == PublicationPlatformType.WOSHIPM) {
                 return probeWoshipmAccount(context, response);
             }
@@ -739,21 +729,6 @@ public class PlatformScanLoginClient {
         String accountName = readAccountText(account, "$.nick", "");
         return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
                 accountName.isBlank() ? accountId : accountName);
-    }
-
-    /** 大鱼号后台页跳回登录页代表未登录；只有当前后台配置含令牌与账号 ID 才确认身份。 */
-    AccountProbe parseDayuAccountHtml(String responseUrl, String html) {
-        if (!"/dashboard/index".equals(URI.create(responseUrl).getPath())) {
-            return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
-        }
-        Matcher token = DAYU_TOKEN.matcher(html);
-        Matcher accountId = DAYU_ACCOUNT_ID.matcher(html);
-        if (!token.find() || !accountId.find()) {
-            return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
-        }
-        Matcher accountName = DAYU_ACCOUNT_NAME.matcher(html);
-        return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
-                accountName.find() ? accountName.group(1) : accountId.group(1));
     }
 
     /**
