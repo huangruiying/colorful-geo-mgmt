@@ -2,6 +2,34 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：发布记录按文章筛选，支持拼音搜索（2026-10-30）
+
+- 发布记录页“发布列表”右上角新增可输入下拉框：列出有发布记录的文章（每篇一项，标题取该文章最新一条发布记录的标题快照），输入汉字、全拼或首字母都能模糊匹配（不分大小写、忽略空格），选中后按文章 ID 筛选，第一项“全部文章”清除筛选；支持上下键、回车、Esc。
+- 后端：
+  - 新增 `GET /content-publish/titles` → `ContentPublishTitleOption`（文章 ID、标题、`pinyin`、`pinyinInitials`）。
+  - `/content-publish/list` 新增可选参数 `contentOptimizationRecordId`，列表和总数同一条件。
+  - 拼音由 `infrastructure/common/utils/PinyinUtils`（新依赖 `com.belerweb:pinyin4j:2.5.1`）每次请求时现算，不落库、不维护映射表；多音字取第一个读音（“重庆”为 zhongqing）。
+- 页面资源版本 `publications.js/css?v=20261030-title-filter1`。
+- 代码复查修复（同日）：Esc 收起后按方向键取到旧节点；已选文章的发布记录删光后输入框与列表不一致（现自动回到全部文章）；什么值得买正文首行以转义字符开头时，自动保存识别退化为只认标题的问题。
+- 验证：新增/调整单测 10 个；Java 全量 440 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败。前端 `browser-login.test.cjs` 既有 9 项失败；`http.test.cjs` 2 项失败为测试未模拟 `document`（CSRF 读取），与本次无关，未处理。页面未在真实浏览器点测。服务未重启。
+
+## 当前交接：已登录平台补齐预发布（2026-10-29）
+
+范围：数据库中已登录、但还没有预发布策略的 6 个平台。已有预发布的 10 个平台未改动。
+
+| 平台 | 结果 | 说明 |
+|---|---|---|
+| 哔哩哔哩 | 已实现，真实账号跑通 | 直接打开 `member.bilibili.com/york/read-editor` → 填标题、粘贴正文 → 点“保存为草稿”，读 `article/draft/add` 返回的 `article_id` → 打开 `read-editor?aid=ID` 回读。实测草稿 387105、387106。 |
+| 什么值得买 | 已实现，真实账号跑通 | 投稿页 `post.smzdm.com/tougao/` 的 `a.release-new` 给出新文章编号 → 打开 `/edit/编号`，关闭“产品全新升级”弹窗，标题不为空则拒绝（不覆盖已有草稿）→ 写入后等 `api/editor/article/submit` 中带正文的 `auto_save` 返回 `error_code=0` → 重新打开回读。实测草稿 a70p7eko、ad7mel2d。 |
+| 网易号 | 受阻：账号审核中 | 编辑页提示“账号信息正在审核中”，今日可发 0/0；没有存草稿按钮，“预览 → PC端预览”会以 `operation=saveDraft` 调 `publishV2.do` 生成草稿（得到 docId），但预览接口返回的正文为空，网易号自己的编辑接口 `editpage.do` 对这篇草稿返回“操作失败”。审核通过后再接。 |
+| 一点资讯 | 受阻：账号未通过审核 | 首页提示“您的一点号未通过审核”，“发布”为灰色，编辑器路由跳回首页。需用户在“账号资料”修改后重新提交审核。 |
+| 人人都是产品经理 | 受阻：需实名认证 | `/writing` 编辑器（WordPress，标题 `#post_title`，正文 TinyMCE `#post_content_ifr`，“保存草稿”按钮）打开即弹“账号实名制认证”。不绕过该弹窗，需用户先完成实名认证。 |
+| 搜狐号 | 受阻：需实名认证 | 2026-10-30 用户重新登录后复查：发布内容默认进“动态”，弹窗“您的账号未实名，仅支持发布动态”；文章编辑器 `news/addarticle`（标题 5–72 字，正文 Quill `div.ql-editor`）的发布、定时发布、存草稿、预览按钮全部禁用，提示“未实名暂无法发布文章”。实名认证后再接；如要改发“动态”（标题选填、每天 5 篇）需用户确认。 |
+
+- 新增：`publish/browser/{bilibili,smzdm}/*BrowserClient`、`publish/strategy/browser/{bilibili,smzdm}/*PublicationStrategy`，依赖用 `@Resource` 字段注入（项目约定）；公开发布未接入，`execPublish` 明确拒绝。预发布平台列表由策略自动带出这两个平台。
+- 探查时在用户账号上建了测试草稿，标题均为“测试草稿可删除+数字”：哔哩哔哩 2 篇、什么值得买 2 篇（a70p7eko、ad7mel2d）、网易号 1 篇（LAENPS460556QB4A）。可在各平台草稿箱删除。
+- 验证：新增 15 个单测；Java 全量 433 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败。用编译后的客户端加真实登录态跑通两个平台的完整流程（临时脚本，已删除）。服务未重启。
+
 ## 当前交接：慕课网登录页促销弹窗遮挡（2026-10-29）
 
 - 慕课网登录页加载后会弹出促销广告（双十一），遮住登录框，微信、QQ、账号、短信入口都点不到，启动时报“登录页未能正常打开”。
