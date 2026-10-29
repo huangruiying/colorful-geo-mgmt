@@ -14,8 +14,10 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 /**
  * 平台发布记录持久化服务；管理失败重试、确认稿快照与预发布状态迁移，不执行外部调用。
@@ -25,25 +27,54 @@ import java.util.NoSuchElementException;
 public class ContentPublishRecordService extends ServiceImpl<ContentPublishRecordDao, ContentPublishRecordEntity> {
 
     /**
-     * 发布记录列表查询，最新的在前。
+     * 发布记录列表（分页）查询，最新的在前，可按文章筛选。
      *
      * @param pageQuery 已校验的分页参数
+     * @param contentOptimizationRecordId 文章（内容优化记录）ID；为空时不筛选
      * @return 当前页发布记录
      */
-    public List<ContentPublishRecord> listContentPublishRecords(PageQuery pageQuery) {
-        LambdaQueryWrapper<ContentPublishRecordEntity> query = new LambdaQueryWrapper<ContentPublishRecordEntity>()
+    public List<ContentPublishRecord> listContentPublishRecords(PageQuery pageQuery, Long contentOptimizationRecordId) {
+        LambdaQueryWrapper<ContentPublishRecordEntity> query = filterByArticle(contentOptimizationRecordId)
                 .orderByDesc(ContentPublishRecordEntity::getId)
                 .last(pageQuery.limitClause());
         return baseMapper.selectList(query).stream().map(this::convertToContentPublishRecord).toList();
     }
 
     /**
-     * 统计本地发布记录，供列表分页。
+     * 按列表相同的筛选条件统计发布记录，供列表分页。
      *
+     * @param contentOptimizationRecordId 文章（内容优化记录）ID；为空时不筛选
      * @return 发布记录总数
      */
-    public long countContentPublishRecords() {
-        return count();
+    public long countContentPublishRecords(Long contentOptimizationRecordId) {
+        return count(filterByArticle(contentOptimizationRecordId));
+    }
+
+    /**
+     * 列出有发布记录的文章，每篇一条，标题取该文章最新一条发布记录的标题快照，最新的文章在前。
+     * <p>只读 ID、文章 ID 和标题三列，不加载正文。</p>
+     *
+     * @return 每篇文章最新的一条发布记录（只含 ID、文章 ID、标题）
+     */
+    public List<ContentPublishRecordEntity> listLatestRecordPerArticle() {
+        List<ContentPublishRecordEntity> records = list(new LambdaQueryWrapper<ContentPublishRecordEntity>()
+                .select(ContentPublishRecordEntity::getId, ContentPublishRecordEntity::getContentOptimizationRecordId,
+                        ContentPublishRecordEntity::getPublicationTitle)
+                .orderByDesc(ContentPublishRecordEntity::getId));
+        // 按 ID 倒序后每篇文章第一次出现的就是最新一条，后面的同文章记录丢弃
+        Set<Long> seenArticles = new HashSet<>();
+        return records.stream().filter(record -> seenArticles.add(record.getContentOptimizationRecordId())).toList();
+    }
+
+    /**
+     * 构造按文章筛选的查询条件，列表和总数共用。
+     *
+     * @param contentOptimizationRecordId 文章（内容优化记录）ID；为空时不加条件
+     * @return 查询条件
+     */
+    private LambdaQueryWrapper<ContentPublishRecordEntity> filterByArticle(Long contentOptimizationRecordId) {
+        return new LambdaQueryWrapper<ContentPublishRecordEntity>().eq(contentOptimizationRecordId != null,
+                ContentPublishRecordEntity::getContentOptimizationRecordId, contentOptimizationRecordId);
     }
 
     /**
