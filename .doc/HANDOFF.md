@@ -2,6 +2,13 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：模型列表增加删除（2026-10-29）
+
+- 新增 `DELETE /llm-channels/{id}`（`GeoLlmChannelService.deleteChannel`）：渠道仍被诊断方案引用时返回 400，并提示“该模型正被 N 个诊断方案使用，请先从方案中移除”；不存在返回 404；成功返回 204。不级联修改方案。
+- `confirmTaskChannel` 遇到已删除的渠道时明确失败，提示“渠道已被删除”，不再空指针；历史结果和报告按快照展示，不受影响。
+- 模型列表每行增加“删除”按钮，删除前弹确认框（`models.js` 版本 `20261029-delete1`）。
+- 验证：全量 `mvn test` 429 个，仅改动前已存在的 `shouldRejectDisabledExactTaskChannel` 失败。服务未重启。
+
 ## 当前交接：删除本地模拟大模型策略（2026-10-29）
 
 - 删除 `MockLlmStrategy` 和 `LLMProtocolType.MOCK`；路由、渠道保存与启用不再有“模拟渠道免密钥、免地址”的分支，所有渠道都要求接口地址、模型和 API Key。
