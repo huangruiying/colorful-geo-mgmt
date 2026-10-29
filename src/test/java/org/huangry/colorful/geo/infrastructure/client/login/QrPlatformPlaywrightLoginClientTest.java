@@ -29,6 +29,7 @@ class QrPlatformPlaywrightLoginClientTest {
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.SMZDM));
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.EASTMONEY));
         assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.WOSHIPM));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.CTO_51));
     }
 
     /** 东方财富只接受创作平台返回的作者 ID 与昵称，不把业务成功码单独当成登录。 */
@@ -272,4 +273,20 @@ class QrPlatformPlaywrightLoginClientTest {
                         "抖音号：28398064639").status());
     }
 
+    /** 51CTO 个人首页跳回登录页为未登录，带账号链接才算登录，昵称为空时取用户 ID。 */
+    @Test
+    void 五十一CTO按个人首页判定登录() {
+        var notLoggedIn = client.parseCto51HomeHtml("https://home.51cto.com/index", "<title>登录</title>");
+        var loggedIn = client.parseCto51HomeHtml("https://home.51cto.com/home",
+                "<div class=\"name\" style = \"overflow-x:hidden\"><a href=\"/space?uid=123\">作者</a></div>");
+        var noName = client.parseCto51HomeHtml("https://home.51cto.com/home",
+                "<div class=\"name\"><a href=\"/space?uid=123\"></a></div>");
+        var otherPage = client.parseCto51HomeHtml("https://home.51cto.com/home", "<div>维护中</div>");
+
+        assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN, notLoggedIn.status());
+        assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, loggedIn.status());
+        assertEquals("作者", loggedIn.accountName());
+        assertEquals("123", noName.accountName());
+        assertEquals(PlatformBrowserLoginStatus.UNKNOWN, otherPage.status());
+    }
 }

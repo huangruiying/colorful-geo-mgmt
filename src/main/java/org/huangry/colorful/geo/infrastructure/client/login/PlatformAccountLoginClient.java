@@ -12,10 +12,13 @@ import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.FrameLocator;
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.PlaywrightException;
+import com.microsoft.playwright.TimeoutError;
 import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.RequestOptions;
+import com.microsoft.playwright.options.WaitForSelectorState;
 import com.microsoft.playwright.options.WaitUntilState;
 import jakarta.annotation.PreDestroy;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginStatus;
@@ -45,6 +48,8 @@ import java.util.regex.Pattern;
 public class PlatformAccountLoginClient {
 
     private static final Duration LOGIN_LIFETIME = Duration.ofMinutes(10);
+    /** 搜狐焦点昵称可能以“反斜杠 u + 四位十六进制”的转义文本返回，需还原成中文。 */
+    private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u([0-9a-fA-F]{4})");
     private static final Map<PublicationPlatformType, FormLoginSite> LOGIN_SITES = Map.ofEntries(
             Map.entry(PublicationPlatformType.ZHIHU, new FormLoginSite(
                     "https://www.zhihu.com/signin", "https://www.zhihu.com/api/v4/me", true, true)),
@@ -61,6 +66,9 @@ public class PlatformAccountLoginClient {
                     "https://mp.163.com/wemedia/navinfo.do", false, true)),
             Map.entry(PublicationPlatformType.SOHU, new FormLoginSite(
                     "https://mp.sohu.com/", "https://mp.sohu.com/mpbp/bp/account/list", false, true)),
+            // 搜狐焦点只开放微信授权登录，登录弹窗在首页，账号接口与页面自身的登录判断一致
+            Map.entry(PublicationPlatformType.SOHU_FOCUS, new FormLoginSite(
+                    "https://house.focus.cn/", "https://login.focus.cn/passport/getUserInfo", false, false)),
             Map.entry(PublicationPlatformType.YIDIAN, new FormLoginSite(
                     "https://mp.yidianzixun.com/", "https://mp.yidianzixun.com/model/Agreement?type=1",
                     false, false)));
@@ -94,6 +102,22 @@ public class PlatformAccountLoginClient {
      */
     public static boolean supportsPlatform(PublicationPlatformType platform) {
         return LOGIN_SITES.containsKey(platform);
+    }
+
+    /**
+     * 关闭慕课网登录页加载后弹出的促销广告，否则广告遮住登录框，账号、短信和第三方登录按钮都点不到。
+     * <p>广告在页面加载后才出现，最多等 3 秒；没出现就直接继续，只点广告自带的关闭按钮。</p>
+     *
+     * @param page 慕课网登录页
+     */
+    static void closeImoocPromotionPopup(Page page) {
+        Locator close = page.locator("#js-advpop-close");
+        try {
+            close.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(3_000));
+        } catch (TimeoutError exception) {
+            return;
+        }
+        close.click();
     }
 
     /** 返回表单平台已核对的登录入口，供同平台第三方授权复用。 */
@@ -152,6 +176,7 @@ public class PlatformAccountLoginClient {
                 if (platform == PublicationPlatformType.SOHU) {
                     activePage.getByText("登录/注册", new Page.GetByTextOptions().setExact(true)).click();
                 }
+                if (platform == PublicationPlatformType.IMOOC) closeImoocPromotionPopup(activePage);
                 activePlatform = platform;
                 startedAt = Instant.now();
                 Instant loginStartedAt = startedAt;
@@ -392,6 +417,10 @@ public class PlatformAccountLoginClient {
                 accountUrl += "?_=" + System.currentTimeMillis();
                 requestOptions.setHeader("Referer", "https://mp.sohu.com/");
             }
+            if (platform == PublicationPlatformType.SOHU_FOCUS) {
+                // 页面自己从焦点首页请求账号接口，核验时带上同样的站内来源
+                requestOptions.setHeader("Referer", "https://house.focus.cn/");
+            }
             APIResponse response = context.request().get(accountUrl, requestOptions);
             // 2. 先解释 HTTP 状态；知乎访问限制无法证明会话失效，其余认证拒绝才判未登录
             if (platform == PublicationPlatformType.ZHIHU && response.status() == 403) {
@@ -412,6 +441,7 @@ public class PlatformAccountLoginClient {
                 case NETEASE -> parseNeteaseAccount(accountResponse);
                 case SOHU -> parseSohuAccount(accountResponse);
                 case YIDIAN -> parseYidianAccount(accountResponse);
+                case SOHU_FOCUS -> parseSohuFocusAccount(accountResponse);
                 default -> parseJianshuAccount(accountResponse);
             };
         } catch (JSONException | PlaywrightException exception) {
@@ -444,6 +474,35 @@ public class PlatformAccountLoginClient {
         String accountName = readAccountText(response, "$.result.userName", "");
         return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
                 accountName.isBlank() ? Long.toString(accountId) : accountName);
+    }
+
+    /**
+     * 搜狐焦点账号接口按页面自身规则判断：errorCode 为 0 且带账号资料才算登录，401 为未登录。
+     * <p>账号名取昵称 nickName，为空时取用户名 userName；两者都为空时无法确认。手机号不读取。</p>
+     *
+     * @param response 搜狐焦点账号接口响应
+     * @return 已登录（昵称或用户名）、未登录，或结构不符时无法确认
+     */
+    AccountProbe parseSohuFocusAccount(JSONObject response) {
+        // 1. 未登录时接口仍是 HTTP 200，只能看业务码
+        long errorCode = readAccountNumber(response, "$.errorCode", -1);
+        if (errorCode == 401) {
+            return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
+        }
+        if (errorCode != 0) {
+            return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
+        }
+        // 2. 昵称优先，平台可能返回转义文本，按页面自身的还原方式转成中文
+        String accountName = readAccountText(response, "$.data.nickName", "");
+        if (accountName.isBlank()) {
+            accountName = readAccountText(response, "$.data.userName", "");
+        }
+        if (accountName.isBlank()) {
+            return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
+        }
+        accountName = UNICODE_ESCAPE.matcher(accountName)
+                .replaceAll(escape -> String.valueOf((char) Integer.parseInt(escape.group(1), 16)));
+        return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN, accountName);
     }
 
     /**

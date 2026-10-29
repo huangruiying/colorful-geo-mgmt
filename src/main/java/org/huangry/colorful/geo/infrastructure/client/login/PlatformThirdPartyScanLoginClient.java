@@ -66,7 +66,8 @@ public class PlatformThirdPartyScanLoginClient {
             entry(PublicationPlatformType.TOUTIAO, PlatformScanLoginMethod.WECHAT,
                     "li[aria-label='微信登录']"),
             entry(PublicationPlatformType.TOUTIAO, PlatformScanLoginMethod.QQ, "li[aria-label='QQ登录']"),
-            entry(PublicationPlatformType.CSDN, PlatformScanLoginMethod.QQ, ".login-third-qq"));
+            entry(PublicationPlatformType.CSDN, PlatformScanLoginMethod.QQ, ".login-third-qq"),
+            entry(PublicationPlatformType.SOHU_FOCUS, PlatformScanLoginMethod.WECHAT, ".login-container span.wechat"));
 
     private final PlatformAccountLoginClient formClient;
     private final PlatformScanLoginClient qrClient;
@@ -140,10 +141,18 @@ public class PlatformThirdPartyScanLoginClient {
                     // 一点号先打开登录弹窗，微信与 QQ 入口才会出现在页面中。
                     loginPage.getByText("登录", new Page.GetByTextOptions().setExact(true)).click();
                 }
+                if (platform == PublicationPlatformType.IMOOC) {
+                    PlatformAccountLoginClient.closeImoocPromotionPopup(loginPage);
+                }
+                if (platform == PublicationPlatformType.SOHU_FOCUS) {
+                    // 搜狐焦点首页右上角“登录”打开弹窗，微信入口在弹窗底部“合作账号登录”。
+                    loginPage.locator("span.login-login").first().click();
+                }
                 // 2. 用户已同意协议时才勾选平台登录页协议，再打开微信或 QQ 授权。
                 if (platform == PublicationPlatformType.TOUTIAO) acceptToutiaoAgreement(agreedToPlatformTerms);
                 if (platform == PublicationPlatformType.SOHU) acceptSohuAgreement(agreedToPlatformTerms);
                 if (platform == PublicationPlatformType.EASTMONEY) acceptEastmoneyAgreement(agreedToPlatformTerms);
+                if (platform == PublicationPlatformType.SOHU_FOCUS) acceptSohuFocusAgreement(agreedToPlatformTerms);
                 List<Page> previousPages = List.copyOf(activeContext.pages());
                 String pageUrlBeforeAuthorization = loginPage.url();
                 if (platform == PublicationPlatformType.EASTMONEY) {
@@ -350,6 +359,17 @@ public class PlatformThirdPartyScanLoginClient {
         var agreement = loginPage.frameLocator("iframe[src*='exaccount2.eastmoney.com/Home/Login4']")
                 .locator("#mobile_login_content img.selectbox.unselected");
         if (agreement.isVisible()) agreement.click();
+    }
+
+    /**
+     * 搜狐焦点登录弹窗未勾选隐私政策时，点微信图标没有反应；用户同意后才勾选。
+     *
+     * @param agreedToPlatformTerms 用户在页面是否已明确同意
+     */
+    private void acceptSohuFocusAgreement(boolean agreedToPlatformTerms) {
+        if (!agreedToPlatformTerms) throw new PlatformBrowserLoginException("请先阅读并同意搜狐焦点网隐私政策");
+        var agreement = loginPage.locator(".login-container .agree-protocol .ratio");
+        if (agreement.getAttribute("class").contains("ratio-disagree")) agreement.click();
     }
 
     /**

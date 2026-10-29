@@ -23,6 +23,34 @@ class FormPlatformPlaywrightLoginClientTest {
         assertFalse(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.JIANSHU));
     }
 
+    /** 搜狐焦点按 errorCode 判定登录，昵称为转义文本时还原成中文，缺昵称时取用户名。 */
+    @Test
+    void 搜狐焦点按业务码判定登录并取昵称() throws Exception {
+        var notLoggedIn = client.parseSohuFocusAccount(JSON.parseObject(
+                "{\"code\":401,\"msg\":\"用户未登录\",\"errorCode\":401}"));
+        var escapedName = client.parseSohuFocusAccount(JSON.parseObject(
+                "{\"errorCode\":0,\"data\":{\"nickName\":\"\\\\u7126\\\\u70b9\"}}"));
+        var userNameOnly = client.parseSohuFocusAccount(JSON.parseObject(
+                "{\"errorCode\":0,\"data\":{\"nickName\":\"\",\"userName\":\"focus_user\"}}"));
+        var noName = client.parseSohuFocusAccount(JSON.parseObject("{\"errorCode\":0,\"data\":{}}"));
+        var otherError = client.parseSohuFocusAccount(JSON.parseObject("{\"errorCode\":500}"));
+
+        assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN, notLoggedIn.status());
+        assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, escapedName.status());
+        assertEquals("焦点", escapedName.accountName());
+        assertEquals("focus_user", userNameOnly.accountName());
+        assertEquals(PlatformBrowserLoginStatus.UNKNOWN, noName.status());
+        assertEquals(PlatformBrowserLoginStatus.UNKNOWN, otherError.status());
+    }
+
+    /** 搜狐焦点只登记账号核验，不开放短信和密码登录。 */
+    @Test
+    void 搜狐焦点不开放短信和密码登录() {
+        assertTrue(PlatformAccountLoginClient.supportsPlatform(PublicationPlatformType.SOHU_FOCUS));
+        assertFalse(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.SOHU_FOCUS));
+        assertFalse(PlatformAccountLoginClient.supportsPasswordLogin(PublicationPlatformType.SOHU_FOCUS));
+    }
+
     /** 一点号以协议接口签署人账号 ID 判定登录，统计响应或异常业务码不算登录。 */
     @Test
     void 一点号按协议接口签署人账号ID判定登录() throws Exception {

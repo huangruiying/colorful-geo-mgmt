@@ -2,6 +2,31 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：慕课网登录页促销弹窗遮挡（2026-10-29）
+
+- 慕课网登录页加载后会弹出促销广告（双十一），遮住登录框，微信、QQ、账号、短信入口都点不到，启动时报“登录页未能正常打开”。
+- `PlatformAccountLoginClient.closeImoocPromotionPopup`：最多等 3 秒，出现就点广告自带的关闭按钮 `#js-advpop-close`，不出现直接继续；表单登录和第三方授权启动时都调用。已用 Playwright 实测：关闭后点微信能进入 `open.weixin.qq.com` 扫码页。
+- 慕课网每次打开登录页最多多等 3 秒（没有广告时）。广告换了关闭按钮会再次失效。
+- 验证：Java 全量 418 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败。改了 Java，需要重启服务。
+
+## 当前交接：搜狐焦点、51CTO 接入微信登录（2026-10-29）
+
+- 搜狐焦点按一点资讯的方式接入：表单客户端只登记首页 `house.focus.cn` 和账号接口 `login.focus.cn/passport/getUserInfo`（不开短信、密码），第三方客户端登记微信入口。
+  - 流程（已用 Playwright 实际走到微信扫码页）：首页点 `span.login-login` 打开弹窗 → 用户同意后勾选 `.agree-protocol .ratio`（不勾选点微信无反应）→ 点 `.login-container span.wechat` → 当前页跳到 `open.weixin.qq.com/connect/qrconnect`。
+  - 账号判定照搬页面脚本 `newlogin.min.js`：`errorCode == 0` 且有 data 为已登录，名字取 `nickName`，空则取 `userName`，并还原转义文本；`errorCode == 401` 为未登录。核验请求带 `Referer: https://house.focus.cn/`。
+  - 页面协议链接为《搜狐焦点网隐私政策》，`browser-login.js` 版本 `20261029-focus1`。
+  - 未实测：扫码后能否识别登录。若微信账号未绑定手机号，平台可能要求先绑手机，这一步在后台浏览器里，用户看不到。
+- 51CTO 放在扫码客户端，页面显示为“用微信扫码”（与人人都是产品经理相同）。
+  - 背景：`static*.51cto.com` 对 curl 和自动化浏览器返回 567 拦截页（用户自己的 Chrome 正常），登录页依赖的 jQuery 加载不出来，页面上的二维码不会出现。
+  - 做法：按登录页内联脚本的同一流程调用 `home.51cto.com` 接口，不伪装浏览器：打开 `/index` → 请求 `/wechat/get-qr-code` 取 sid 和公众号二维码 → 当前页打开二维码图片供截图 → 每次查进度请求 `/wechat/scan-pull?sid=`（`isok == "1"` 为已确认，`code != 200` 为失效）→ 确认后打开 `/user/reg-login?...` 写入 Cookie → 读 `home.51cto.com/home` 个人首页核验：跳回 `/index` 为未登录，页面顶部 `class="name"` 的 `/space?uid=` 链接给出用户 ID 和昵称。`api-media.51cto.com` 账号接口对自动化浏览器同样返回 567，不能用。
+  - 已实测：取码、二维码截图、未扫码轮询；用户扫码后 `reg-login` 成功进入个人首页（首次用 api-media 核验被拦，判为无法确认，已改为读个人首页，待用户再扫一次确认）。
+  - 51CTO 改了这几个接口就会失效。
+- 现在所有平台都已接入登录，`PlatformBrowserLoginServiceTest.unsupportedPlatformIsRejected` 找不到未接入平台做例子，已删除；`PlatformBrowserLoginRouter.requireSupported` 的拒绝逻辑仍在，暂无测试覆盖。
+- 登录弹窗修正（`browser-login.js` 版本 `20261029-scan-default1`）：
+  - 列表“登录”按钮原先固定用 `PLATFORM_APP` 启动；没有 App 扫码的平台会打开表单页、没有二维码（搜狐焦点卡在“等待登录”）。现在改用平台第一个扫码方式；简书、搜狐号、一点资讯、慕课网等也会直接进入微信授权。
+  - 微信/QQ 协议检查原先在打开弹窗前，未勾选时弹窗打不开；现在先打开弹窗显示协议，提示勾选后点“刷新扫码图片”。
+- 验证：Java 全量 418 个（51CTO 改为个人首页核验后数量不变），仅既有的 `shouldRejectDisabledExactTaskChannel` 失败；`browser-login.test.cjs` 仍是既有的 9 项失败。服务未重启。
+
 ## 当前交接：移除开源中国、博客园、大鱼号、思否（2026-10-29）
 
 - 从 `PublicationPlatformType` 删除 `OSCHINA`、`CNBLOGS`、`DAYU`、`SEGMENTFAULT`，同时删掉三个登录客户端里这些平台的站点配置、表单操作、账号解析和协议勾选代码。这四个平台没有发布实现。

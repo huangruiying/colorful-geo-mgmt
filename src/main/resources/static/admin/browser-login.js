@@ -13,6 +13,7 @@ const loginFeedback = document.getElementById('login-feedback');
 const platformAgreementLinks = {
     BAIJIAHAO: ['https://baijiahao.baidu.com/docs/#/markdownsingle/BaiJiaHaoFuWuXieYi', '《百家号用户协议》'],
     SOHU: ['https://mp.sohu.com/baike#/dashboard?id=435536343', '《搜狐号用户服务协议》'],
+    SOHU_FOCUS: ['https://login.focus.cn/privacy/policy', '《搜狐焦点网隐私政策》'],
     EASTMONEY: ['https://mp.eastmoney.com/', '在东方财富登录页查看《隐私政策》和《服务协议》'],
     TOUTIAO: ['https://mp.toutiao.com/profile_v3_public/public/protocol/agreement', '《头条号用户协议》'],
     NETEASE: ['https://hc.reg.163.com/iTerm/doc.html?id=542', '《网易服务条款》']
@@ -220,7 +221,7 @@ function selectScanMethod(scanMethod) {
         button.classList.toggle('selected', button.dataset.scanMethod === scanMethod);
     }
     const nativeScanner = {
-        WECHAT_OFFICIAL_ACCOUNT: '微信', WOSHIPM: '微信', ZHIHU: '知乎 App', JUEJIN: '稀土掘金 App',
+        WECHAT_OFFICIAL_ACCOUNT: '微信', WOSHIPM: '微信', CTO_51: '微信', ZHIHU: '知乎 App', JUEJIN: '稀土掘金 App',
         WEIBO: '微博 App', BILIBILI: '哔哩哔哩客户端', TOUTIAO: '今日头条 App',
         XIAOHONGSHU: '小红书 App', DOUYIN: '抖音 App'
     }[activePlatform] || `${platformNames[activePlatform]} App`;
@@ -287,10 +288,10 @@ loginScreenshot.addEventListener('error', () => {
 /** 在选定平台开启登录页；旧读取失效后展示新进度，扫码模式才启动结果轮询。 */
 async function startLogin(platform, scanMethod = 'PLATFORM_APP', requestedMode) {
     if (loginBusy) return;
-    if ((scanMethod === 'WECHAT' || scanMethod === 'QQ') && platformAgreementLinks[platform]
-        && !document.getElementById('agree-to-platform-terms').checked) {
-        loginFeedback.textContent = `请先阅读并同意${platformNames[platform]}用户协议。`;
-        return;
+    // 没有平台 App 扫码的平台（如搜狐焦点只有微信），默认改用它实际支持的第一种扫码方式
+    const supportedScanMethods = platformScanMethods[platform] || [];
+    if (scanMethod === 'PLATFORM_APP' && supportedScanMethods.length && !supportedScanMethods.includes('PLATFORM_APP')) {
+        scanMethod = supportedScanMethods[0];
     }
     setLoginBusy(true);
     const generation = ++loginGeneration;
@@ -334,6 +335,13 @@ async function startLogin(platform, scanMethod = 'PLATFORM_APP', requestedMode) 
         loginFeedback.textContent = mode === 'qr' ? '正在加载扫码图片…' : '正在打开平台登录页…';
         loginFeedback.classList.toggle('login-feedback-error', false);
         if (!loginTask.open) loginTask.showModal();
+        // 微信、QQ 授权须用户先同意平台协议：弹窗先展示协议，勾选后点“刷新扫码图片”再打开授权页
+        if (mode === 'qr' && (scanMethod === 'WECHAT' || scanMethod === 'QQ') && platformAgreementLinks[platform]
+            && !document.getElementById('agree-to-platform-terms').checked) {
+            scanPlaceholderText.textContent = '请先勾选上方协议，再点击“刷新扫码图片”';
+            loginFeedback.textContent = `请先阅读并同意${platformNames[platform]}用户协议。`;
+            return;
+        }
         const params = new URLSearchParams({
             agreedToPlatformTerms: document.getElementById('agree-to-platform-terms').checked
         });

@@ -156,6 +156,17 @@ class PlatformBrowserLoginServiceTest {
         assertEquals(java.util.List.of(PlatformScanLoginMethod.PLATFORM_APP), woshipm.scanMethods());
     }
 
+    /** 51CTO 只有公众号微信扫码，作为平台原生扫码展示，不提供表单或第三方授权。 */
+    @Test
+    void cto51ListsOnlyNativeWechatScan() {
+        var cto51 = service.listPlatforms().stream()
+                .filter(platform -> platform.platformType().equals("CTO_51")).findFirst().orElseThrow();
+
+        assertTrue(cto51.supported());
+        assertEquals(java.util.List.of("qr"), cto51.loginMethods());
+        assertEquals(java.util.List.of(PlatformScanLoginMethod.PLATFORM_APP), cto51.scanMethods());
+    }
+
     /** 什么值得买只展示 App 扫码和原站微信码，不展示 QQ 授权；CSDN 仍保留 QQ。 */
     @Test
     void smzdmListsAppAndWechatScanWithoutQq() {
@@ -192,6 +203,17 @@ class PlatformBrowserLoginServiceTest {
         assertEquals(java.util.List.of("qr"), yidian.loginMethods());
         assertEquals(java.util.List.of(PlatformScanLoginMethod.WECHAT,
                 PlatformScanLoginMethod.QQ), yidian.scanMethods());
+    }
+
+    /** 搜狐焦点只展示微信授权，不提供短信、密码或其他扫码方式。 */
+    @Test
+    void sohuFocusListsOnlyWechatScan() {
+        var focus = service.listPlatforms().stream()
+                .filter(platform -> platform.platformType().equals("SOHU_FOCUS")).findFirst().orElseThrow();
+
+        assertTrue(focus.supported());
+        assertEquals(java.util.List.of("qr"), focus.loginMethods());
+        assertEquals(java.util.List.of(PlatformScanLoginMethod.WECHAT), focus.scanMethods());
     }
 
     /** 其他扫码平台仍由同一个二维码客户端处理，不依赖知乎规则。 */
@@ -277,10 +299,4 @@ class PlatformBrowserLoginServiceTest {
         verify(dao).updateCheckedStatus("ZHIHU", "UNKNOWN", null);
     }
 
-    /** 未接入平台不能启动任意浏览器登录任务。 */
-    @Test
-    void unsupportedPlatformIsRejected() {
-        assertThrows(PlatformBrowserLoginException.class, () -> service.startLogin(
-                PublicationPlatformType.CTO_51, PlatformScanLoginMethod.PLATFORM_APP, false));
-    }
 }

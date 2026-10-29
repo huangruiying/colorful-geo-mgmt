@@ -55,10 +55,21 @@ public class PlatformScanLoginClient {
     private static final Pattern WECHAT_TOKEN = Pattern.compile("\\bt:\\s*['\"]([0-9]+)['\"]");
     private static final Pattern WECHAT_ACCOUNT = Pattern.compile("\\bnick_name:\\s*['\"]([^'\"]+)['\"]");
     private static final Pattern WEIBO_CONFIG = Pattern.compile("config:\\s*JSON\\.parse\\('(.+?)'\\)", Pattern.DOTALL);
+    /** 51CTO 个人首页顶部的账号链接，取用户 ID 和昵称。 */
+    private static final Pattern CTO51_ACCOUNT = Pattern.compile(
+            "class=\"name\"[^>]*>\\s*<a href=\"/space\\?uid=(\\d+)\">([^<]*)</a>");
     private static final Pattern WOSHIPM_ACCOUNT = Pattern.compile(
             "var\\s+userSettings\\s*=\\s*\\{[^}]*\"uid\"\\s*:\\s*\"(\\d+)\"");
     private static final Pattern DOUYIN_PAGE_ACCOUNT_ID = Pattern.compile("抖音号\\s*[：:]\\s*([A-Za-z0-9._-]{3,32})");
     private static final String CSDN_ACCOUNT_URL = "https://bizapi.csdn.net/blog-console-api/v1/user/info";
+    /** 51CTO 登录页取微信公众号二维码的接口，返回本次扫码标识 sid 与二维码地址。 */
+    private static final String CTO51_QR_CODE_URL = "https://home.51cto.com/wechat/get-qr-code";
+    /** 51CTO 登录页轮询扫码结果的接口，isok 为 1 表示已扫码确认。 */
+    private static final String CTO51_SCAN_PULL_URL = "https://home.51cto.com/wechat/scan-pull?sid=";
+    /** 51CTO 扫码确认后页面跳转的地址，登录 Cookie 在这一步写入。 */
+    private static final String CTO51_LOGIN_URL =
+            "https://home.51cto.com/user/reg-login?from=&iframe=0&is_go_to_user_set_mobile=1";
+    private static final String WECHAT_SHOW_QR_CODE_URL = "https://mp.weixin.qq.com/cgi-bin/showqrcode";
     private static final QrLoginSite CSDN_WECHAT_SITE = new QrLoginSite(
             "https://passport.csdn.net/login", "img[src^='data:image/jpeg;base64,']",
             "img[src^='data:image/jpeg;base64,']", CSDN_ACCOUNT_URL,
@@ -110,6 +121,13 @@ public class PlatformScanLoginClient {
                     "img[src^='https://mp.weixin.qq.com/cgi-bin/showqrcode']",
                     "img[src^='https://mp.weixin.qq.com/cgi-bin/showqrcode']",
                     "https://www.woshipm.com/writing")),
+            // 51CTO 静态资源和 api-media 接口会拦截自动化浏览器：二维码由取码接口获取后单独打开（见 openCto51WechatQrCode），
+            // 账号用 home.51cto.com 个人首页核验
+            Map.entry(PublicationPlatformType.CTO_51, new QrLoginSite(
+                    "https://home.51cto.com/index",
+                    "img[src^='https://mp.weixin.qq.com/cgi-bin/showqrcode']",
+                    "img[src^='https://mp.weixin.qq.com/cgi-bin/showqrcode']",
+                    "https://home.51cto.com/home")),
             Map.entry(PublicationPlatformType.EASTMONEY, new QrLoginSite(
                     "https://mp.eastmoney.com/", "#qrcode", "#qrcode",
                     "https://caifuhaoapi.eastmoney.com/api/v2/getauthorinfo")));
@@ -135,6 +153,8 @@ public class PlatformScanLoginClient {
     private QrLoginSite activeQrSite;
     private Instant startedAt;
     private DouyinIdentityVerificationMethod douyinVerificationMethod;
+    /** 51CTO 本次微信扫码标识，轮询扫码结果时使用。 */
+    private String cto51ScanSid;
 
     /** CSDN、什么值得买的微信二维码位于平台原生登录页，不走外部授权客户端。 */
     public boolean handlesScanMethod(PublicationPlatformType platform, PlatformScanLoginMethod method) {
@@ -208,6 +228,9 @@ public class PlatformScanLoginClient {
                 if (site.qrToggleSelector() != null) {
                     activePage.locator(site.qrToggleSelector()).first().click();
                 }
+                if (platform == PublicationPlatformType.CTO_51) {
+                    openCto51WechatQrCode();
+                }
                 log.info("平台扫码页已打开，等待二维码，platformType={}", platform);
                 qrImage(site.qrImageSelector(), platform).waitFor();
                 log.info("平台二维码已出现，等待图片加载，platformType={}", platform);
@@ -276,6 +299,11 @@ public class PlatformScanLoginClient {
                     && activePage.url().startsWith("https://passport.csdn.net/login")) {
                 return snapshotWithStatus(PlatformBrowserLoginTaskStatus.LOGIN_PENDING);
             }
+            // 51CTO 二维码页仍在显示时先查扫码结果，确认后跳转登录地址写入 Cookie，再走账号接口
+            if (platform == PublicationPlatformType.CTO_51 && activePage.url().startsWith(WECHAT_SHOW_QR_CODE_URL)) {
+                BrowserLoginSnapshot waiting = confirmCto51WechatScan();
+                if (waiting != null) return waiting;
+            }
             AccountProbe probe = platform == PublicationPlatformType.DOUYIN
                     ? probeDouyinPageAccount(activePage) : new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
             // 2. 页面不能确认时再用原账号接口，保留其他平台的既有判定。
@@ -292,6 +320,58 @@ public class PlatformScanLoginClient {
             return snapshotWithStatus(probe.status() == PlatformBrowserLoginStatus.UNKNOWN
                     ? PlatformBrowserLoginTaskStatus.UNKNOWN : PlatformBrowserLoginTaskStatus.LOGIN_PENDING);
         });
+    }
+
+    /**
+     * 取 51CTO 微信公众号二维码并在当前页单独打开，供后续截图展示。
+     * <p>51CTO 登录页的脚本放在静态资源域名上，自动化浏览器访问会被对方防护拦截，页面上的二维码不会出现；
+     * 这里按登录页脚本的同一流程调用取码接口（与登录页共用 Cookie），只记录 sid，不保存二维码。</p>
+     *
+     * @throws PlatformBrowserLoginException 取码接口未返回有效的微信二维码
+     */
+    private void openCto51WechatQrCode() {
+        // 1. 调用登录页同一个取码接口，code 为 200 才有 sid 和二维码地址
+        Object qrCode = requestCto51Json(CTO51_QR_CODE_URL);
+        if (qrCode == null) {
+            throw new PlatformBrowserLoginException("51CTO 微信二维码获取失败，请稍后重试");
+        }
+        String sid = readAccountText(qrCode, "$.data.sid", "");
+        String qrCodeUrl = readAccountText(qrCode, "$.data.img", "");
+        // 2. 只接受微信公众号二维码地址，避免打开接口返回的其他页面
+        if (readAccountNumber(qrCode, "$.code", -1) != 200 || sid.isBlank()
+                || !qrCodeUrl.startsWith(WECHAT_SHOW_QR_CODE_URL)) {
+            throw new PlatformBrowserLoginException("51CTO 微信二维码获取失败，请稍后重试");
+        }
+        // 3. 记录 sid 供轮询使用，并打开二维码图片供截图
+        cto51ScanSid = sid;
+        activePage.navigate(qrCodeUrl, new Page.NavigateOptions()
+                .setWaitUntil(WaitUntilState.DOMCONTENTLOADED).setTimeout(20_000));
+    }
+
+    /**
+     * 查询 51CTO 微信扫码结果；用户确认后打开登录地址，由 51CTO 写入登录 Cookie。
+     * <p>判定规则与登录页脚本一致：code 不是 200 表示二维码已失效；data.isok 为 1 表示已扫码确认。</p>
+     *
+     * @return 仍在等待或二维码失效时返回要展示的进度；已确认并完成跳转时返回 null，由调用方继续核验账号
+     */
+    private BrowserLoginSnapshot confirmCto51WechatScan() {
+        // 1. 按 sid 查询扫码结果；本次没读到结果下次再查，接口明确返回非 200 才算二维码失效
+        Object scanResult = requestCto51Json(CTO51_SCAN_PULL_URL + cto51ScanSid + "&time=" + System.currentTimeMillis());
+        if (scanResult == null) {
+            return snapshotWithStatus(PlatformBrowserLoginTaskStatus.LOGIN_PENDING);
+        }
+        if (readAccountNumber(scanResult, "$.code", -1) != 200) {
+            closeActiveLogin();
+            return new BrowserLoginSnapshot(PlatformBrowserLoginTaskStatus.EXPIRED, null, null, null);
+        }
+        // 2. 未确认时继续展示二维码，不请求账号接口
+        if (!"1".equals(readAccountText(scanResult, "$.data.isok", ""))) {
+            return snapshotWithStatus(PlatformBrowserLoginTaskStatus.LOGIN_PENDING);
+        }
+        // 3. 已确认：打开登录页脚本跳转的同一地址，Cookie 写入后由账号接口确认身份
+        activePage.navigate(CTO51_LOGIN_URL, new Page.NavigateOptions()
+                .setWaitUntil(WaitUntilState.DOMCONTENTLOADED).setTimeout(20_000));
+        return null;
     }
 
     /**
@@ -536,6 +616,9 @@ public class PlatformScanLoginClient {
             }
             if (platform == PublicationPlatformType.WOSHIPM) {
                 return probeWoshipmAccount(context, response);
+            }
+            if (platform == PublicationPlatformType.CTO_51) {
+                return parseCto51HomeHtml(response.url(), new String(response.body(), StandardCharsets.UTF_8));
             }
             return parseAccountResponse(platform, JSON.parseObject(new String(response.body(), StandardCharsets.UTF_8)));
         } catch (JSONException | PlaywrightException exception) {
@@ -900,6 +983,46 @@ public class PlatformScanLoginClient {
     }
 
     /**
+     * 以登录页 Ajax 的方式请求 51CTO 接口，与登录页共用浏览器 Cookie。
+     *
+     * @param url 接口地址
+     * @return 解析后的 JSON；HTTP 失败或返回的不是 JSON（如被防护拦截的页面）时为 null
+     */
+    private Object requestCto51Json(String url) {
+        APIResponse response = activeContext.request().get(url, RequestOptions.create().setTimeout(10_000)
+                .setHeader("X-Requested-With", "XMLHttpRequest").setHeader("Referer", "https://home.51cto.com/index"));
+        if (!response.ok()) return null;
+        try {
+            return JSON.parseObject(new String(response.body(), StandardCharsets.UTF_8));
+        } catch (JSONException exception) {
+            return null;
+        }
+    }
+
+    /**
+     * 51CTO 个人首页只有登录后才能打开，未登录会跳回登录页 /index；以页面顶部的账号链接确认身份。
+     * <p>账号接口 api-media.51cto.com 会拦截自动化浏览器（返回 567），因此改读 home.51cto.com 个人首页。</p>
+     *
+     * @param responseUrl 跟随跳转后的最终地址
+     * @param html 个人首页或登录页 HTML
+     * @return 已登录（昵称或用户 ID）、未登录，或页面结构不符时无法确认
+     */
+    AccountProbe parseCto51HomeHtml(String responseUrl, String html) {
+        // 1. 跳回登录页是平台对未登录会话的明确响应
+        if ("/index".equals(URI.create(responseUrl).getPath())) {
+            return new AccountProbe(PlatformBrowserLoginStatus.NOT_LOGGED_IN, null);
+        }
+        // 2. 个人首页须带当前账号链接，昵称为空时以用户 ID 展示
+        Matcher account = CTO51_ACCOUNT.matcher(html);
+        if (!account.find()) {
+            return new AccountProbe(PlatformBrowserLoginStatus.UNKNOWN, null);
+        }
+        String accountName = account.group(2).strip();
+        return new AccountProbe(PlatformBrowserLoginStatus.LOGGED_IN,
+                accountName.isBlank() ? account.group(1) : accountName);
+    }
+
+    /**
      * 截取当前二维码；扫码后页面切换而账号仍无法确认时显示整页提示。
      *
      * @param status 当前登录任务进度
@@ -939,6 +1062,7 @@ public class PlatformScanLoginClient {
         activeQrSite = null;
         startedAt = null;
         douyinVerificationMethod = null;
+        cto51ScanSid = null;
     }
 
     /**
