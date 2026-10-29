@@ -2,6 +2,14 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：移除开源中国、博客园、大鱼号、思否（2026-10-29）
+
+- 从 `PublicationPlatformType` 删除 `OSCHINA`、`CNBLOGS`、`DAYU`、`SEGMENTFAULT`，同时删掉三个登录客户端里这些平台的站点配置、表单操作、账号解析和协议勾选代码。这四个平台没有发布实现。
+- 顺带精简：表单客户端的 `readAccountBoolean` 只给开源中国用，已删除；第三方授权入口的“第 N 个按钮”下标只有开源中国用，`LoginEntry` 只保留选择器，点击改为 `.first()`，行为不变。
+- 页面：`browser-login.js` 去掉开源中国协议链接和大鱼号扫码说明，版本 `20261029-remove-four1`；`config/browser-login.md` 同步。
+- 部署前检查：`platform_browser_login.platform_type` 是字符串，残留行不报错，只是不再显示；`content_publish_record.platform_type` 映射为枚举，若有这四个平台的历史记录，列表读取会报错，需先查清理。
+- 验证：Java 全量 414 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败；`browser-login.test.cjs` 仍是既有的 9 项失败。服务未重启。
+
 ## 当前交接：模型列表增加删除（2026-10-29）
 
 - 新增 `DELETE /llm-channels/{id}`（`GeoLlmChannelService.deleteChannel`）：渠道仍被诊断方案引用时返回 400，并提示“该模型正被 N 个诊断方案使用，请先从方案中移除”；不存在返回 404；成功返回 204。不级联修改方案。
