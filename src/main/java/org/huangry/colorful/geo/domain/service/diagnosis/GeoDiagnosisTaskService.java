@@ -268,10 +268,15 @@ public class GeoDiagnosisTaskService {
      * 精确读取原渠道及当前凭据，配置变化时拒绝静默替换测试条件。
      * @param sample 冻结的诊断结果
      * @return 本次调用的渠道实体，仅在服务端使用
+     * @throws IllegalArgumentException 渠道已删除或配置与冻结快照不一致
      */
     public GeoLlmChannelEntity confirmTaskChannel(GeoDiagnosisTaskResultEntity sample) {
         // 读取原渠道，再以同一解析规则还原双方配置用于比较
         GeoLlmChannelEntity channel = channelDao.selectById(sample.getChannelId());
+        // 渠道已在模型列表中删除时无法按原条件执行，本条诊断直接失败
+        if (channel == null) {
+            throw new IllegalArgumentException("渠道已被删除，请重新创建诊断任务");
+        }
         // 双方统一解析整数与小数，保留显式空值，避免更换 JSON 库后误判历史配置变化。
         var current = (JSONObject) snapshots.parseSnapshot(JSON.toJSONString(snapshots.buildChannelSnapshot(channel), SerializerFeature.WriteMapNullValue));
         var frozen = (JSONObject) snapshots.parseSnapshot(sample.getChannelSnapshot());

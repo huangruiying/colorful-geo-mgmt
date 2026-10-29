@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMStrategy;
 import java.util.Map;
+import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisPlanChannelDao;
 import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
+import org.huangry.colorful.geo.infrastructure.repository.entity.GeoDiagnosisPlanChannelEntity;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.springframework.stereotype.Service;
@@ -14,11 +16,13 @@ import java.net.URI;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-/** 模型渠道领域服务；保存、查询与启停配置，不测试远程模型。 */
+/** 模型渠道领域服务；保存、查询、启停与删除配置，不测试远程模型。 */
 @Service
 public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmChannelEntity> {
     @Resource
     private Map<String, LLMStrategy> strategies;
+    @Resource
+    private GeoDiagnosisPlanChannelDao planChannelDao;
     /** 未填写输出上限时的默认值，与配置页初始值及建表默认值一致。 */
     private static final int DEFAULT_MAX_TOKENS = 60000;
     /** 校验并保存渠道；更新时保持编码和系统字段不变。 */
@@ -82,6 +86,29 @@ public class GeoLlmChannelService extends ServiceImpl<GeoLlmChannelDao, GeoLlmCh
             throw new IllegalStateException("模型渠道状态更新失败");
         }
         return getById(id);
+    }
+
+    /**
+     * 删除模型渠道，只删除 geo_llm_channel 中这一条记录。
+     * <p>仍被诊断方案引用时拒绝删除，需先从方案中移除；历史诊断结果和报告保存的是渠道快照，删除后仍可查看，
+     * 但重试这些任务时会因渠道不存在而失败。</p>
+     *
+     * @param id 模型渠道 ID
+     * @throws NoSuchElementException 渠道不存在
+     * @throws IllegalArgumentException 渠道仍被诊断方案引用
+     */
+    @Transactional
+    public void deleteChannel(long id) {
+        // 1. 确认渠道存在，避免对不存在的记录返回成功
+        if (getById(id) == null) throw new NoSuchElementException("模型渠道不存在");
+        // 2. 方案仍在使用时拒绝删除，不悄悄修改用户的诊断方案
+        long planCount = planChannelDao.selectCount(new LambdaQueryWrapper<GeoDiagnosisPlanChannelEntity>()
+                .eq(GeoDiagnosisPlanChannelEntity::getChannelId, id));
+        if (planCount > 0) {
+            throw new IllegalArgumentException("该模型正被 " + planCount + " 个诊断方案使用，请先从方案中移除");
+        }
+        // 3. 删除渠道记录
+        removeById(id);
     }
 
     /** 参数绑定查询，编码及名称使用同一关键词。 */

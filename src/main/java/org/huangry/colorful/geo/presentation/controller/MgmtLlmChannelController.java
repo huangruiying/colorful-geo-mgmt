@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 
-/** 基础配置模型接口；创建、编辑、列表与启停，不触发远程调用。 */
+/** 基础配置模型接口；创建、编辑、列表、启停与删除，不触发远程调用。 */
 @RestController
 @RequestMapping("/llm-channels")
 public class MgmtLlmChannelController {
@@ -70,6 +70,15 @@ public class MgmtLlmChannelController {
         if (request.enabled() == null) throw new IllegalArgumentException("请指定启用状态");
         return business.changeEnabled(id, request.enabled());
     }
+
+    /**
+     * 删除模型渠道；仍被诊断方案引用时返回 400，不存在时返回 404。
+     *
+     * @param id 模型渠道 ID
+     */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteChannel(@PathVariable("id") long id) { business.deleteChannel(id); }
 
     /** 状态更新命令，空值不能被当成停用。 */
     public record EnabledCommand(Boolean enabled) {}
