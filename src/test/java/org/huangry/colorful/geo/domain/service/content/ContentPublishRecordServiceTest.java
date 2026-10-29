@@ -18,9 +18,12 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
@@ -87,14 +90,38 @@ class ContentPublishRecordServiceTest {
         calls.verify(dao).createInitializedRecord(7L, PublicationPlatformType.ZHIHU, "新标题", "新正文");
     }
 
-    /** 初始化记录必须成功进入预发布中，才能调用外部平台。 */
+    /** 带状态条件的更新成功才算领到待预发布记录。 */
     @Test
-    void 初始化后推进预发布状态() {
+    void 领取待预发布记录并改为预发布中() {
+        initTableInfo();
+        ContentPublishRecordEntity next = titleRecord(30L, 7L, "标题");
+        next.setPlatformType(PublicationPlatformType.ZHIHU);
+        when(dao.selectOne(any())).thenReturn(next);
         when(dao.startPrePublish(7L, PublicationPlatformType.ZHIHU)).thenReturn(1);
 
-        service.startPrePublish(7L, PublicationPlatformType.ZHIHU);
-
+        assertEquals(next, service.claimNextInitializedRecord());
         verify(dao).startPrePublish(7L, PublicationPlatformType.ZHIHU);
+    }
+
+    /** 记录已被删除或被其他执行者领走时，本次不算领到，不调用平台。 */
+    @Test
+    void 状态已变化时不算领到() {
+        initTableInfo();
+        ContentPublishRecordEntity next = titleRecord(30L, 7L, "标题");
+        next.setPlatformType(PublicationPlatformType.ZHIHU);
+        when(dao.selectOne(any())).thenReturn(next);
+        when(dao.startPrePublish(7L, PublicationPlatformType.ZHIHU)).thenReturn(0);
+
+        assertNull(service.claimNextInitializedRecord());
+    }
+
+    /** 没有待预发布记录时返回空，不做状态更新。 */
+    @Test
+    void 没有待预发布记录时返回空() {
+        initTableInfo();
+
+        assertNull(service.claimNextInitializedRecord());
+        verify(dao, never()).startPrePublish(anyLong(), any());
     }
 
     /** 平台结果回写应使用实际返回的远程 ID，不能伪造内容标识。 */
@@ -156,8 +183,7 @@ class ContentPublishRecordServiceTest {
     /** 每篇文章只保留最新一条发布记录的标题，最新的文章在前。 */
     @Test
     void 每篇文章只取最新一条标题() {
-        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), "publish-title-test"),
-                ContentPublishRecordEntity.class);
+        initTableInfo();
         when(dao.selectList(any())).thenReturn(List.of(
                 titleRecord(30L, 7L, "第七篇新标题"), titleRecord(29L, 8L, "第八篇"), titleRecord(28L, 7L, "第七篇旧标题")));
 
@@ -181,5 +207,11 @@ class ContentPublishRecordServiceTest {
         record.setContentOptimizationRecordId(articleId);
         record.setPublicationTitle(title);
         return record;
+    }
+
+    /** 初始化实体的表信息，Lambda 查询条件需要据此解析字段名。 */
+    private void initTableInfo() {
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), "publish-record-test"),
+                ContentPublishRecordEntity.class);
     }
 }
