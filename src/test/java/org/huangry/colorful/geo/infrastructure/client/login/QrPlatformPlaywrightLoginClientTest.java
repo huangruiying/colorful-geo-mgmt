@@ -1,7 +1,5 @@
 package org.huangry.colorful.geo.infrastructure.client.login;
 
-import org.huangry.colorful.geo.infrastructure.client.playwright.PlaywrightBrowserComponent;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.alibaba.fastjson.JSON;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginStatus;
@@ -15,23 +13,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** 扫码平台账号响应的状态判定测试；不启动浏览器或访问真实账号。 */
 class QrPlatformPlaywrightLoginClientTest {
 
-    private final QrPlatformPlaywrightLoginClient client = new QrPlatformPlaywrightLoginClient();
+    private final PlatformScanLoginClient client = new PlatformScanLoginClient();
 
     /** 只有含扫码页及账号核验规则的平台才开放独立登录入口。 */
     @Test
     void 仅已实现的扫码平台显示登录入口() {
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.JUEJIN));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.WEIBO));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.WECHAT_OFFICIAL_ACCOUNT));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.BILIBILI));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.TOUTIAO));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.XIAOHONGSHU));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.DOUYIN));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.DAYU));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.CSDN));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.SMZDM));
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.EASTMONEY));
-        assertFalse(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.YUQUE));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.JUEJIN));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.WEIBO));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.WECHAT_OFFICIAL_ACCOUNT));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.BILIBILI));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.TOUTIAO));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.XIAOHONGSHU));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.DOUYIN));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.CSDN));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.SMZDM));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.EASTMONEY));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.WOSHIPM));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.CTO_51));
     }
 
     /** 东方财富只接受创作平台返回的作者 ID 与昵称，不把业务成功码单独当成登录。 */
@@ -275,22 +273,20 @@ class QrPlatformPlaywrightLoginClientTest {
                         "抖音号：28398064639").status());
     }
 
-    /** 大鱼号后台重定向到登录页时不能按 HTTP 200 判定已登录。 */
+    /** 51CTO 个人首页跳回登录页为未登录，带账号链接才算登录，昵称为空时取用户 ID。 */
     @Test
-    void 大鱼号跳回登录页应返回未登录() {
-        var probe = client.parseDayuAccountHtml("https://mp.dayu.com/?redirect_url=/dashboard/index", "登录");
+    void 五十一CTO按个人首页判定登录() {
+        var notLoggedIn = client.parseCto51HomeHtml("https://home.51cto.com/index", "<title>登录</title>");
+        var loggedIn = client.parseCto51HomeHtml("https://home.51cto.com/home",
+                "<div class=\"name\" style = \"overflow-x:hidden\"><a href=\"/space?uid=123\">作者</a></div>");
+        var noName = client.parseCto51HomeHtml("https://home.51cto.com/home",
+                "<div class=\"name\"><a href=\"/space?uid=123\"></a></div>");
+        var otherPage = client.parseCto51HomeHtml("https://home.51cto.com/home", "<div>维护中</div>");
 
-        assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN, probe.status());
+        assertEquals(PlatformBrowserLoginStatus.NOT_LOGGED_IN, notLoggedIn.status());
+        assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, loggedIn.status());
+        assertEquals("作者", loggedIn.accountName());
+        assertEquals("123", noName.accountName());
+        assertEquals(PlatformBrowserLoginStatus.UNKNOWN, otherPage.status());
     }
-
-    /** 大鱼号后台配置必须同时包含令牌和账号 ID。 */
-    @Test
-    void 大鱼号后台账号配置可以确认身份() {
-        var probe = client.parseDayuAccountHtml("https://mp.dayu.com/dashboard/index",
-                "var globalConfig = {utoken:'session',wmid:123,weMediaName:'大鱼作者'};");
-
-        assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, probe.status());
-        assertEquals("大鱼作者", probe.accountName());
-    }
-
 }

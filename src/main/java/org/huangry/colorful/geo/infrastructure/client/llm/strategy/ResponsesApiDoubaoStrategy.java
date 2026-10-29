@@ -14,6 +14,15 @@ import java.util.List;
 @Component
 public class ResponsesApiDoubaoStrategy extends AbstractResponsesApiStrategy {
     /**
+     * 声明配置页面展示的策略名称。
+     * @return 豆包
+     */
+    @Override
+    public String displayName() {
+        return "豆包";
+    }
+
+    /**
      * 声明火山方舟控制台的 API Key 管理页，供配置页面引导获取密钥。
      * @return 火山方舟控制台 API Key 管理页地址
      */

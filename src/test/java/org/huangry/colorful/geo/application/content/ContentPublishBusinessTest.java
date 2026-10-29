@@ -1,6 +1,8 @@
 package org.huangry.colorful.geo.application.content;
 
+import org.huangry.colorful.geo.application.content.model.ContentPublishTitleOption;
 import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
+import org.huangry.colorful.geo.infrastructure.repository.entity.ContentPublishRecordEntity;
 import org.huangry.colorful.geo.domain.model.ContentOptimizationRecord;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
@@ -66,18 +68,31 @@ class ContentPublishBusinessTest {
             new PublicationPlatformOption(PublicationPlatformType.WEIBO, "微博")), service.listConfiguredPlatforms());
     }
 
-    /** 发布列表沿用原有分页语义，并只读取发布记录服务。 */
+    /** 发布列表沿用原有分页语义；列表和总数使用同一个文章筛选条件。 */
     @Test
     void 应分页读取发布记录() {
         ContentPublishRecord record = ContentPublishRecord.builder().id(11L).build();
-        when(publishRecordService.listContentPublishRecords(new PageQuery(1, 20))).thenReturn(List.of(record));
-        when(publishRecordService.countContentPublishRecords()).thenReturn(21L);
+        when(publishRecordService.listContentPublishRecords(new PageQuery(1, 20), 7L)).thenReturn(List.of(record));
+        when(publishRecordService.countContentPublishRecords(7L)).thenReturn(21L);
 
-        var page = service.listContentPublishRecords(1, 20);
+        var page = service.listContentPublishRecords(1, 20, 7L);
 
         assertEquals(List.of(record), page.items());
         assertEquals(21L, page.total());
-        verify(publishRecordService).listContentPublishRecords(new PageQuery(1, 20));
+        verify(publishRecordService).listContentPublishRecords(new PageQuery(1, 20), 7L);
+        verify(publishRecordService).countContentPublishRecords(7L);
+    }
+
+    /** 文章标题选项带上全拼和首字母，供页面按拼音搜索。 */
+    @Test
+    void 文章标题选项附带拼音() {
+        ContentPublishRecordEntity latest = new ContentPublishRecordEntity();
+        latest.setContentOptimizationRecordId(7L);
+        latest.setPublicationTitle("预发布测试 GEO");
+        when(publishRecordService.listLatestRecordPerArticle()).thenReturn(List.of(latest));
+
+        assertEquals(List.of(new ContentPublishTitleOption(7L, "预发布测试 GEO", "yufabuceshigeo", "yfbcsgeo")),
+                service.listContentPublishTitles());
     }
 
     /** 删除发布记录应委托本地持久化服务，不触碰平台接口。 */

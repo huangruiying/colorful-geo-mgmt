@@ -17,6 +17,15 @@ import java.util.Map;
 @Component
 public class ResponsesApiQwenStrategy extends AbstractResponsesApiStrategy {
     /**
+     * 声明配置页面展示的策略名称。
+     * @return 通义千问
+     */
+    @Override
+    public String displayName() {
+        return "通义千问";
+    }
+
+    /**
      * 声明百炼控制台的 API Key 管理页，供配置页面引导获取密钥。
      * @return 百炼 API Key 管理页地址
      */

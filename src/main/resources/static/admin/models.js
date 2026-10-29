@@ -11,12 +11,11 @@
         const syncStrategy = () => {
             const option = form.elements.strategyBeanName.selectedOptions[0];
             const protocol = option?.dataset.protocolType || "";
-            const remote = protocol !== "MOCK";
-            for (const key of ["baseUrl", "modelName"]) form.elements[key].required = remote;
+            for (const key of ["baseUrl", "modelName"]) form.elements[key].required = true;
             // 留空不发送随机性，填写由远端模型校验；仅保留明确不使用参数的策略限制。
             const searchModel = option?.value === "chatCompletionsApiOpenAiStrategy"
                 && form.elements.modelName.value.trim() === "gpt-5-search-api";
-            const generationParameters = Boolean(protocol) && remote && !searchModel;
+            const generationParameters = Boolean(protocol) && !searchModel;
             form.elements.temperature.disabled = !generationParameters;
             form.elements.temperature.required = false;
             form.elements.maxTokens.disabled = !generationParameters;
@@ -43,7 +42,7 @@
                 select.replaceChildren();
                 for (const strategy of strategies) {
                     const option = document.createElement("option");
-                    option.value = strategy.beanName; option.textContent = strategy.beanName + " · " + strategy.protocolType;
+                    option.value = strategy.beanName; option.textContent = strategy.displayName + " · " + strategy.protocolName;
                     option.dataset.protocolType = strategy.protocolType;
                     option.dataset.apiKeyConsoleUrl = strategy.apiKeyConsoleUrl || "";
                     select.append(option);
@@ -89,7 +88,7 @@
             rows.replaceChildren();
             for (const c of result.items) {
                 const row = document.createElement("tr");
-                const values = [c.id, c.channelName, c.channelCode, c.providerCode, c.modelName || "本地模拟", c.strategyBeanName, c.protocolType || "策略未注册", c.score, c.enabled ? "已启用" : "已停用"];
+                const values = [c.id, c.channelName, c.channelCode, c.providerCode, c.modelName, c.strategyBeanName, c.protocolType || "策略未注册", c.score, c.enabled ? "已启用" : "已停用"];
                 for (const value of values) {
                     const cell = document.createElement("td"); cell.textContent = value;
                     row.append(cell);
@@ -102,7 +101,15 @@
                     try { await request("/llm-channels/" + c.id + "/enabled", {method: "PATCH", body: JSON.stringify({enabled: !c.enabled})}); await load(); }
                     catch (failure) { showError(failure.message); toggle.disabled = false; }
                 });
-                cell.append(edit, toggle); row.append(cell); rows.append(row);
+                const remove = document.createElement("button");
+                remove.className = "text-button"; remove.type = "button"; remove.textContent = "删除";
+                remove.addEventListener("click", async () => {
+                    if (remove.disabled || !confirm("确定删除模型渠道“" + c.channelName + "”？删除后不可恢复。")) return;
+                    remove.disabled = true; showError("");
+                    try { await request("/llm-channels/" + c.id, {method: "DELETE"}); await load(); }
+                    catch (failure) { showError(failure.message); remove.disabled = false; }
+                });
+                cell.append(edit, toggle, remove); row.append(cell); rows.append(row);
             }
             if (!result.items.length) {
                 const row = document.createElement("tr"), cell = document.createElement("td");

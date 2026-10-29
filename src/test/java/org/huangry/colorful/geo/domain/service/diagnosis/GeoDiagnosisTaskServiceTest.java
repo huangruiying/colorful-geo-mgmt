@@ -94,8 +94,8 @@ class GeoDiagnosisTaskServiceTest {
             TableInfoHelper.initTableInfo(assistant, type);
         }
 
-        ReflectionTestUtils.setField(snapshots, "strategies", Map.of("mockLlmStrategy",
-                new org.huangry.colorful.geo.infrastructure.client.llm.strategy.MockLlmStrategy()));
+        ReflectionTestUtils.setField(snapshots, "strategies", Map.of("responsesApiCommonStrategy",
+                new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiCommonStrategy()));
         ReflectionTestUtils.setField(service, "taskDao", tasks);
         ReflectionTestUtils.setField(service, "resultDao", results);
         ReflectionTestUtils.setField(service, "planDao", plans);
@@ -132,7 +132,7 @@ class GeoDiagnosisTaskServiceTest {
         assertFalse(task.getPlanSnapshot().contains("private-query"));
         assertFalse(task.getPlanSnapshot().contains("apiKey"));
         assertEquals("https://example.invalid/v1", JSON.parseObject(task.getPlanSnapshot()).getJSONArray("channels").getJSONObject(0).getString("baseUrl"));
-        assertEquals("MOCK", JSON.parseObject(task.getPlanSnapshot()).getJSONArray("channels").getJSONObject(0).getString("protocolType"));
+        assertEquals("OPENAI_RESPONSES", JSON.parseObject(task.getPlanSnapshot()).getJSONArray("channels").getJSONObject(0).getString("protocolType"));
         assertEquals(2, JSON.parseObject(task.getPlanSnapshot()).getJSONArray("questions").size());
         assertEquals("项目背景", JSON.parseObject(task.getPlanSnapshot()).getJSONObject("project").getString("coreFeatures"));
     }
@@ -183,6 +183,17 @@ class GeoDiagnosisTaskServiceTest {
         channel.setMaxTokens(999);
         assertThrows(IllegalArgumentException.class, () -> service.confirmTaskChannel(sample));
         verifyNoInteractions(results);
+    }
+
+    /** 渠道在模型列表中被删除后，重试该诊断结果明确失败，不出现空指针。 */
+    @Test
+    void shouldRejectDeletedChannel() {
+        var sample = new GeoDiagnosisTaskResultEntity();
+        sample.setChannelId(1L); sample.setChannelSnapshot(JSON.toJSONString(snapshots.buildChannelSnapshot(channel(1L)),
+                com.alibaba.fastjson.serializer.SerializerFeature.WriteMapNullValue));
+        when(channels.selectById(1L)).thenReturn(null);
+        var error = assertThrows(IllegalArgumentException.class, () -> service.confirmTaskChannel(sample));
+        assertEquals("渠道已被删除，请重新创建诊断任务", error.getMessage());
     }
 
     /** 历史快照含显式空值且小数位数不同时，不应因 JSON 实现变化阻断同一渠道。 */
@@ -305,7 +316,7 @@ class GeoDiagnosisTaskServiceTest {
     private GeoLlmChannelEntity channel(long id) {
         var channel = new GeoLlmChannelEntity(); channel.setId(id); channel.setEnabled(true);
         channel.setChannelCode("fixture-" + id); channel.setChannelName("渠道 " + id);
-        channel.setStrategyBeanName("mockLlmStrategy"); channel.setModelName("fixture-model");
+        channel.setStrategyBeanName("responsesApiCommonStrategy"); channel.setModelName("fixture-model");
         channel.setApiKey("qa-secret"); channel.setBaseUrl("https://qa-secret@example.invalid/v1?token=private-query");
         channel.setMaxTokens(100); return channel;
     }

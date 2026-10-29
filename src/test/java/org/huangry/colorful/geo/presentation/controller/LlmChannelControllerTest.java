@@ -30,14 +30,17 @@ class LlmChannelControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
-    /** 页面选项来自实际注册集合，厂商策略带密钥获取页，通用策略没有固定厂商时为空。 */
+    /** 页面选项来自实际注册集合，带策略中文名称和协议名称；厂商策略带密钥获取页，通用策略没有固定厂商时为空。 */
     @Test
     void shouldListRegisteredStrategyOptions() throws Exception {
         mvc.perform(get("/llm-channels/strategies")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].beanName").value("responsesApiCommonStrategy"))
+                .andExpect(jsonPath("$[0].displayName").value("通用兼容"))
                 .andExpect(jsonPath("$[0].apiKeyConsoleUrl").isEmpty())
                 .andExpect(jsonPath("$[1].beanName").value("responsesApiDoubaoStrategy"))
+                .andExpect(jsonPath("$[1].displayName").value("豆包"))
                 .andExpect(jsonPath("$[1].protocolType").value("OPENAI_RESPONSES"))
+                .andExpect(jsonPath("$[1].protocolName").value("Responses"))
                 .andExpect(jsonPath("$[1].apiKeyConsoleUrl").value("https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey"))
                 .andExpect(jsonPath("$[1].name").doesNotExist());
     }
@@ -65,6 +68,18 @@ class LlmChannelControllerTest {
         mvc.perform(patch("/llm-channels/1/enabled").contentType("application/json").content("{}"))
             .andExpect(status().isBadRequest());
         verify(business, times(1)).changeEnabled(1L, false);
+    }
+
+    /** 删除成功返回 204；被方案使用返回 400 并带原因，不存在返回 404。 */
+    @Test
+    void shouldDeleteChannelAndReturnReadableErrors() throws Exception {
+        mvc.perform(delete("/llm-channels/1")).andExpect(status().isNoContent());
+        verify(business).deleteChannel(1L);
+        doThrow(new IllegalArgumentException("该模型正被 1 个诊断方案使用，请先从方案中移除")).when(business).deleteChannel(2L);
+        mvc.perform(delete("/llm-channels/2")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.detail").value("该模型正被 1 个诊断方案使用，请先从方案中移除"));
+        doThrow(new NoSuchElementException("模型渠道不存在")).when(business).deleteChannel(99L);
+        mvc.perform(delete("/llm-channels/99")).andExpect(status().isNotFound());
     }
 
     /** 记录缺失和编码冲突提供稳定状态码，不暴露数据库内容。 */

@@ -4,7 +4,9 @@ import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
 import org.huangry.colorful.geo.infrastructure.client.publish.strategy.PublicationPlatformStrategy;
 import java.util.Comparator;
+import org.huangry.colorful.geo.application.content.model.ContentPublishTitleOption;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
+import org.huangry.colorful.geo.infrastructure.common.utils.PinyinUtils;
 import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
@@ -46,19 +48,33 @@ public class ContentPublishBusiness {
     }
 
     /**
-     * 发布记录列表分页查询。
+     * 发布记录列表（分页）查询，可按文章筛选。
      *
      * @param page 从零开始的页码
      * @param size 每页条数，上限 100
+     * @param contentOptimizationRecordId 文章（内容优化记录）ID；为空时不筛选
      * @return 当前页及总数
      */
-    public PageResponse<ContentPublishRecord> listContentPublishRecords(int page, int size) {
+    public PageResponse<ContentPublishRecord> listContentPublishRecords(int page, int size, Long contentOptimizationRecordId) {
         // 分页参数越界直接拒绝，避免一次查询过多记录
         var pageQuery = new PageQuery(page, size);
 
-        // 查询当前页记录和总数
-        return pageQuery.toResponse(publishRecordService.listContentPublishRecords(pageQuery),
-                publishRecordService.countContentPublishRecords());
+        // 查询当前页记录和总数，两者使用同一筛选条件
+        return pageQuery.toResponse(publishRecordService.listContentPublishRecords(pageQuery, contentOptimizationRecordId),
+                publishRecordService.countContentPublishRecords(contentOptimizationRecordId));
+    }
+
+    /**
+     * 列出有发布记录的文章标题，附带全拼和首字母，供发布记录页下拉框模糊搜索。
+     *
+     * @return 每篇文章一项，最新的文章在前
+     */
+    public List<ContentPublishTitleOption> listContentPublishTitles() {
+        return publishRecordService.listLatestRecordPerArticle().stream()
+                .map(record -> new ContentPublishTitleOption(record.getContentOptimizationRecordId(),
+                        record.getPublicationTitle(), PinyinUtils.toFullPinyin(record.getPublicationTitle()),
+                        PinyinUtils.toInitials(record.getPublicationTitle())))
+                .toList();
     }
 
     /**

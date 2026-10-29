@@ -7,7 +7,6 @@ import jakarta.annotation.Resource;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMResponse;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMStrategy;
-import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.huangry.colorful.geo.infrastructure.common.exceptions.LLMClientException;
 import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
@@ -99,7 +98,7 @@ public class LLMStrategyRouter {
         if (strategy == null) {
             throw new LLMClientException("渠道配置的策略 Bean 未注册，请修改模型配置");
         }
-        if (strategy.protocolType() != LLMProtocolType.MOCK && (StringUtils.isBlank(channel.getApiKey()))) {
+        if (StringUtils.isBlank(channel.getApiKey())) {
             throw new LLMClientException("模型渠道未保存 API 密钥");
         }
         return strategy;

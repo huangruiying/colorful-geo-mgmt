@@ -13,6 +13,15 @@ import java.util.Map;
 @Component
 public class ChatCompletionsApiOpenAiStrategy extends AbstractChatCompletionsApiStrategy {
     /**
+     * 声明配置页面展示的策略名称。
+     * @return OpenAI
+     */
+    @Override
+    public String displayName() {
+        return "OpenAI";
+    }
+
+    /**
      * 声明 OpenAI 平台的 API Key 管理页，供配置页面引导获取密钥。
      * @return OpenAI 平台 API Key 管理页地址
      */

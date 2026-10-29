@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 
-/** 基础配置模型接口；创建、编辑、列表与启停，不触发远程调用。 */
+/** 基础配置模型接口；创建、编辑、列表、启停与删除，不触发远程调用。 */
 @RestController
 @RequestMapping("/llm-channels")
 public class MgmtLlmChannelController {
@@ -22,16 +22,18 @@ public class MgmtLlmChannelController {
     @Resource
     private Map<String, LLMStrategy> strategies;
 
-    /** 页面只展示 Spring 实际注册的策略，协议和密钥获取页由策略声明。 */
+    /** 页面只展示 Spring 实际注册的策略，中文名称、协议和密钥获取页由策略声明。 */
     @GetMapping("/strategies")
     public List<StrategyOption> strategies() {
         return strategies.entrySet().stream().sorted(Map.Entry.comparingByKey())
-            .map(entry -> new StrategyOption(entry.getKey(), entry.getValue().protocolType(),
+            .map(entry -> new StrategyOption(entry.getKey(), entry.getValue().displayName(),
+                    entry.getValue().protocolType(), entry.getValue().protocolType().getDescription(),
                     entry.getValue().apiKeyConsoleUrl())).toList();
     }
 
-    /** 实际 Bean、协议及厂商 API Key 控制台地址（通用策略为 null），不携带连接或凭据。 */
-    public record StrategyOption(String beanName, LLMProtocolType protocolType, String apiKeyConsoleUrl) {}
+    /** 实际 Bean（保存值）、策略中文名称、协议及其展示名称、厂商 API Key 控制台地址（通用策略为 null），不携带连接或凭据。 */
+    public record StrategyOption(String beanName, String displayName, LLMProtocolType protocolType,
+                                 String protocolName, String apiKeyConsoleUrl) {}
 
     /** 创建共享渠道，返回数据库生成标识。 */
     @PostMapping
@@ -68,6 +70,15 @@ public class MgmtLlmChannelController {
         if (request.enabled() == null) throw new IllegalArgumentException("请指定启用状态");
         return business.changeEnabled(id, request.enabled());
     }
+
+    /**
+     * 删除模型渠道；仍被诊断方案引用时返回 400，不存在时返回 404。
+     *
+     * @param id 模型渠道 ID
+     */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteChannel(@PathVariable("id") long id) { business.deleteChannel(id); }
 
     /** 状态更新命令，空值不能被当成停用。 */
     public record EnabledCommand(Boolean enabled) {}

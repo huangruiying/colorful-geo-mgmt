@@ -1,5 +1,6 @@
 package org.huangry.colorful.geo.presentation.controller;
 
+import org.huangry.colorful.geo.application.content.model.ContentPublishTitleOption;
 import org.huangry.colorful.geo.application.content.ContentPublishBusiness;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
 import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
@@ -64,23 +65,49 @@ class ContentPublishMgmtControllerTest {
         verify(publishBusiness).prePublish(7L, "标题", "正文", List.of(PublicationPlatformType.ZHIHU));
     }
 
-    /** 发布记录列表使用当前发布路径与分页参数。 */
+    /** 发布记录列表使用当前发布路径与分页参数，不传文章时不筛选。 */
     @Test
     void 发布列表使用当前发布路径() throws Exception {
-        when(publishBusiness.listContentPublishRecords(0, 20))
+        when(publishBusiness.listContentPublishRecords(0, 20, null))
                 .thenReturn(new PageResponse<>(List.of(), 0, 0, 20));
 
         mockMvc.perform(get("/content-publish/list"))
                 .andExpect(status().isOk());
 
-        verify(publishBusiness).listContentPublishRecords(0, 20);
+        verify(publishBusiness).listContentPublishRecords(0, 20, null);
+    }
+
+    /** 传入文章 ID 时按该文章筛选发布记录。 */
+    @Test
+    void 发布列表可按文章筛选() throws Exception {
+        when(publishBusiness.listContentPublishRecords(0, 20, 7L))
+                .thenReturn(new PageResponse<>(List.of(), 0, 0, 20));
+
+        mockMvc.perform(get("/content-publish/list").param("contentOptimizationRecordId", "7"))
+                .andExpect(status().isOk());
+
+        verify(publishBusiness).listContentPublishRecords(0, 20, 7L);
+    }
+
+    /** 文章标题接口返回标题、全拼和首字母。 */
+    @Test
+    void 文章标题接口返回拼音() throws Exception {
+        when(publishBusiness.listContentPublishTitles())
+                .thenReturn(List.of(new ContentPublishTitleOption(7L, "预发布测试", "yufabuceshi", "yfbcs")));
+
+        mockMvc.perform(get("/content-publish/titles"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].contentOptimizationRecordId").value(7))
+                .andExpect(jsonPath("$[0].title").value("预发布测试"))
+                .andExpect(jsonPath("$[0].pinyin").value("yufabuceshi"))
+                .andExpect(jsonPath("$[0].pinyinInitials").value("yfbcs"));
     }
 
     /** 发布记录返回由平台枚举推导的中文名，页面不再自行映射。 */
     @Test
     void 发布记录返回平台中文名() throws Exception {
         var record = ContentPublishRecord.builder().id(1L).platformType(PublicationPlatformType.ZHIHU).build();
-        when(publishBusiness.listContentPublishRecords(0, 20))
+        when(publishBusiness.listContentPublishRecords(0, 20, null))
                 .thenReturn(new PageResponse<>(List.of(record), 1, 0, 20));
 
         mockMvc.perform(get("/content-publish/list"))

@@ -3,6 +3,7 @@ package org.huangry.colorful.geo.presentation.controller;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.application.content.ContentPublishBusiness;
+import org.huangry.colorful.geo.application.content.model.ContentPublishTitleOption;
 import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationPlatformOption;
 import org.huangry.colorful.geo.domain.model.ContentPublishRecord;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
@@ -65,20 +66,34 @@ public class ContentPublishMgmtController {
     }
 
     /**
-     * 发布记录列表分页查询，状态以本地发布表为准。
+     * 发布记录列表（分页）查询，可按文章筛选，状态以本地发布表为准。
      *
      * @param page 从零开始的页码
      * @param size 每页条数
+     * @param contentOptimizationRecordId 文章（内容优化记录）ID，可为空
      * @return 当前页记录及总数
      */
     @GetMapping("list")
     public PageResponse<ContentPublishRecord> listContentPublishRecords(
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size) {
-        log.info("查询内容发布记录列表 request page={} size={}", page, size);
-        PageResponse<ContentPublishRecord> records = publishBusiness.listContentPublishRecords(page, size);
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @RequestParam(value = "contentOptimizationRecordId", required = false) Long contentOptimizationRecordId) {
+        log.info("查询内容发布记录列表 request page={} size={} contentOptimizationRecordId={}",
+                page, size, contentOptimizationRecordId);
+        PageResponse<ContentPublishRecord> records = publishBusiness.listContentPublishRecords(page, size,
+                contentOptimizationRecordId);
         log.info("查询内容发布记录列表 response total={} itemCount={}", records.total(), records.items().size());
         return records;
+    }
+
+    /**
+     * 列出有发布记录的文章标题及其全拼、首字母，供发布记录页下拉框按汉字或拼音模糊搜索。
+     *
+     * @return 每篇文章一项，最新的文章在前
+     */
+    @GetMapping("titles")
+    public List<ContentPublishTitleOption> listContentPublishTitles() {
+        return publishBusiness.listContentPublishTitles();
     }
 
     /**

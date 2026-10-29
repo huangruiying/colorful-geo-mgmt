@@ -9,4 +9,12 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ResponsesApiCommonStrategy extends AbstractResponsesApiStrategy {
+    /**
+     * 声明配置页面展示的策略名称。
+     * @return 通用兼容
+     */
+    @Override
+    public String displayName() {
+        return "通用兼容";
+    }
 }

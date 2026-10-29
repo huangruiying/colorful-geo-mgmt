@@ -17,24 +17,24 @@ class PlatformLoginRoutingTest {
 
     @Test
     void zhihuAppIsNativeQrWhileSocialMethodsAreNot() {
-        QrPlatformPlaywrightLoginClient qrClient = new QrPlatformPlaywrightLoginClient();
+        PlatformScanLoginClient qrClient = new PlatformScanLoginClient();
 
-        assertTrue(QrPlatformPlaywrightLoginClient.supportsPlatform(PublicationPlatformType.ZHIHU));
+        assertTrue(PlatformScanLoginClient.supportsPlatform(PublicationPlatformType.ZHIHU));
         assertTrue(qrClient.handlesScanMethod(PublicationPlatformType.ZHIHU, PlatformScanLoginMethod.PLATFORM_APP));
         assertFalse(qrClient.handlesScanMethod(PublicationPlatformType.ZHIHU, PlatformScanLoginMethod.WECHAT));
         assertFalse(qrClient.handlesScanMethod(PublicationPlatformType.ZHIHU, PlatformScanLoginMethod.QQ));
-        assertTrue(FormPlatformPlaywrightLoginClient.supportsSmsLogin(PublicationPlatformType.ZHIHU));
-        assertTrue(FormPlatformPlaywrightLoginClient.supportsPasswordLogin(PublicationPlatformType.ZHIHU));
+        assertTrue(PlatformAccountLoginClient.supportsSmsLogin(PublicationPlatformType.ZHIHU));
+        assertTrue(PlatformAccountLoginClient.supportsPasswordLogin(PublicationPlatformType.ZHIHU));
         assertEquals(java.util.List.of(PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ),
-                PlatformThirdPartyLoginClient.listScanMethods(PublicationPlatformType.ZHIHU));
+                PlatformThirdPartyScanLoginClient.listScanMethods(PublicationPlatformType.ZHIHU));
     }
 
     @Test
     void zhihuAccountRequiresIdAndName() throws Exception {
 
         var browser = new PlaywrightBrowserComponent();
-        var qrClient = new QrPlatformPlaywrightLoginClient();
-        var formClient = new FormPlatformPlaywrightLoginClient();
+        var qrClient = new PlatformScanLoginClient();
+        var formClient = new PlatformAccountLoginClient();
         var missingId = JSON.parseObject("{\"name\":\"见微\"}");
         var validAccount = JSON.parseObject("{\"id\":\"123\",\"name\":\"见微\"}");
 

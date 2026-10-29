@@ -179,7 +179,7 @@ public class DiagnosisTaskWorker {
 				continue;
 			} catch (IllegalArgumentException exception) {
 				// 配置或问题校验失败同样终止本次诊断，历史快照不按当前配置重写。
-				service.updateResultFailed(sample, "渠道配置已变化或问题无效，请重新创建诊断任务", elapsed(started));
+				service.updateResultFailed(sample, "渠道已删除、配置已变化或问题无效，请重新创建诊断任务", elapsed(started));
 				continue;
 			}
 			// 4. 保存成功回答；落库失败向外抛出，由 tick 终止剩余待执行诊断，不重复调用模型。

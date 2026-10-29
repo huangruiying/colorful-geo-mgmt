@@ -1,5 +1,167 @@
 # Project Handoff
 
+> 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
+
+## 当前交接：发布记录按文章筛选，支持拼音搜索（2026-10-30）
+
+- 发布记录页“发布列表”右上角新增可输入下拉框：列出有发布记录的文章（每篇一项，标题取该文章最新一条发布记录的标题快照），输入汉字、全拼或首字母都能模糊匹配（不分大小写、忽略空格），选中后按文章 ID 筛选，第一项“全部文章”清除筛选；支持上下键、回车、Esc。
+- 后端：
+  - 新增 `GET /content-publish/titles` → `ContentPublishTitleOption`（文章 ID、标题、`pinyin`、`pinyinInitials`）。
+  - `/content-publish/list` 新增可选参数 `contentOptimizationRecordId`，列表和总数同一条件。
+  - 拼音由 `infrastructure/common/utils/PinyinUtils`（新依赖 `com.belerweb:pinyin4j:2.5.1`）每次请求时现算，不落库、不维护映射表；多音字取第一个读音（“重庆”为 zhongqing）。
+- 页面资源版本 `publications.js/css?v=20261030-title-filter1`。
+- 代码复查修复（同日）：Esc 收起后按方向键取到旧节点；已选文章的发布记录删光后输入框与列表不一致（现自动回到全部文章）；什么值得买正文首行以转义字符开头时，自动保存识别退化为只认标题的问题。
+- 验证：新增/调整单测 10 个；Java 全量 440 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败。前端 `browser-login.test.cjs` 既有 9 项失败；`http.test.cjs` 2 项失败为测试未模拟 `document`（CSRF 读取），与本次无关，未处理。页面未在真实浏览器点测。服务未重启。
+
+## 当前交接：已登录平台补齐预发布（2026-10-29）
+
+范围：数据库中已登录、但还没有预发布策略的 6 个平台。新增代码：`publish/browser/{bilibili,smzdm,sohu}`、`publish/strategy/browser/{bilibili,smzdm,sohu}`。已有预发布的 10 个平台未改动。
+
+| 平台 | 结果 | 说明 |
+|---|---|---|
+| 哔哩哔哩 | 已实现，真实账号跑通 | 直接打开 `member.bilibili.com/york/read-editor` → 填标题、粘贴正文 → 点“保存为草稿”，读 `article/draft/add` 返回的 `article_id` → 打开 `read-editor?aid=ID` 回读。实测草稿 387105、387106。 |
+| 什么值得买 | 已实现，真实账号跑通 | 投稿页 `post.smzdm.com/tougao/` 的 `a.release-new` 给出新文章编号 → 打开 `/edit/编号`，关闭“产品全新升级”弹窗，标题不为空则拒绝（不覆盖已有草稿）→ 写入后等 `api/editor/article/submit` 中带正文的 `auto_save` 返回 `error_code=0` → 重新打开回读。实测草稿 a70p7eko、ad7mel2d。 |
+| 网易号 | 受阻：账号审核中 | 编辑页提示“账号信息正在审核中”，今日可发 0/0；没有存草稿按钮，“预览 → PC端预览”会以 `operation=saveDraft` 调 `publishV2.do` 生成草稿（得到 docId），但预览接口返回的正文为空，网易号自己的编辑接口 `editpage.do` 对这篇草稿返回“操作失败”。审核通过后再接。 |
+| 一点资讯 | 受阻：账号未通过审核 | 首页提示“您的一点号未通过审核”，“发布”为灰色，编辑器路由跳回首页。需用户在“账号资料”修改后重新提交审核。 |
+| 人人都是产品经理 | 受阻：需实名认证 | `/writing` 编辑器（WordPress，标题 `#post_title`，正文 TinyMCE `#post_content_ifr`，“保存草稿”按钮）打开即弹“账号实名制认证”。不绕过该弹窗，需用户先完成实名认证。 |
+| 搜狐号 | 已实现，真实账号跑通（2026-10-30） | 账号已实名。打开 `news/addarticle?contentStatus=1` → 关闭“我知道了”提示 → 填标题（5–72 字）、粘贴正文（Quill `div.ql-editor`）→ 点“存草稿”，读 `mpbp/bp/news/v4/news/draft/v2` 返回的 `data`（草稿 ID，`success=true`）→ 打开 `addarticle?contentStatus=2&id=ID` 回读。新设备会被跳到 `/mpfe/v4/clientAuth` 要求滑块+短信验证：已由用户在可见浏览器中完成一次，新登录态已写回数据库，全新无头浏览器复查不再要求；客户端遇到该页面直接提示重新登录。实测草稿 1094637762、1094638615。 |
+
+- 新增：`publish/browser/{bilibili,smzdm}/*BrowserClient`、`publish/strategy/browser/{bilibili,smzdm}/*PublicationStrategy`，依赖用 `@Resource` 字段注入（项目约定）；公开发布未接入，`execPublish` 明确拒绝。预发布平台列表由策略自动带出这两个平台。
+- 探查时在用户账号上建了测试草稿，标题均为“测试草稿可删除+数字”：哔哩哔哩 2 篇、什么值得买 2 篇（a70p7eko、ad7mel2d）、网易号 1 篇（LAENPS460556QB4A）。可在各平台草稿箱删除。
+- 验证：新增 15 个单测；Java 全量 433 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败。用编译后的客户端加真实登录态跑通两个平台的完整流程（临时脚本，已删除）。服务未重启。
+
+## 当前交接：慕课网登录页促销弹窗遮挡（2026-10-29）
+
+- 慕课网登录页加载后会弹出促销广告（双十一），遮住登录框，微信、QQ、账号、短信入口都点不到，启动时报“登录页未能正常打开”。
+- `PlatformAccountLoginClient.closeImoocPromotionPopup`：最多等 3 秒，出现就点广告自带的关闭按钮 `#js-advpop-close`，不出现直接继续；表单登录和第三方授权启动时都调用。已用 Playwright 实测：关闭后点微信能进入 `open.weixin.qq.com` 扫码页。
+- 慕课网每次打开登录页最多多等 3 秒（没有广告时）。广告换了关闭按钮会再次失效。
+- 验证：Java 全量 418 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败。改了 Java，需要重启服务。
+
+## 当前交接：搜狐焦点、51CTO 接入微信登录（2026-10-29）
+
+- 搜狐焦点按一点资讯的方式接入：表单客户端只登记首页 `house.focus.cn` 和账号接口 `login.focus.cn/passport/getUserInfo`（不开短信、密码），第三方客户端登记微信入口。
+  - 流程（已用 Playwright 实际走到微信扫码页）：首页点 `span.login-login` 打开弹窗 → 用户同意后勾选 `.agree-protocol .ratio`（不勾选点微信无反应）→ 点 `.login-container span.wechat` → 当前页跳到 `open.weixin.qq.com/connect/qrconnect`。
+  - 账号判定照搬页面脚本 `newlogin.min.js`：`errorCode == 0` 且有 data 为已登录，名字取 `nickName`，空则取 `userName`，并还原转义文本；`errorCode == 401` 为未登录。核验请求带 `Referer: https://house.focus.cn/`。
+  - 页面协议链接为《搜狐焦点网隐私政策》，`browser-login.js` 版本 `20261029-focus1`。
+  - 未实测：扫码后能否识别登录。若微信账号未绑定手机号，平台可能要求先绑手机，这一步在后台浏览器里，用户看不到。
+- 51CTO 放在扫码客户端，页面显示为“用微信扫码”（与人人都是产品经理相同）。
+  - 背景：`static*.51cto.com` 对 curl 和自动化浏览器返回 567 拦截页（用户自己的 Chrome 正常），登录页依赖的 jQuery 加载不出来，页面上的二维码不会出现。
+  - 做法：按登录页内联脚本的同一流程调用 `home.51cto.com` 接口，不伪装浏览器：打开 `/index` → 请求 `/wechat/get-qr-code` 取 sid 和公众号二维码 → 当前页打开二维码图片供截图 → 每次查进度请求 `/wechat/scan-pull?sid=`（`isok == "1"` 为已确认，`code != 200` 为失效）→ 确认后打开 `/user/reg-login?...` 写入 Cookie → 读 `home.51cto.com/home` 个人首页核验：跳回 `/index` 为未登录，页面顶部 `class="name"` 的 `/space?uid=` 链接给出用户 ID 和昵称。`api-media.51cto.com` 账号接口对自动化浏览器同样返回 567，不能用。
+  - 已实测：取码、二维码截图、未扫码轮询；用户扫码后 `reg-login` 成功进入个人首页（首次用 api-media 核验被拦，判为无法确认，已改为读个人首页，待用户再扫一次确认）。
+  - 51CTO 改了这几个接口就会失效。
+- 现在所有平台都已接入登录，`PlatformBrowserLoginServiceTest.unsupportedPlatformIsRejected` 找不到未接入平台做例子，已删除；`PlatformBrowserLoginRouter.requireSupported` 的拒绝逻辑仍在，暂无测试覆盖。
+- 登录弹窗修正（`browser-login.js` 版本 `20261029-scan-default1`）：
+  - 列表“登录”按钮原先固定用 `PLATFORM_APP` 启动；没有 App 扫码的平台会打开表单页、没有二维码（搜狐焦点卡在“等待登录”）。现在改用平台第一个扫码方式；简书、搜狐号、一点资讯、慕课网等也会直接进入微信授权。
+  - 微信/QQ 协议检查原先在打开弹窗前，未勾选时弹窗打不开；现在先打开弹窗显示协议，提示勾选后点“刷新扫码图片”。
+- 验证：Java 全量 418 个（51CTO 改为个人首页核验后数量不变），仅既有的 `shouldRejectDisabledExactTaskChannel` 失败；`browser-login.test.cjs` 仍是既有的 9 项失败。服务未重启。
+
+## 当前交接：移除开源中国、博客园、大鱼号、思否（2026-10-29）
+
+- 从 `PublicationPlatformType` 删除 `OSCHINA`、`CNBLOGS`、`DAYU`、`SEGMENTFAULT`，同时删掉三个登录客户端里这些平台的站点配置、表单操作、账号解析和协议勾选代码。这四个平台没有发布实现。
+- 顺带精简：表单客户端的 `readAccountBoolean` 只给开源中国用，已删除；第三方授权入口的“第 N 个按钮”下标只有开源中国用，`LoginEntry` 只保留选择器，点击改为 `.first()`，行为不变。
+- 页面：`browser-login.js` 去掉开源中国协议链接和大鱼号扫码说明，版本 `20261029-remove-four1`；`config/browser-login.md` 同步。
+- 部署前检查：`platform_browser_login.platform_type` 是字符串，残留行不报错，只是不再显示；`content_publish_record.platform_type` 映射为枚举，若有这四个平台的历史记录，列表读取会报错，需先查清理。
+- 验证：Java 全量 414 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败；`browser-login.test.cjs` 仍是既有的 9 项失败。服务未重启。
+
+## 当前交接：模型列表增加删除（2026-10-29）
+
+- 新增 `DELETE /llm-channels/{id}`（`GeoLlmChannelService.deleteChannel`）：渠道仍被诊断方案引用时返回 400，并提示“该模型正被 N 个诊断方案使用，请先从方案中移除”；不存在返回 404；成功返回 204。不级联修改方案。
+- `confirmTaskChannel` 遇到已删除的渠道时明确失败，提示“渠道已被删除”，不再空指针；历史结果和报告按快照展示，不受影响。
+- 模型列表每行增加“删除”按钮，删除前弹确认框（`models.js` 版本 `20261029-delete1`）。
+- 验证：全量 `mvn test` 429 个，仅改动前已存在的 `shouldRejectDisabledExactTaskChannel` 失败。服务未重启。
+
+## 当前交接：删除本地模拟大模型策略（2026-10-29）
+
+- 删除 `MockLlmStrategy` 和 `LLMProtocolType.MOCK`；路由、渠道保存与启用不再有“模拟渠道免密钥、免地址”的分支，所有渠道都要求接口地址、模型和 API Key。
+- 页面去掉 MOCK 判断和“本地模拟”兜底文字（`models.js`、`diagnosis-plans.js`、`diagnosis-tasks.js` 版本 `20261029-no-mock1`）。
+- 单测改用 Mockito 策略替身；`.test/diagnosis-task-api-test.py` 的浏览器验收渠道改用本地 HTTP 模型替身，并把过期 Bean 名 `compatible*ApiStrategy` 改成 `*ApiCommonStrategy`（脚本本次未运行）。
+- 部署前检查：库里若有 `strategy_bean_name='mockLlmStrategy'` 的渠道，调用会报“策略 Bean 未注册”，需先停用或删除。
+- 验证：全量 `mvn test` 424 个，仅 `LLMStrategyRouterTest.shouldRejectDisabledExactTaskChannel` 失败（改动前已存在）。服务未重启。
+
+## 当前交接：模型调用策略显示中文名称（2026-10-29）
+
+- `LLMStrategy` 新增 `displayName()`，10 个策略类各自声明中文名；`/llm-channels/strategies` 多返回 `displayName`、`protocolName`。
+- 模型配置页下拉显示“豆包 · Responses”，Mock 只显示“本地模拟”；保存和路由仍用 Bean 名，不迁移数据。`models.js` 版本 `20261029-strategy-name1`。
+- 项目约定第 102 行同步修改。模型列表页、诊断方案、诊断任务详情仍显示 Bean 名，未改。
+- 验证：`LlmChannelControllerTest`、`LLMStrategyBeanTest` 通过；`LLMStrategyRouterTest.shouldRejectDisabledExactTaskChannel` 为改动前已有失败。服务未重启。
+
+## 当前交接：浏览器语言与时区（2026-10-29）
+
+- `PlaywrightBrowserComponent.openBrowser` 统一设置语言为 `zh-CN`、时区为 `Asia/Shanghai`，登录、核验、发布都生效，只改了这一个类。
+- 曾实现“重新登录时沿用已失效会话，以保留设备 Cookie”，但需要从 Service 经 Router 一路传到三个登录客户端，改动面大，用户要求回滚，已撤回；相关类与测试对这部分已无改动。
+- 参考了 colorful-unstoppable 的 `GoogleBrowsers`：去除自动化特征（webdriver 覆盖、`AutomationControlled`、伪造 UA）以及 `--disable-web-security`、`--no-sandbox` 等配置，按约定不采用。
+- 验证：Java 全量测试只有既有的 `LLMStrategyRouterTest` 失败。未提交。
+
+## 当前交接：登录页打开失败的通用提示与截图（2026-10-29）
+
+- 新增 `infrastructure/client/login/PlatformLoginPageFailure`：
+  - 三种登录客户端（扫码、表单、第三方授权）的 `startLogin` 出现 PlaywrightException 时，在关闭浏览器前调用它，截取当前视口。
+  - 有截图时提示“××登录页未能正常打开，请对照下方页面截图确认原因后重试”；截不到图时提示“××登录页打开失败，请检查网络后重试”。
+- 用户确认不在代码里逐家识别失败原因（滑块厂商各不相同）：最初的腾讯验证码域名识别已删除；各客户端原先各自的失败文案，以及扫码类中只用于拼文案的 `phase` 变量，也一并删除。
+- 截图的传递与展示：
+  - `PlatformBrowserLoginException` 新增 `screenshotBase64` 字段。
+  - `MgmtPlatformLoginController` 有截图时写入 ProblemDetail 的 `screenshotBase64` 字段，不写日志。
+  - `shared/http.js` 的错误对象保留这一个字段，所有页面的 http.js 版本统一改为 `20261029-failure1`。
+  - 登录弹窗打开失败时，在红色提示下展示截图（`#login-failure-screenshot`）。
+- 验证：
+  - `PlatformLoginPageFailureTest` 3 项（有截图、截图失败、无页面），控制器测试新增截图用例。
+  - Java 全量测试只有既有的 `LLMStrategyRouterTest` 失败。
+  - `browser-login.test.cjs` 仍是既有的 9 项失败。
+- 未提交，需重启服务。
+
+## 当前交接：什么值得买登录识别修复（2026-10-29）
+
+- 现象：用微信扫码授权后一直显示“等待登录”。实测发现自动化浏览器里已写入 `sess`、`user`、`smzdm_id` 登录 Cookie，说明登录已成功；问题出在核验接口 `jsonp_get_current` 一直返回 `smzdm_id=0`。
+- 原因：用用户的会话对比过请求，该接口不带站内 Referer 时，已登录也返回 0；带上 `Referer: https://www.smzdm.com/` 后返回真实 ID 和昵称；未登录时带 Referer 仍返回 0，可以区分。
+- 修复：`PlatformScanLoginClient.probeAccount` 对什么值得买补上 Referer，解析逻辑不变。
+- 补充：什么值得买 App 二维码用微信扫描也能选择微信登录，所以“微信”入口沿用同一个二维码，不需要单独的微信码。
+- 风险：短时间内反复打开登录页会触发腾讯验证码“操作过于频繁”。用户需等风控恢复后重启服务并扫码复测，暂未复测。测试中 26、17 项均通过。未提交。
+
+## 当前交接：什么值得买取消 QQ 登录（2026-10-29）
+
+- 删除第三方入口表中什么值得买的 QQ 授权条目。`PlatformBrowserLoginRouter.scanMethods` 对 CSDN 和什么值得买改为“App 扫码 + 原站微信码 + 第三方入口表”，QQ 只在入口表里维护一处：什么值得买只剩 App 扫码和微信，CSDN 仍保留 QQ。
+- 新增用例 `smzdmListsAppAndWechatScanWithoutQq`，全量测试只有既有的 `LLMStrategyRouterTest` 失败。未提交。
+
+## 当前交接：网易号密码登录修复（2026-10-29）
+
+- 现象：提交密码后 39ms 即报 PlaywrightException。
+- 定位：用 Playwright 打开 `mp.163.com/login.html` 实测。网易登录 iframe 中有两个占位文字为“密码”的输入框：可见的真实密码框，以及“显示密码”用的隐藏文本框。`getByPlaceholder("密码")` 匹配到两个元素，触发严格模式报错。
+- 修复：`PlatformAccountLoginClient` 的网易号分支改为按 `input[type='password'][name='password']` 定位。实测邮箱、密码框和“登录 / 注册”按钮均能唯一定位，但未提交真实登录。短信路径的各定位也都只匹配一个元素。
+- 网易号登录页只有“邮箱登录”和“手机号登录”，没有扫码入口。
+- 按用户要求删除网易号手机号验证码登录，只保留邮箱密码登录。站点的短信开关已关闭；发码、提交短信码中的网易分支，以及网易专用的协议勾选，都已删除。新增用例 `网易号只支持邮箱密码登录`。全量测试 441 项，只有既有的 `LLMStrategyRouterTest` 失败。
+- `MgmtPlatformLoginController` 的登录异常日志新增 `causeSummary`，只记录 Playwright 报错首行（截断 300 字），不含调用日志中的页面片段。
+- 未提交，需重启服务后由用户验证。
+
+## 当前交接：移除豆瓣、雪球（2026-10-29）
+
+- 从 `PublicationPlatformType` 删除 `DOUBAN`、`XUEQIU`；这两个平台没有登录和发布实现。
+- 测试调整：`PlatformBrowserLoginServiceTest` 的“未接入平台”用例改用 `CTO_51`；`browser-login.test.cjs` 的样例平台名改为 51CTO。
+- 验证：
+  - Java 全量测试只有既有的 `LLMStrategyRouterTest` 失败。
+  - `browser-login.test.cjs` 13 项中 9 项失败；在 HEAD 版本上也是同样的 9 项失败，为既有问题，与本次无关，未处理。
+- 未提交。
+
+## 当前交接：人人都是产品经理改为微信扫码（2026-10-29）
+
+- 用户要求只用微信扫码，不要账号密码。本站微信登录页 `passport.woshipm.com/user/wechatServiceLogin.html` 直接展示公众号二维码（`mp.weixin.qq.com/cgi-bin/showqrcode`），扫码后由页面轮询结果并跳回主站，属于原站扫码，不走第三方授权。
+- 改动：
+  - 站点配置和账号核验 `probeWoshipmAccount`（写作页 uid → 个人资料 uid 一致）整段从 `PlatformAccountLoginClient` 移到 `PlatformScanLoginClient`，核验规则不变。
+  - 删除密码填写分支；页面扫码提示为“微信”，`browser-login.js` 版本改为 `20261029-login2`；`config/browser-login.md` 同步。
+- 验证：全量测试 423 项，422 项通过，唯一失败为既有的 `LLMStrategyRouterTest`；新增登录方式只剩扫码的用例。未做真实扫码，核验接口也没有用真实扫码会话核对过。微信未绑定账号时，站点会跳到绑定页，需要先在官网绑定。未提交。
+
+## 当前交接：移除语雀平台（2026-10-29）
+
+- 用户要求删除语雀：`PublicationPlatformType.YUQUE`，表单登录站点与 `parseYuqueAccount`，第三方微信授权入口及协议勾选，页面协议链接，以及相关单测和 `config/browser-login.md` 中的提及，都已删除。`browser-login.js` 版本改为 `20261029-login1`。
+- 没有发布策略使用语雀；登录表只按平台名查询，库里如有遗留的 YUQUE 行，不会被读到，也不会报错，未删除数据库数据。
+- 验证：全量测试 422 项，421 项通过，唯一失败为既有的 `LLMStrategyRouterTest.shouldRejectDisabledExactTaskChannel`；前端脚本语法检查通过。未提交。
+
+## 当前交接：一点号登录核验修正（2026-10-29）
+
+- 问题：扫码登录成功但一直显示“无法确认”。原核验接口 `api/refact-get-main-data2` 只返回统计数据，没有账号字段，已登录也无法识别。
+- 修正：`PlatformAccountLoginClient` 改用 `model/Agreement?type=1`，按 `result.userId` 判断，正数为已登录，空字符串为未登录，其他情况为无法确认。账号名取 `result.userName`（用户确认显示名称），为空时显示 ID；不读取手机号和协议正文。删除原接口专用的 204 判定。两种返回都已用真实会话核对过。
+- 验证：登录相关单测通过，包括 `FormPlatformPlaywrightLoginClientTest` 19 项。服务需重启后重新扫码，未在页面复测。
+- 风险：其他平台的核验接口和字段大多没有用真实返回核对过，可能存在同类误判；出现“无法确认”时，按真实 curl 响应逐个修正。
+
 ## 当前交接：诊断查询索引（2026-10-28）
 
 - 新增 `db/mysql/024_diagnosis_query_indexes.sql`，同步改 `001_init.sql`：

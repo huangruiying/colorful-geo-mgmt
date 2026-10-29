@@ -6,14 +6,21 @@ import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformT
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationTaskStatus;
 import org.huangry.colorful.geo.infrastructure.repository.ContentPublishRecordDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.ContentPublishRecordEntity;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
@@ -144,5 +151,35 @@ class ContentPublishRecordServiceTest {
         verify(dao).savePrePublishResult(7L, PublicationPlatformType.ZHIHU,
                 ContentPublishRecordStatus.PRE_PUBLISH_FAILED.getCode(), null, null,
                 null, "草稿创建失败");
+    }
+
+    /** 每篇文章只保留最新一条发布记录的标题，最新的文章在前。 */
+    @Test
+    void 每篇文章只取最新一条标题() {
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), "publish-title-test"),
+                ContentPublishRecordEntity.class);
+        when(dao.selectList(any())).thenReturn(List.of(
+                titleRecord(30L, 7L, "第七篇新标题"), titleRecord(29L, 8L, "第八篇"), titleRecord(28L, 7L, "第七篇旧标题")));
+
+        var latest = service.listLatestRecordPerArticle();
+
+        assertEquals(List.of(7L, 8L), latest.stream().map(ContentPublishRecordEntity::getContentOptimizationRecordId).toList());
+        assertEquals("第七篇新标题", latest.get(0).getPublicationTitle());
+    }
+
+    /**
+     * 构造只含标题查询所需字段的发布记录。
+     *
+     * @param id 发布记录 ID
+     * @param articleId 文章（内容优化记录）ID
+     * @param title 标题快照
+     * @return 发布记录实体
+     */
+    private ContentPublishRecordEntity titleRecord(long id, long articleId, String title) {
+        ContentPublishRecordEntity record = new ContentPublishRecordEntity();
+        record.setId(id);
+        record.setContentOptimizationRecordId(articleId);
+        record.setPublicationTitle(title);
+        return record;
     }
 }

@@ -67,6 +67,13 @@ public class LlmChannelBusiness {
         return pageQuery.toResponse(items, total);
     }
 
+    /**
+     * 删除模型渠道；仍被诊断方案引用时拒绝。
+     *
+     * @param id 模型渠道 ID
+     */
+    public void deleteChannel(long id) { service.deleteChannel(id); }
+
     /** 启用或停用已有渠道。 */
     public LlmChannelResponse changeEnabled(long id, boolean enabled) { return toResponse(service.changeEnabled(id, enabled)); }
 

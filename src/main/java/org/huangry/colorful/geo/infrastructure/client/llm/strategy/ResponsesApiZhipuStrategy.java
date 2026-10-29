@@ -17,6 +17,15 @@ import java.util.Map;
 @Component
 public class ResponsesApiZhipuStrategy extends AbstractResponsesApiStrategy {
     /**
+     * 声明配置页面展示的策略名称。
+     * @return 智谱
+     */
+    @Override
+    public String displayName() {
+        return "智谱";
+    }
+
+    /**
      * 声明智谱开放平台的 API Key 管理页，供配置页面引导获取密钥。
      * @return 智谱开放平台 API Key 管理页地址
      */

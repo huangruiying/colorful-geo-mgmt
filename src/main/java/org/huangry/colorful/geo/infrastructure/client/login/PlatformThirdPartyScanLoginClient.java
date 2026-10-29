@@ -38,7 +38,7 @@ import java.util.function.Function;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class PlatformThirdPartyLoginClient {
+public class PlatformThirdPartyScanLoginClient {
 
     private static final Duration LOGIN_LIFETIME = Duration.ofMinutes(10);
     private static final Map<LoginKey, LoginEntry> LOGIN_ENTRIES = Map.ofEntries(
@@ -48,11 +48,6 @@ public class PlatformThirdPartyLoginClient {
                     "button.Login-socialButton:has(svg.ZDI--Qq24)"),
             entry(PublicationPlatformType.JIANSHU, PlatformScanLoginMethod.WECHAT, "#weixin"),
             entry(PublicationPlatformType.JIANSHU, PlatformScanLoginMethod.QQ, "#qq"),
-            entry(PublicationPlatformType.CNBLOGS, PlatformScanLoginMethod.WECHAT,
-                    "img[src*='oauth/WeChat.png']"),
-            entry(PublicationPlatformType.CNBLOGS, PlatformScanLoginMethod.QQ, "img[src*='oauth/QQ.png']"),
-            entry(PublicationPlatformType.OSCHINA, PlatformScanLoginMethod.WECHAT, "div.social-btn", 0),
-            entry(PublicationPlatformType.OSCHINA, PlatformScanLoginMethod.QQ, "div.social-btn", 1),
             entry(PublicationPlatformType.IMOOC, PlatformScanLoginMethod.WECHAT, "a.pop-sns-weixin"),
             entry(PublicationPlatformType.IMOOC, PlatformScanLoginMethod.QQ, "a.pop-sns-qq"),
             entry(PublicationPlatformType.JUEJIN, PlatformScanLoginMethod.WECHAT,
@@ -61,8 +56,6 @@ public class PlatformThirdPartyLoginClient {
                     "a[data-login='weChat']"),
             entry(PublicationPlatformType.SOHU, PlatformScanLoginMethod.QQ,
                     "a[data-login='qq']"),
-            entry(PublicationPlatformType.YUQUE, PlatformScanLoginMethod.WECHAT,
-                    "a.third-login-a-wechat"),
             entry(PublicationPlatformType.EASTMONEY, PlatformScanLoginMethod.WECHAT, "#btn_wx"),
             entry(PublicationPlatformType.EASTMONEY, PlatformScanLoginMethod.QQ, "#btn_qq"),
             entry(PublicationPlatformType.YIDIAN, PlatformScanLoginMethod.WECHAT, "a[href*='open.weixin.qq.com/connect/qrconnect']"),
@@ -74,11 +67,10 @@ public class PlatformThirdPartyLoginClient {
                     "li[aria-label='微信登录']"),
             entry(PublicationPlatformType.TOUTIAO, PlatformScanLoginMethod.QQ, "li[aria-label='QQ登录']"),
             entry(PublicationPlatformType.CSDN, PlatformScanLoginMethod.QQ, ".login-third-qq"),
-            entry(PublicationPlatformType.SMZDM, PlatformScanLoginMethod.QQ,
-                    ".login-container__social-item:has-text('QQ 登录')"));
+            entry(PublicationPlatformType.SOHU_FOCUS, PlatformScanLoginMethod.WECHAT, ".login-container span.wechat"));
 
-    private final FormPlatformPlaywrightLoginClient formClient;
-    private final QrPlatformPlaywrightLoginClient qrClient;
+    private final PlatformAccountLoginClient formClient;
+    private final PlatformScanLoginClient qrClient;
     private final PlaywrightBrowserComponent browserComponent;
     private final BrowserTaskRunner taskRunner = new BrowserTaskRunner("third-party-login-browser");
 
@@ -140,21 +132,27 @@ public class PlatformThirdPartyLoginClient {
                 activeContext = activeSession.context();
                 loginPage = activeSession.newPage();
                 loginPage.setDefaultTimeout(15_000);
-                String loginUrl = FormPlatformPlaywrightLoginClient.supportsPlatform(platform)
-                        ? FormPlatformPlaywrightLoginClient.loginUrl(platform)
-                        : QrPlatformPlaywrightLoginClient.loginUrl(platform);
+                String loginUrl = PlatformAccountLoginClient.supportsPlatform(platform)
+                        ? PlatformAccountLoginClient.loginUrl(platform)
+                        : PlatformScanLoginClient.loginUrl(platform);
                 loginPage.navigate(loginUrl, new Page.NavigateOptions()
                         .setWaitUntil(WaitUntilState.DOMCONTENTLOADED).setTimeout(20_000));
                 if (platform == PublicationPlatformType.YIDIAN) {
                     // 一点号先打开登录弹窗，微信与 QQ 入口才会出现在页面中。
                     loginPage.getByText("登录", new Page.GetByTextOptions().setExact(true)).click();
                 }
+                if (platform == PublicationPlatformType.IMOOC) {
+                    PlatformAccountLoginClient.closeImoocPromotionPopup(loginPage);
+                }
+                if (platform == PublicationPlatformType.SOHU_FOCUS) {
+                    // 搜狐焦点首页右上角“登录”打开弹窗，微信入口在弹窗底部“合作账号登录”。
+                    loginPage.locator("span.login-login").first().click();
+                }
                 // 2. 用户已同意协议时才勾选平台登录页协议，再打开微信或 QQ 授权。
-                if (platform == PublicationPlatformType.OSCHINA) acceptOschinaAgreement(agreedToPlatformTerms);
                 if (platform == PublicationPlatformType.TOUTIAO) acceptToutiaoAgreement(agreedToPlatformTerms);
                 if (platform == PublicationPlatformType.SOHU) acceptSohuAgreement(agreedToPlatformTerms);
-                if (platform == PublicationPlatformType.YUQUE) acceptYuqueAgreement(agreedToPlatformTerms);
                 if (platform == PublicationPlatformType.EASTMONEY) acceptEastmoneyAgreement(agreedToPlatformTerms);
+                if (platform == PublicationPlatformType.SOHU_FOCUS) acceptSohuFocusAgreement(agreedToPlatformTerms);
                 List<Page> previousPages = List.copyOf(activeContext.pages());
                 String pageUrlBeforeAuthorization = loginPage.url();
                 if (platform == PublicationPlatformType.EASTMONEY) {
@@ -162,7 +160,7 @@ public class PlatformThirdPartyLoginClient {
                     loginPage.frameLocator("iframe[src*='exaccount2.eastmoney.com/Home/Login4']")
                             .locator(entry.selector()).click();
                 } else {
-                    loginPage.locator(entry.selector()).nth(entry.index()).click();
+                    loginPage.locator(entry.selector()).first().click();
                 }
                 authorizationPage = waitForAuthorizationPage(previousPages, pageUrlBeforeAuthorization);
                 if (authorizationPage == null) {
@@ -179,8 +177,10 @@ public class PlatformThirdPartyLoginClient {
                 closeActiveLogin();
                 throw exception;
             } catch (PlaywrightException exception) {
+                // 关闭浏览器前截取平台登录页的失败现场，供用户对照页面判断原因
+                PlatformBrowserLoginException failure = PlatformLoginPageFailure.toException(loginPage, platform, exception);
                 closeActiveLogin();
-                throw new PlatformBrowserLoginException(platform.getDisplayName() + "第三方登录页打开失败", exception);
+                throw failure;
             }
         });
     }
@@ -245,11 +245,11 @@ public class PlatformThirdPartyLoginClient {
      */
     private AccountProbe probeTargetAccount(PublicationPlatformType platform) {
         // 表单平台与原生扫码平台各有账号接口；第三方授权只复用其成功判定。
-        if (FormPlatformPlaywrightLoginClient.supportsPlatform(platform)) {
-            FormPlatformPlaywrightLoginClient.AccountProbe probe = formClient.probeAccount(platform, activeContext);
+        if (PlatformAccountLoginClient.supportsPlatform(platform)) {
+            PlatformAccountLoginClient.AccountProbe probe = formClient.probeAccount(platform, activeContext);
             return new AccountProbe(probe.status(), probe.accountName());
         }
-        QrPlatformPlaywrightLoginClient.AccountProbe probe = qrClient.probeAccount(platform, activeContext);
+        PlatformScanLoginClient.AccountProbe probe = qrClient.probeAccount(platform, activeContext);
         return new AccountProbe(probe.status(), probe.accountName());
     }
 
@@ -276,14 +276,13 @@ public class PlatformThirdPartyLoginClient {
     /**
      * 判断二维码授权页是否仍未回到目标平台，避免轮询阻塞在账号接口。
      *
-     * @return 是否仍在微信、QQ 或博客园微信授权页面
+     * @return 是否仍在微信或 QQ 授权页面
      */
     private boolean awaitingThirdPartyAuthorization() {
         if (authorizationPage == null || authorizationPage.isClosed()) return false;
         String url = authorizationPage.url();
         return url.contains("open.weixin.qq.com/connect/qrconnect")
-                || url.contains("graph.qq.com/oauth2.0/show")
-                || url.contains("account.cnblogs.com/signin/wechat-mp");
+                || url.contains("graph.qq.com/oauth2.0/show");
     }
 
     /**
@@ -316,8 +315,6 @@ public class PlatformThirdPartyLoginClient {
             } else if (authorizationPage.url().contains("graph.qq.com")) {
                 screenshot = authorizationPage.frameLocator("#ptlogin_iframe")
                         .locator("#qrlogin_img").screenshot();
-            } else if (authorizationPage.url().contains("account.cnblogs.com/signin/wechat-mp")) {
-                screenshot = authorizationPage.locator("img[alt='微信二维码']").screenshot();
             } else {
                 screenshot = authorizationPage.screenshot(new Page.ScreenshotOptions().setFullPage(false));
             }
@@ -330,18 +327,6 @@ public class PlatformThirdPartyLoginClient {
                 ? PlatformLoginInteractionStage.WAITING_FOR_THIRD_PARTY
                 : PlatformLoginInteractionStage.RETURNED_TO_PLATFORM;
         return new BrowserLoginSnapshot(status, null, Base64.getEncoder().encodeToString(screenshot), null, stage);
-    }
-
-    /**
-     * 开源中国授权入口要求先同意本站协议；不能由后台默认为同意。
-     *
-     * @param agreedToPlatformTerms 用户在页面是否已明确同意
-     */
-    private void acceptOschinaAgreement(boolean agreedToPlatformTerms) {
-        if (!agreedToPlatformTerms) throw new PlatformBrowserLoginException("请先阅读并同意开源中国用户协议");
-        var agreement = loginPage.getByRole(AriaRole.CHECKBOX,
-                new Page.GetByRoleOptions().setName("我已阅读并同意 《服务条例》 和 《隐私声明》"));
-        if (!agreement.isChecked()) agreement.check();
     }
 
     /**
@@ -368,20 +353,23 @@ public class PlatformThirdPartyLoginClient {
         if (!agreement.getAttribute("class").contains("radio-icon-sel")) agreement.click();
     }
 
-    /** 语雀微信授权前须由用户明确同意本站协议。 */
-    private void acceptYuqueAgreement(boolean agreedToPlatformTerms) {
-        if (!agreedToPlatformTerms) throw new PlatformBrowserLoginException("请先阅读并同意语雀用户协议");
-        var agreement = loginPage.getByRole(AriaRole.CHECKBOX,
-                new Page.GetByRoleOptions().setName("我已阅读并同意语雀 服务协议 和 隐私权政策"));
-        if (!agreement.isChecked()) agreement.check();
-    }
-
     /** 东方财富授权按钮由登录 iframe 的协议勾选控制，用户未同意时不代为授权。 */
     private void acceptEastmoneyAgreement(boolean agreedToPlatformTerms) {
         if (!agreedToPlatformTerms) throw new PlatformBrowserLoginException("请先阅读并同意东方财富用户协议");
         var agreement = loginPage.frameLocator("iframe[src*='exaccount2.eastmoney.com/Home/Login4']")
                 .locator("#mobile_login_content img.selectbox.unselected");
         if (agreement.isVisible()) agreement.click();
+    }
+
+    /**
+     * 搜狐焦点登录弹窗未勾选隐私政策时，点微信图标没有反应；用户同意后才勾选。
+     *
+     * @param agreedToPlatformTerms 用户在页面是否已明确同意
+     */
+    private void acceptSohuFocusAgreement(boolean agreedToPlatformTerms) {
+        if (!agreedToPlatformTerms) throw new PlatformBrowserLoginException("请先阅读并同意搜狐焦点网隐私政策");
+        var agreement = loginPage.locator(".login-container .agree-protocol .ratio");
+        if (agreement.getAttribute("class").contains("ratio-disagree")) agreement.click();
     }
 
     /**
@@ -431,17 +419,12 @@ public class PlatformThirdPartyLoginClient {
 
     private static Map.Entry<LoginKey, LoginEntry> entry(PublicationPlatformType platform,
                                                          PlatformScanLoginMethod method, String selector) {
-        return entry(platform, method, selector, 0);
-    }
-
-    private static Map.Entry<LoginKey, LoginEntry> entry(PublicationPlatformType platform,
-                                                         PlatformScanLoginMethod method, String selector, int index) {
-        return Map.entry(new LoginKey(platform, method), new LoginEntry(selector, index));
+        return Map.entry(new LoginKey(platform, method), new LoginEntry(selector));
     }
 
     private record LoginKey(PublicationPlatformType platform, PlatformScanLoginMethod method) { }
 
-    private record LoginEntry(String selector, int index) { }
+    private record LoginEntry(String selector) { }
 
     private record AccountProbe(PlatformBrowserLoginStatus status, String accountName) { }
 

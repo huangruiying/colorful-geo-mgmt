@@ -17,6 +17,15 @@ import java.util.Map;
  */
 @Component
 public class ChatCompletionsApiQianfanStrategy extends AbstractChatCompletionsApiStrategy {
+    /**
+     * 声明配置页面展示的策略名称。
+     * @return 百度千帆
+     */
+    @Override
+    public String displayName() {
+        return "百度千帆";
+    }
+
     /** 每次检索的网页数量，与普通对话联网返回的来源数一致。 */
     private static final int WEB_SEARCH_TOP_K = 10;
 

@@ -11,11 +11,6 @@ import lombok.RequiredArgsConstructor;
 public enum LLMProtocolType {
 
 	/**
-	 * 不调用远端，用于本地模拟。
-	 */
-	MOCK("本地模拟"),
-
-	/**
      * 二代 api 交互协议
 	 * 使用 messages 请求和 choices 响应的兼容接口。
 	 */

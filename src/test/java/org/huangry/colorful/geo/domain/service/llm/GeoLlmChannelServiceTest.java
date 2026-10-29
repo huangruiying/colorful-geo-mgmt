@@ -1,5 +1,6 @@
 package org.huangry.colorful.geo.domain.service.llm;
 
+import org.huangry.colorful.geo.infrastructure.repository.GeoDiagnosisPlanChannelDao;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 import org.junit.jupiter.api.Test;
@@ -99,20 +100,52 @@ class GeoLlmChannelServiceTest {
         verify(service, never()).updateById(any());
     }
 
-    /** 接口协议独立于联网能力，只包含已实现的交互格式。 */
+    /** 没被诊断方案使用的渠道直接删除。 */
     @Test
-    void shouldRejectSearchForMockChannel() {
-        GeoLlmChannelEntity c = channel(); c.setStrategyBeanName("mockLlmStrategy");
-        assertEquals("mockLlmStrategy", c.getStrategyBeanName());
-        c.setStrategyBeanName("responsesApiCommonStrategy");
-        assertEquals("responsesApiCommonStrategy", c.getStrategyBeanName());
+    void shouldDeleteChannelNotUsedByPlans() {
+        var planChannels = mock(GeoDiagnosisPlanChannelDao.class);
+        var service = spy(configuredService(planChannels));
+        doReturn(channel()).when(service).getById(1L);
+        when(planChannels.selectCount(any())).thenReturn(0L);
+        doReturn(true).when(service).removeById(1L);
+        service.deleteChannel(1L);
+        verify(service).removeById(1L);
+    }
+
+    /** 仍被诊断方案使用时拒绝删除，并提示方案数量，不改动方案。 */
+    @Test
+    void shouldRejectDeletingChannelUsedByPlans() {
+        var planChannels = mock(GeoDiagnosisPlanChannelDao.class);
+        var service = spy(configuredService(planChannels));
+        doReturn(channel()).when(service).getById(1L);
+        when(planChannels.selectCount(any())).thenReturn(2L);
+        var error = assertThrows(IllegalArgumentException.class, () -> service.deleteChannel(1L));
+        assertEquals("该模型正被 2 个诊断方案使用，请先从方案中移除", error.getMessage());
+        verify(service, never()).removeById(anyLong());
+    }
+
+    /** 删除不存在的渠道返回不存在，不查方案也不删除。 */
+    @Test
+    void shouldRejectDeletingMissingChannel() {
+        var planChannels = mock(GeoDiagnosisPlanChannelDao.class);
+        var service = spy(configuredService(planChannels));
+        doReturn(null).when(service).getById(99L);
+        assertThrows(java.util.NoSuchElementException.class, () -> service.deleteChannel(99L));
+        verifyNoInteractions(planChannels);
+        verify(service, never()).removeById(anyLong());
+    }
+
+    /** 模拟 Spring 注入方案渠道 DAO，供删除校验使用。 */
+    private GeoLlmChannelService configuredService(GeoDiagnosisPlanChannelDao planChannels) {
+        var service = configuredService();
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "planChannelDao", planChannels);
+        return service;
     }
 
     /** 模拟 Spring 注册与字段注入，校验走实际策略注册表。 */
     private GeoLlmChannelService configuredService() {
         var service = new GeoLlmChannelService();
         org.springframework.test.util.ReflectionTestUtils.setField(service, "strategies", java.util.Map.of(
-                "mockLlmStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.MockLlmStrategy(),
                 "chatCompletionsApiCommonStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ChatCompletionsApiCommonStrategy(),
                 "responsesApiCommonStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiCommonStrategy()));
         return service;

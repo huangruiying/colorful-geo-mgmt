@@ -68,6 +68,13 @@
             <version>${fastjson.version}</version>
         </dependency>
 
+        <!-- 汉字转拼音，供发布记录按标题拼音、首字母搜索 -->
+        <dependency>
+            <groupId>com.belerweb</groupId>
+            <artifactId>pinyin4j</artifactId>
+            <version>2.5.1</version>
+        </dependency>
+
         <!-- 知乎已有草稿的浏览器发布 -->
         <dependency>
             <groupId>com.microsoft.playwright</groupId>

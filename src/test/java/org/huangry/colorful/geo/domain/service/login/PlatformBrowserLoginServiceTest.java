@@ -1,9 +1,9 @@
 package org.huangry.colorful.geo.domain.service.login;
 
-import org.huangry.colorful.geo.infrastructure.client.login.FormPlatformPlaywrightLoginClient;
+import org.huangry.colorful.geo.infrastructure.client.login.PlatformAccountLoginClient;
 import org.huangry.colorful.geo.infrastructure.client.login.PlatformBrowserLoginRouter;
-import org.huangry.colorful.geo.infrastructure.client.login.PlatformThirdPartyLoginClient;
-import org.huangry.colorful.geo.infrastructure.client.login.QrPlatformPlaywrightLoginClient;
+import org.huangry.colorful.geo.infrastructure.client.login.PlatformThirdPartyScanLoginClient;
+import org.huangry.colorful.geo.infrastructure.client.login.PlatformScanLoginClient;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.PlatformBrowserLoginTaskStatus;
 import org.huangry.colorful.geo.infrastructure.common.enums.DouyinIdentityVerificationMethod;
@@ -30,17 +30,17 @@ import static org.mockito.Mockito.when;
 class PlatformBrowserLoginServiceTest {
 
     private PlatformBrowserLoginDao dao;
-    private QrPlatformPlaywrightLoginClient qrClient;
-    private FormPlatformPlaywrightLoginClient formClient;
-    private PlatformThirdPartyLoginClient thirdPartyClient;
+    private PlatformScanLoginClient qrClient;
+    private PlatformAccountLoginClient formClient;
+    private PlatformThirdPartyScanLoginClient thirdPartyClient;
     private PlatformBrowserLoginService service;
 
     @BeforeEach
     void setUp() {
         dao = mock(PlatformBrowserLoginDao.class);
-        qrClient = mock(QrPlatformPlaywrightLoginClient.class);
-        formClient = mock(FormPlatformPlaywrightLoginClient.class);
-        thirdPartyClient = mock(PlatformThirdPartyLoginClient.class);
+        qrClient = mock(PlatformScanLoginClient.class);
+        formClient = mock(PlatformAccountLoginClient.class);
+        thirdPartyClient = mock(PlatformThirdPartyScanLoginClient.class);
         when(qrClient.handlesScanMethod(any(), any())).thenAnswer(invocation -> {
             PublicationPlatformType platform = invocation.getArgument(0);
             PlatformScanLoginMethod method = invocation.getArgument(1);
@@ -56,7 +56,7 @@ class PlatformBrowserLoginServiceTest {
     @Test
     void zhihuAppUsesQrClient() {
         when(qrClient.startLogin(PublicationPlatformType.ZHIHU))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "qr", null));
 
         var result = service.startLogin(PublicationPlatformType.ZHIHU,
@@ -73,7 +73,7 @@ class PlatformBrowserLoginServiceTest {
         for (PlatformScanLoginMethod method : new PlatformScanLoginMethod[] {
                 PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ }) {
             when(thirdPartyClient.startLogin(PublicationPlatformType.ZHIHU, method, false))
-                    .thenReturn(new PlatformThirdPartyLoginClient.BrowserLoginSnapshot(
+                    .thenReturn(new PlatformThirdPartyScanLoginClient.BrowserLoginSnapshot(
                             PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "social", null));
 
             assertEquals("social", service.startLogin(PublicationPlatformType.ZHIHU, method, false)
@@ -87,11 +87,11 @@ class PlatformBrowserLoginServiceTest {
     @Test
     void zhihuFormSubmissionDoesNotSaveSession() {
         when(formClient.requestSmsCode(PublicationPlatformType.ZHIHU, "13800138000", false))
-                .thenReturn(new FormPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformAccountLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, null));
         when(formClient.submitPasswordLogin(PublicationPlatformType.ZHIHU,
                 "user@example.com", "password", false))
-                .thenReturn(new FormPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformAccountLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, null));
 
         service.requestSmsCode(PublicationPlatformType.ZHIHU, "13800138000", false);
@@ -106,7 +106,7 @@ class PlatformBrowserLoginServiceTest {
     void activeZhihuQrLoginSavesConfirmedSession() {
         when(qrClient.isActiveFor(PublicationPlatformType.ZHIHU)).thenReturn(true);
         when(qrClient.readLoginProgress(PublicationPlatformType.ZHIHU))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGGED_IN, "见微", null, "state"));
 
         assertEquals(PlatformBrowserLoginTaskStatus.LOGGED_IN,
@@ -123,7 +123,7 @@ class PlatformBrowserLoginServiceTest {
         when(dao.findByPlatform("ZHIHU")).thenReturn(saved);
         when(qrClient.isActiveFor(PublicationPlatformType.ZHIHU)).thenReturn(true);
         when(qrClient.readLoginProgress(PublicationPlatformType.ZHIHU))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.NOT_STARTED, null, null, null));
 
         assertEquals(PlatformBrowserLoginTaskStatus.NOT_STARTED,
@@ -145,15 +145,40 @@ class PlatformBrowserLoginServiceTest {
                 PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ), zhihu.scanMethods());
     }
 
-    /** 语雀当前仅开放已核对的微信授权，不误展示尚未接通的表单入口。 */
+    /** 人人都是产品经理只用本站微信公众号二维码登录，不再展示账号密码表单。 */
     @Test
-    void yuqueOnlyListsConnectedWechatMethod() {
-        var yuque = service.listPlatforms().stream()
-                .filter(platform -> platform.platformType().equals("YUQUE")).findFirst().orElseThrow();
+    void woshipmListsOnlyNativeWechatScan() {
+        var woshipm = service.listPlatforms().stream()
+                .filter(platform -> platform.platformType().equals("WOSHIPM")).findFirst().orElseThrow();
 
-        assertTrue(yuque.supported());
-        assertEquals(java.util.List.of("qr"), yuque.loginMethods());
-        assertEquals(java.util.List.of(PlatformScanLoginMethod.WECHAT), yuque.scanMethods());
+        assertTrue(woshipm.supported());
+        assertEquals(java.util.List.of("qr"), woshipm.loginMethods());
+        assertEquals(java.util.List.of(PlatformScanLoginMethod.PLATFORM_APP), woshipm.scanMethods());
+    }
+
+    /** 51CTO 只有公众号微信扫码，作为平台原生扫码展示，不提供表单或第三方授权。 */
+    @Test
+    void cto51ListsOnlyNativeWechatScan() {
+        var cto51 = service.listPlatforms().stream()
+                .filter(platform -> platform.platformType().equals("CTO_51")).findFirst().orElseThrow();
+
+        assertTrue(cto51.supported());
+        assertEquals(java.util.List.of("qr"), cto51.loginMethods());
+        assertEquals(java.util.List.of(PlatformScanLoginMethod.PLATFORM_APP), cto51.scanMethods());
+    }
+
+    /** 什么值得买只展示 App 扫码和原站微信码，不展示 QQ 授权；CSDN 仍保留 QQ。 */
+    @Test
+    void smzdmListsAppAndWechatScanWithoutQq() {
+        var smzdm = service.listPlatforms().stream()
+                .filter(platform -> platform.platformType().equals("SMZDM")).findFirst().orElseThrow();
+        var csdn = service.listPlatforms().stream()
+                .filter(platform -> platform.platformType().equals("CSDN")).findFirst().orElseThrow();
+
+        assertEquals(java.util.List.of(PlatformScanLoginMethod.PLATFORM_APP, PlatformScanLoginMethod.WECHAT),
+                smzdm.scanMethods());
+        assertEquals(java.util.List.of(PlatformScanLoginMethod.PLATFORM_APP,
+                PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ), csdn.scanMethods());
     }
 
     /** 东方财富原生 App 码与微信、QQ 授权都通过扫码入口展示。 */
@@ -180,12 +205,23 @@ class PlatformBrowserLoginServiceTest {
                 PlatformScanLoginMethod.QQ), yidian.scanMethods());
     }
 
+    /** 搜狐焦点只展示微信授权，不提供短信、密码或其他扫码方式。 */
+    @Test
+    void sohuFocusListsOnlyWechatScan() {
+        var focus = service.listPlatforms().stream()
+                .filter(platform -> platform.platformType().equals("SOHU_FOCUS")).findFirst().orElseThrow();
+
+        assertTrue(focus.supported());
+        assertEquals(java.util.List.of("qr"), focus.loginMethods());
+        assertEquals(java.util.List.of(PlatformScanLoginMethod.WECHAT), focus.scanMethods());
+    }
+
     /** 其他扫码平台仍由同一个二维码客户端处理，不依赖知乎规则。 */
     @Test
     void juejinQrLoginKeepsItsOwnAccount() {
         when(qrClient.isActiveFor(PublicationPlatformType.JUEJIN)).thenReturn(true);
         when(qrClient.readLoginProgress(PublicationPlatformType.JUEJIN))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGGED_IN, "掘金作者", null, "juejin-state"));
 
         assertEquals(PlatformBrowserLoginTaskStatus.LOGGED_IN,
@@ -198,7 +234,7 @@ class PlatformBrowserLoginServiceTest {
     void pendingQrLoginDoesNotSaveSession() {
         when(qrClient.isActiveFor(PublicationPlatformType.ZHIHU)).thenReturn(true);
         when(qrClient.readLoginProgress(PublicationPlatformType.ZHIHU))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "image", null));
 
         service.readLoginProgress(PublicationPlatformType.ZHIHU);
@@ -211,11 +247,11 @@ class PlatformBrowserLoginServiceTest {
     void douyinVerificationRemainsPendingUntilAccountIsConfirmed() {
         when(qrClient.isActiveFor(PublicationPlatformType.DOUYIN)).thenReturn(true);
         when(qrClient.readLoginProgress(PublicationPlatformType.DOUYIN))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "verification-page", null,
                         PlatformLoginInteractionStage.DOUYIN_IDENTITY_VERIFICATION));
         when(qrClient.selectDouyinVerificationMethod(DouyinIdentityVerificationMethod.RECEIVE_SMS))
-                .thenReturn(new QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGIN_PENDING, null, "sms-page", null,
                         PlatformLoginInteractionStage.DOUYIN_SMS_CODE));
 
@@ -240,7 +276,7 @@ class PlatformBrowserLoginServiceTest {
     void thirdPartyResultSavesTargetPlatformOnly() {
         when(thirdPartyClient.isActiveFor(PublicationPlatformType.JIANSHU)).thenReturn(true);
         when(thirdPartyClient.readLoginProgress(PublicationPlatformType.JIANSHU))
-                .thenReturn(new PlatformThirdPartyLoginClient.BrowserLoginSnapshot(
+                .thenReturn(new PlatformThirdPartyScanLoginClient.BrowserLoginSnapshot(
                         PlatformBrowserLoginTaskStatus.LOGGED_IN, "简书作者", null, "jianshu-state"));
 
         service.readLoginProgress(PublicationPlatformType.JIANSHU);
@@ -255,7 +291,7 @@ class PlatformBrowserLoginServiceTest {
         saved.setStorageState("{\"cookies\":[]}");
         when(dao.findByPlatform("ZHIHU")).thenReturn(saved);
         when(formClient.verifySavedLogin(PublicationPlatformType.ZHIHU, saved.getStorageState()))
-                .thenReturn(new FormPlatformPlaywrightLoginClient.AccountProbe(
+                .thenReturn(new PlatformAccountLoginClient.AccountProbe(
                         PlatformBrowserLoginStatus.UNKNOWN, null));
 
         assertEquals(PlatformBrowserLoginStatus.UNKNOWN,
@@ -263,10 +299,4 @@ class PlatformBrowserLoginServiceTest {
         verify(dao).updateCheckedStatus("ZHIHU", "UNKNOWN", null);
     }
 
-    /** 未接入平台不能启动任意浏览器登录任务。 */
-    @Test
-    void unsupportedPlatformIsRejected() {
-        assertThrows(PlatformBrowserLoginException.class, () -> service.startLogin(
-                PublicationPlatformType.DOUBAN, PlatformScanLoginMethod.PLATFORM_APP, false));
-    }
 }

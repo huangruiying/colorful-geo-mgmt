@@ -156,7 +156,7 @@ test('单个状态筛选区分未登录与已失效', async () => {
         {platformName: '微博', supported: true, status: 'NOT_LOGGED_IN'},
         {platformName: '抖音', supported: true, status: 'EXPIRED'},
         {platformName: '小红书', supported: true, status: 'UNKNOWN'},
-        {platformName: '豆瓣', supported: false, status: 'NOT_SUPPORTED'}
+        {platformName: '51CTO', supported: false, status: 'NOT_SUPPORTED'}
     ]);
     await page.run('loadPlatforms()');
 
@@ -174,7 +174,7 @@ test('单个状态筛选区分未登录与已失效', async () => {
 
     statusFilter.value = 'NOT_SUPPORTED';
     statusFilter.dispatch('change');
-    assert.deepEqual(visibleNames(), ['豆瓣']);
+    assert.deepEqual(visibleNames(), ['51CTO']);
 });
 
 test('扫码图片加载前显示占位，加载成功后才显示图片', async () => {

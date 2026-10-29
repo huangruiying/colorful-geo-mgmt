@@ -21,9 +21,9 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class PlatformBrowserLoginRouter {
 
-    private final QrPlatformPlaywrightLoginClient qrClient;
-    private final FormPlatformPlaywrightLoginClient formClient;
-    private final PlatformThirdPartyLoginClient thirdPartyClient;
+    private final PlatformScanLoginClient qrClient;
+    private final PlatformAccountLoginClient formClient;
+    private final PlatformThirdPartyScanLoginClient thirdPartyClient;
 
     /**
      * 仅开放具备登录页和账号核验实现的平台。
@@ -32,8 +32,8 @@ public class PlatformBrowserLoginRouter {
      * @return 是否支持独立浏览器登录
      */
     public boolean supportsPlatform(PublicationPlatformType platform) {
-        return QrPlatformPlaywrightLoginClient.supportsPlatform(platform)
-                || FormPlatformPlaywrightLoginClient.supportsPlatform(platform);
+        return PlatformScanLoginClient.supportsPlatform(platform)
+                || PlatformAccountLoginClient.supportsPlatform(platform);
     }
 
     /**
@@ -50,7 +50,7 @@ public class PlatformBrowserLoginRouter {
         // 1. 原生扫码入口由二维码客户端处理，包括知乎 App 和原站微信二维码。
         if (qrClient.handlesScanMethod(platform, scanMethod)) {
             thirdPartyClient.cancelLogin(platform);
-            if (FormPlatformPlaywrightLoginClient.supportsPlatform(platform)) formClient.cancelLogin(platform);
+            if (PlatformAccountLoginClient.supportsPlatform(platform)) formClient.cancelLogin(platform);
             return snapshot(platform == PublicationPlatformType.CSDN
                     && scanMethod == PlatformScanLoginMethod.WECHAT
                     ? qrClient.startCsdnWechatLogin() : qrClient.startLogin(platform));
@@ -62,12 +62,12 @@ public class PlatformBrowserLoginRouter {
         }
         // 3. 原生入口关闭旧授权页，再选择表单或二维码客户端。
         thirdPartyClient.cancelLogin(platform);
-        if (QrPlatformPlaywrightLoginClient.supportsPlatform(platform)) qrClient.cancelLogin(platform);
+        if (PlatformScanLoginClient.supportsPlatform(platform)) qrClient.cancelLogin(platform);
         if (platform == PublicationPlatformType.BAIJIAHAO
                 && scanMethod == PlatformScanLoginMethod.PLATFORM_APP) {
             return snapshot(formClient.startBaijiahaoQrLogin());
         }
-        return FormPlatformPlaywrightLoginClient.supportsPlatform(platform)
+        return PlatformAccountLoginClient.supportsPlatform(platform)
                 ? snapshot(formClient.startLogin(platform)) : snapshot(qrClient.startLogin(platform));
     }
 
@@ -155,7 +155,7 @@ public class PlatformBrowserLoginRouter {
         // 只有平台账号接口或抖音创作者主页明确提供账号标识时，底层才附带可保存的会话。
         if (thirdPartyClient.isActiveFor(platform)) return snapshot(thirdPartyClient.readLoginProgress(platform));
         if (qrClient.isActiveFor(platform)) return snapshot(qrClient.readLoginProgress(platform));
-        return FormPlatformPlaywrightLoginClient.supportsPlatform(platform)
+        return PlatformAccountLoginClient.supportsPlatform(platform)
                 ? snapshot(formClient.readLoginProgress(platform))
                 : snapshot(qrClient.readLoginProgress(platform));
     }
@@ -169,11 +169,11 @@ public class PlatformBrowserLoginRouter {
      */
     public AccountProbe verifySavedLogin(PublicationPlatformType platform, String storageState) {
         requireSupported(platform);
-        if (FormPlatformPlaywrightLoginClient.supportsPlatform(platform)) {
-            FormPlatformPlaywrightLoginClient.AccountProbe probe = formClient.verifySavedLogin(platform, storageState);
+        if (PlatformAccountLoginClient.supportsPlatform(platform)) {
+            PlatformAccountLoginClient.AccountProbe probe = formClient.verifySavedLogin(platform, storageState);
             return new AccountProbe(probe.status(), probe.accountName());
         }
-        QrPlatformPlaywrightLoginClient.AccountProbe probe = qrClient.verifySavedLogin(platform, storageState);
+        PlatformScanLoginClient.AccountProbe probe = qrClient.verifySavedLogin(platform, storageState);
         return new AccountProbe(probe.status(), probe.accountName());
     }
 
@@ -195,22 +195,22 @@ public class PlatformBrowserLoginRouter {
      * @return 可用登录方式；支持扫码时优先返回扫码，供页面默认选中
      */
     public List<String> loginMethods(PublicationPlatformType platform) {
-        if (FormPlatformPlaywrightLoginClient.supportsPlatform(platform)) {
+        if (PlatformAccountLoginClient.supportsPlatform(platform)) {
             boolean hasQr = platform == PublicationPlatformType.BAIJIAHAO
-                    || QrPlatformPlaywrightLoginClient.supportsPlatform(platform)
-                    || !PlatformThirdPartyLoginClient.listScanMethods(platform).isEmpty();
-            if (!FormPlatformPlaywrightLoginClient.supportsPasswordLogin(platform)) {
-                if (!FormPlatformPlaywrightLoginClient.supportsSmsLogin(platform)) {
+                    || PlatformScanLoginClient.supportsPlatform(platform)
+                    || ! PlatformThirdPartyScanLoginClient.listScanMethods(platform).isEmpty();
+            if (! PlatformAccountLoginClient.supportsPasswordLogin(platform)) {
+                if (! PlatformAccountLoginClient.supportsSmsLogin(platform)) {
                     return hasQr ? List.of("qr") : List.of();
                 }
                 return hasQr ? List.of("qr", "sms") : List.of("sms");
             }
-            if (hasQr) return FormPlatformPlaywrightLoginClient.supportsSmsLogin(platform)
+            if (hasQr) return PlatformAccountLoginClient.supportsSmsLogin(platform)
                     ? List.of("qr", "sms", "password") : List.of("qr", "password");
-            return FormPlatformPlaywrightLoginClient.supportsSmsLogin(platform)
+            return PlatformAccountLoginClient.supportsSmsLogin(platform)
                     ? List.of("sms", "password") : List.of("password");
         }
-        return QrPlatformPlaywrightLoginClient.supportsPlatform(platform) ? List.of("qr") : List.of();
+        return PlatformScanLoginClient.supportsPlatform(platform) ? List.of("qr") : List.of();
     }
 
     /**
@@ -220,16 +220,17 @@ public class PlatformBrowserLoginRouter {
      * @return 可选扫码来源
      */
     public List<PlatformScanLoginMethod> scanMethods(PublicationPlatformType platform) {
+        // CSDN、什么值得买的微信码在原站登录页，其余授权方式仍以第三方入口表为准
         if (platform == PublicationPlatformType.CSDN || platform == PublicationPlatformType.SMZDM) {
-            return List.of(PlatformScanLoginMethod.PLATFORM_APP,
-                    PlatformScanLoginMethod.WECHAT, PlatformScanLoginMethod.QQ);
+            return Stream.concat(Stream.of(PlatformScanLoginMethod.PLATFORM_APP, PlatformScanLoginMethod.WECHAT),
+                    PlatformThirdPartyScanLoginClient.listScanMethods(platform).stream()).toList();
         }
         if (platform == PublicationPlatformType.BAIJIAHAO) return List.of(PlatformScanLoginMethod.PLATFORM_APP);
-        if (QrPlatformPlaywrightLoginClient.supportsPlatform(platform)) {
+        if (PlatformScanLoginClient.supportsPlatform(platform)) {
             return Stream.concat(Stream.of(PlatformScanLoginMethod.PLATFORM_APP),
-                    PlatformThirdPartyLoginClient.listScanMethods(platform).stream()).toList();
+                    PlatformThirdPartyScanLoginClient.listScanMethods(platform).stream()).toList();
         }
-        return PlatformThirdPartyLoginClient.listScanMethods(platform);
+        return PlatformThirdPartyScanLoginClient.listScanMethods(platform);
     }
 
     /**
@@ -247,23 +248,23 @@ public class PlatformBrowserLoginRouter {
      * @param platform 当前登录平台
      */
     private void cancelNativeLogin(PublicationPlatformType platform) {
-        if (FormPlatformPlaywrightLoginClient.supportsPlatform(platform)) formClient.cancelLogin(platform);
-        if (QrPlatformPlaywrightLoginClient.supportsPlatform(platform)) qrClient.cancelLogin(platform);
+        if (PlatformAccountLoginClient.supportsPlatform(platform)) formClient.cancelLogin(platform);
+        if (PlatformScanLoginClient.supportsPlatform(platform)) qrClient.cancelLogin(platform);
     }
 
     /** 将扫码客户端结果转为服务层统一结果。 */
-    private LoginSnapshot snapshot(QrPlatformPlaywrightLoginClient.BrowserLoginSnapshot value) {
+    private LoginSnapshot snapshot(PlatformScanLoginClient.BrowserLoginSnapshot value) {
         return new LoginSnapshot(value.status(), value.accountName(), value.screenshotBase64(),
                 value.storageState(), value.interactionStage());
     }
 
     /** 将表单平台内部会话转为平台通用结果。 */
-    private LoginSnapshot snapshot(FormPlatformPlaywrightLoginClient.BrowserLoginSnapshot value) {
+    private LoginSnapshot snapshot(PlatformAccountLoginClient.BrowserLoginSnapshot value) {
         return new LoginSnapshot(value.status(), value.accountName(), value.screenshotBase64(), value.storageState(), null);
     }
 
     /** 将第三方授权内部会话转为平台通用结果。 */
-    private LoginSnapshot snapshot(PlatformThirdPartyLoginClient.BrowserLoginSnapshot value) {
+    private LoginSnapshot snapshot(PlatformThirdPartyScanLoginClient.BrowserLoginSnapshot value) {
         return new LoginSnapshot(value.status(), value.accountName(), value.screenshotBase64(),
                 value.storageState(), value.interactionStage());
     }
