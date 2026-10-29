@@ -9,3 +9,13 @@
 .delete-button:hover:not(:disabled) { background: #fff0ef; }
 .detail-meta { display: grid; gap: 7px; color: #49617c; font-size: 12px; overflow-wrap: anywhere; }
 .modal h3 { margin: 0 0 8px; color: #49617c; font-size: 12px; }
+.panel-tools { display: flex; gap: 12px; align-items: center; }
+.article-filter { position: relative; }
+.article-filter input { width: 280px; padding: 9px 12px; border: 1px solid #d7e1ed; border-radius: 7px; color: #263d5a; background: white; font: inherit; font-size: 13px; }
+.article-filter input:focus { outline: 2px solid #bad4fb; border-color: #669ded; }
+.article-filter-options { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 360px; max-height: 320px; margin: 0; padding: 4px; overflow-y: auto; list-style: none; border: 1px solid #d7e1ed; border-radius: 7px; background: white; box-shadow: 0 8px 24px rgba(16, 35, 63, .12); }
+.article-filter-options li { padding: 8px 10px; border-radius: 5px; color: #263d5a; font-size: 13px; line-height: 1.5; cursor: pointer; overflow-wrap: anywhere; }
+.article-filter-options li small { margin-left: 6px; color: #8b9bb0; }
+.article-filter-options li[aria-selected="true"], .article-filter-options li:hover { background: #eef4fd; }
+.article-filter-options .article-filter-empty { color: #8b9bb0; cursor: default; }
+@media (max-width: 800px) { .panel-tools { flex-wrap: wrap; } .article-filter input, .article-filter-options { width: min(100%, 360px); } }
