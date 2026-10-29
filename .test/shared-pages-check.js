@@ -3,7 +3,7 @@ async page => {
     await page.unrouteAll({behavior:"wait"});
     const origin = "http://127.0.0.1:18765", errors = [], checks = [];
     const project = {id:1, name:"复用测试项目"};
-    const channel = {id:3, channelCode:"test", channelName:"测试模型", modelName:"test-model", enabled:true, strategyBeanName:"mockLlmStrategy"};
+    const channel = {id:3, channelCode:"test", channelName:"测试模型", modelName:"test-model", enabled:true, strategyBeanName:"chatCompletionsApiCommonStrategy"};
     const plan = {id:8, name:"复用测试方案", projectId:1, projectName:project.name, repeatCount:1, channelIds:[3],
         questions:[{text:"测试问题", source:"MANUAL", intent:"RECOMMENDATION", brandScope:"NON_BRAND", language:"中文"}]};
     const record = {id:9, title:"优化测试", originalContent:"原文", optimizedContent:"**优化正文**", warnings:[], citations:[],

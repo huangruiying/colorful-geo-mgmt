@@ -2,6 +2,28 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：删除本地模拟大模型策略（2026-10-29）
+
+- 删除 `MockLlmStrategy` 和 `LLMProtocolType.MOCK`；路由、渠道保存与启用不再有“模拟渠道免密钥、免地址”的分支，所有渠道都要求接口地址、模型和 API Key。
+- 页面去掉 MOCK 判断和“本地模拟”兜底文字（`models.js`、`diagnosis-plans.js`、`diagnosis-tasks.js` 版本 `20261029-no-mock1`）。
+- 单测改用 Mockito 策略替身；`.test/diagnosis-task-api-test.py` 的浏览器验收渠道改用本地 HTTP 模型替身，并把过期 Bean 名 `compatible*ApiStrategy` 改成 `*ApiCommonStrategy`（脚本本次未运行）。
+- 部署前检查：库里若有 `strategy_bean_name='mockLlmStrategy'` 的渠道，调用会报“策略 Bean 未注册”，需先停用或删除。
+- 验证：全量 `mvn test` 424 个，仅 `LLMStrategyRouterTest.shouldRejectDisabledExactTaskChannel` 失败（改动前已存在）。服务未重启。
+
+## 当前交接：模型调用策略显示中文名称（2026-10-29）
+
+- `LLMStrategy` 新增 `displayName()`，10 个策略类各自声明中文名；`/llm-channels/strategies` 多返回 `displayName`、`protocolName`。
+- 模型配置页下拉显示“豆包 · Responses”，Mock 只显示“本地模拟”；保存和路由仍用 Bean 名，不迁移数据。`models.js` 版本 `20261029-strategy-name1`。
+- 项目约定第 102 行同步修改。模型列表页、诊断方案、诊断任务详情仍显示 Bean 名，未改。
+- 验证：`LlmChannelControllerTest`、`LLMStrategyBeanTest` 通过；`LLMStrategyRouterTest.shouldRejectDisabledExactTaskChannel` 为改动前已有失败。服务未重启。
+
+## 当前交接：浏览器语言与时区（2026-10-29）
+
+- `PlaywrightBrowserComponent.openBrowser` 统一设置语言为 `zh-CN`、时区为 `Asia/Shanghai`，登录、核验、发布都生效，只改了这一个类。
+- 曾实现“重新登录时沿用已失效会话，以保留设备 Cookie”，但需要从 Service 经 Router 一路传到三个登录客户端，改动面大，用户要求回滚，已撤回；相关类与测试对这部分已无改动。
+- 参考了 colorful-unstoppable 的 `GoogleBrowsers`：去除自动化特征（webdriver 覆盖、`AutomationControlled`、伪造 UA）以及 `--disable-web-security`、`--no-sandbox` 等配置，按约定不采用。
+- 验证：Java 全量测试只有既有的 `LLMStrategyRouterTest` 失败。未提交。
+
 ## 当前交接：登录页打开失败的通用提示与截图（2026-10-29）
 
 - 新增 `infrastructure/client/login/PlatformLoginPageFailure`：

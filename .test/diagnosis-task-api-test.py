@@ -118,7 +118,7 @@ def run(base_url, keep):
         return value
 
     def model(name, strategy, route):
-        """低优先级人工渠道只连接本地替身或显式 Mock，不改变用户模型配置。"""
+        """低优先级人工渠道只连接本地模型替身，不改变用户模型配置。"""
         body = {"channelCode": prefix + "-" + name, "channelName": prefix + " " + name,
                 "providerCode": "local-qa", "strategyBeanName": strategy, "baseUrl": root + route,
                 "modelName": "qa-model", "apiKey": "dummy-local-placeholder", "temperature": None,
@@ -154,11 +154,11 @@ def run(base_url, keep):
         project = api("/projects", {"name": prefix + " 项目", "websiteUrl": "https://example.invalid",
             "industry": "本地验收", "coreFeatures": "项目背景不能发送给被测模型", "targetAudience": "本地测试",
             "aliases": [], "competitors": [], "keywords": ["qa"]})
-        chat, chat_body = model("chat", "compatibleChatCompletionsApiStrategy", "/success-chat")
-        responses, _ = model("responses", "compatibleResponsesApiStrategy", "/success-responses")
-        failure, _ = model("failure", "compatibleChatCompletionsApiStrategy", "/failure")
-        blank, _ = model("blank", "compatibleChatCompletionsApiStrategy", "/blank")
-        mock, _ = model("browser", "mockLlmStrategy", "/unused")
+        chat, chat_body = model("chat", "chatCompletionsApiCommonStrategy", "/success-chat")
+        responses, _ = model("responses", "responsesApiCommonStrategy", "/success-responses")
+        failure, _ = model("failure", "chatCompletionsApiCommonStrategy", "/failure")
+        blank, _ = model("blank", "chatCompletionsApiCommonStrategy", "/blank")
+        browser, _ = model("browser", "chatCompletionsApiCommonStrategy", "/success-chat")
         success_plan, success_body = plan("双协议成功", [chat["id"], responses["id"]])
         submit = uuid.uuid4().hex
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
@@ -208,7 +208,7 @@ def run(base_url, keep):
         assert len(ModelStub.requests) - baseline <= 4
         passed.append("渠道生成参数变化后拒绝未开始的该渠道采样，不静默使用新配置")
 
-        browser_plan, _ = plan("浏览器验收", [mock["id"]], 12, 2)
+        browser_plan, _ = plan("浏览器验收", [browser["id"]], 12, 2)
         create(browser_plan["id"], submit, expected=400)
         api("/diagnosis-tasks/999999999", expected=404)
         api("/diagnosis-tasks/" + str(task["id"]) + "/results/999999999", expected=404)
