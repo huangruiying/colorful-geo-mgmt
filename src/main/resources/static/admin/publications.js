@@ -6,6 +6,10 @@ const pageSize = 20;
 let currentPage = 0;
 /** 下拉框可选的文章，来自 /content-publish/titles，每项带标题、全拼和首字母。 */
 let articleOptions = [];
+/** 预发布在后台执行，列表里有未完成记录时定时刷新；记录停在“预发布中”待核对时最多刷新 15 分钟。 */
+const pendingPublishStatuses = ["INITIALIZED", "PRE_PUBLISHING"];
+let refreshTimer = null;
+let refreshStartedAt = 0;
 /** 当前筛选的文章 ID；为空表示全部文章。 */
 let selectedArticleId = null;
 /** 下拉列表里当前高亮的选项序号，供键盘上下选择。 */
@@ -142,9 +146,22 @@ async function loadContentPublishRecords(page) {
         document.querySelector("#previous-page").disabled = page === 0;
         document.querySelector("#next-page").disabled = (page + 1) * pageSize >= result.total;
         pageNotice.hidden = true;
+        scheduleRefresh(result.items);
     } catch (error) {
         showNotice(`发布列表加载失败：${error.message}`, true);
     }
+}
+
+/** 当前页仍有待预发布或预发布中的记录时，3 秒后刷新本页；超过 15 分钟视为待人工核对，不再刷新。 */
+function scheduleRefresh(items) {
+    clearTimeout(refreshTimer);
+    if (!items.some(record => pendingPublishStatuses.includes(record.publishStatus))) {
+        refreshStartedAt = 0;
+        return;
+    }
+    if (!refreshStartedAt) refreshStartedAt = Date.now();
+    if (Date.now() - refreshStartedAt > 15 * 60 * 1000) return;
+    refreshTimer = setTimeout(() => loadContentPublishRecords(currentPage), 3000);
 }
 
 /** 将一条发布记录的状态、来源和平台结果放到独立表行。 */

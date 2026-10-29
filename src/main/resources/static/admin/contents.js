@@ -7,6 +7,12 @@ let currentPage = 0;
 let currentDetail = null;
 let selectedRecordId = null;
 let checkedRecordId = null;
+/** 预发布在后台执行，详情弹窗里有未完成记录时定时刷新；记录停在“预发布中”待核对时最多刷新 15 分钟。 */
+const pendingPublishStatuses = ["INITIALIZED", "PRE_PUBLISHING"];
+const publishPollIntervalMillis = 3000;
+const publishPollLimitMillis = 15 * 60 * 1000;
+let publishPollTimer = null;
+let publishPollStartedAt = 0;
 
 const recordRows = document.querySelector("#record-rows");
 const pageNotice = document.querySelector("#page-notice");
@@ -17,6 +23,11 @@ const platformDialog = document.querySelector("#platform-dialog");
 document.querySelector("#open-optimize").addEventListener("click", () => optimizeDialog.showModal());
 document.querySelector("#optimize-form").addEventListener("submit", submitOptimization);
 document.querySelector("#submit-prepublish").addEventListener("click", submitPrePublish);
+// 详情弹窗关闭即停止刷新，下次打开重新计时
+detailDialog.addEventListener("close", () => {
+    clearTimeout(publishPollTimer);
+    publishPollStartedAt = 0;
+});
 document.querySelector("#prepublish-selected").addEventListener("click", () => openPlatformSelection(checkedRecordId));
 document.querySelector("#select-all-platforms").addEventListener("click", () => togglePlatformSelection(true));
 document.querySelector("#clear-platforms").addEventListener("click", () => togglePlatformSelection(false));
@@ -135,7 +146,8 @@ async function openContentDetail(recordId) {
         renderWarnings(record.warnings || []);
         renderCitations(record.citations || []);
         renderPublishRecords(currentDetail.publishRecords || []);
-        detailDialog.showModal();
+        if (!detailDialog.open) detailDialog.showModal();
+        schedulePublishPolling(recordId);
     } catch (error) {
         showMessage(pageNotice, `内容详情读取失败：${error.message}`, "error");
     }
@@ -181,21 +193,42 @@ async function submitPrePublish() {
     }
     const button = document.querySelector("#submit-prepublish");
     button.disabled = true;
-    button.textContent = "正在创建草稿…";
+    button.textContent = "正在提交…";
     hideMessage(errorNode);
     try {
         await requestJson(`/content-publish/${selectedRecordId}/pre-publish`, {
             method: "POST", body: JSON.stringify({publicationTitle, publicationContent, platformTypes: selected})
         });
         platformDialog.close();
+        publishPollStartedAt = Date.now();
         await loadContentRecords(currentPage);
         await openContentDetail(selectedRecordId);
     } catch (error) {
-        showMessage(errorNode, `预发布未完成：${error.message}。请先核对平台草稿箱和发布记录；只有明确失败的平台可重试。`, "error");
+        showMessage(errorNode, `预发布提交失败：${error.message}`, "error");
     } finally {
         button.disabled = false;
         button.textContent = "确认并创建草稿";
     }
+}
+
+/**
+ * 详情弹窗打开且仍有待预发布或预发布中的记录时，3 秒后重新读取详情；全部结束后刷新列表计数。
+ * 超过 15 分钟仍未结束的视为待人工核对，不再刷新。
+ */
+function schedulePublishPolling(recordId) {
+    clearTimeout(publishPollTimer);
+    const pending = (currentDetail?.publishRecords || []).some(record => pendingPublishStatuses.includes(record.publishStatus));
+    if (!pending) {
+        // 本次提交的记录都已结束，刷新列表里的平台计数
+        if (publishPollStartedAt) loadContentRecords(currentPage);
+        publishPollStartedAt = 0;
+        return;
+    }
+    if (!publishPollStartedAt) publishPollStartedAt = Date.now();
+    if (Date.now() - publishPollStartedAt > publishPollLimitMillis) return;
+    publishPollTimer = setTimeout(() => {
+        if (detailDialog.open && currentDetail?.record?.id === recordId) openContentDetail(recordId);
+    }, publishPollIntervalMillis);
 }
 
 /** 仅成功状态置灰；明确失败可重试，进行中状态不可重复提交。 */
