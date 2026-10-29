@@ -15,7 +15,7 @@
 
 ## 当前交接：已登录平台补齐预发布（2026-10-29）
 
-范围：数据库中已登录、但还没有预发布策略的 6 个平台。已有预发布的 10 个平台未改动。
+范围：数据库中已登录、但还没有预发布策略的 6 个平台。新增代码：`publish/browser/{bilibili,smzdm,sohu}`、`publish/strategy/browser/{bilibili,smzdm,sohu}`。已有预发布的 10 个平台未改动。
 
 | 平台 | 结果 | 说明 |
 |---|---|---|
@@ -24,7 +24,7 @@
 | 网易号 | 受阻：账号审核中 | 编辑页提示“账号信息正在审核中”，今日可发 0/0；没有存草稿按钮，“预览 → PC端预览”会以 `operation=saveDraft` 调 `publishV2.do` 生成草稿（得到 docId），但预览接口返回的正文为空，网易号自己的编辑接口 `editpage.do` 对这篇草稿返回“操作失败”。审核通过后再接。 |
 | 一点资讯 | 受阻：账号未通过审核 | 首页提示“您的一点号未通过审核”，“发布”为灰色，编辑器路由跳回首页。需用户在“账号资料”修改后重新提交审核。 |
 | 人人都是产品经理 | 受阻：需实名认证 | `/writing` 编辑器（WordPress，标题 `#post_title`，正文 TinyMCE `#post_content_ifr`，“保存草稿”按钮）打开即弹“账号实名制认证”。不绕过该弹窗，需用户先完成实名认证。 |
-| 搜狐号 | 受阻：需实名认证 | 2026-10-30 用户重新登录后复查：发布内容默认进“动态”，弹窗“您的账号未实名，仅支持发布动态”；文章编辑器 `news/addarticle`（标题 5–72 字，正文 Quill `div.ql-editor`）的发布、定时发布、存草稿、预览按钮全部禁用，提示“未实名暂无法发布文章”。实名认证后再接；如要改发“动态”（标题选填、每天 5 篇）需用户确认。 |
+| 搜狐号 | 已实现，真实账号跑通（2026-10-30） | 账号已实名。打开 `news/addarticle?contentStatus=1` → 关闭“我知道了”提示 → 填标题（5–72 字）、粘贴正文（Quill `div.ql-editor`）→ 点“存草稿”，读 `mpbp/bp/news/v4/news/draft/v2` 返回的 `data`（草稿 ID，`success=true`）→ 打开 `addarticle?contentStatus=2&id=ID` 回读。新设备会被跳到 `/mpfe/v4/clientAuth` 要求滑块+短信验证：已由用户在可见浏览器中完成一次，新登录态已写回数据库，全新无头浏览器复查不再要求；客户端遇到该页面直接提示重新登录。实测草稿 1094637762、1094638615。 |
 
 - 新增：`publish/browser/{bilibili,smzdm}/*BrowserClient`、`publish/strategy/browser/{bilibili,smzdm}/*PublicationStrategy`，依赖用 `@Resource` 字段注入（项目约定）；公开发布未接入，`execPublish` 明确拒绝。预发布平台列表由策略自动带出这两个平台。
 - 探查时在用户账号上建了测试草稿，标题均为“测试草稿可删除+数字”：哔哩哔哩 2 篇、什么值得买 2 篇（a70p7eko、ad7mel2d）、网易号 1 篇（LAENPS460556QB4A）。可在各平台草稿箱删除。
