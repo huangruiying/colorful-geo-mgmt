@@ -185,6 +185,17 @@ class GeoDiagnosisTaskServiceTest {
         verifyNoInteractions(results);
     }
 
+    /** 渠道在模型列表中被删除后，重试该诊断结果明确失败，不出现空指针。 */
+    @Test
+    void shouldRejectDeletedChannel() {
+        var sample = new GeoDiagnosisTaskResultEntity();
+        sample.setChannelId(1L); sample.setChannelSnapshot(JSON.toJSONString(snapshots.buildChannelSnapshot(channel(1L)),
+                com.alibaba.fastjson.serializer.SerializerFeature.WriteMapNullValue));
+        when(channels.selectById(1L)).thenReturn(null);
+        var error = assertThrows(IllegalArgumentException.class, () -> service.confirmTaskChannel(sample));
+        assertEquals("渠道已被删除，请重新创建诊断任务", error.getMessage());
+    }
+
     /** 历史快照含显式空值且小数位数不同时，不应因 JSON 实现变化阻断同一渠道。 */
     @Test
     void shouldReadHistoricalSnapshotWithNullsAndEquivalentDecimals() {

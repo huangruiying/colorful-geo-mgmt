@@ -101,7 +101,15 @@
                     try { await request("/llm-channels/" + c.id + "/enabled", {method: "PATCH", body: JSON.stringify({enabled: !c.enabled})}); await load(); }
                     catch (failure) { showError(failure.message); toggle.disabled = false; }
                 });
-                cell.append(edit, toggle); row.append(cell); rows.append(row);
+                const remove = document.createElement("button");
+                remove.className = "text-button"; remove.type = "button"; remove.textContent = "删除";
+                remove.addEventListener("click", async () => {
+                    if (remove.disabled || !confirm("确定删除模型渠道“" + c.channelName + "”？删除后不可恢复。")) return;
+                    remove.disabled = true; showError("");
+                    try { await request("/llm-channels/" + c.id, {method: "DELETE"}); await load(); }
+                    catch (failure) { showError(failure.message); remove.disabled = false; }
+                });
+                cell.append(edit, toggle, remove); row.append(cell); rows.append(row);
             }
             if (!result.items.length) {
                 const row = document.createElement("tr"), cell = document.createElement("td");
