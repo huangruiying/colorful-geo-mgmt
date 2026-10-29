@@ -30,14 +30,17 @@ class LlmChannelControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
-    /** 页面选项来自实际注册集合，厂商策略带密钥获取页，通用策略没有固定厂商时为空。 */
+    /** 页面选项来自实际注册集合，带策略中文名称和协议名称；厂商策略带密钥获取页，通用策略没有固定厂商时为空。 */
     @Test
     void shouldListRegisteredStrategyOptions() throws Exception {
         mvc.perform(get("/llm-channels/strategies")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].beanName").value("responsesApiCommonStrategy"))
+                .andExpect(jsonPath("$[0].displayName").value("通用兼容"))
                 .andExpect(jsonPath("$[0].apiKeyConsoleUrl").isEmpty())
                 .andExpect(jsonPath("$[1].beanName").value("responsesApiDoubaoStrategy"))
+                .andExpect(jsonPath("$[1].displayName").value("豆包"))
                 .andExpect(jsonPath("$[1].protocolType").value("OPENAI_RESPONSES"))
+                .andExpect(jsonPath("$[1].protocolName").value("Responses"))
                 .andExpect(jsonPath("$[1].apiKeyConsoleUrl").value("https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey"))
                 .andExpect(jsonPath("$[1].name").doesNotExist());
     }

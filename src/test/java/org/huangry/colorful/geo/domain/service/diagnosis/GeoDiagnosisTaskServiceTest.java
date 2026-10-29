@@ -94,8 +94,8 @@ class GeoDiagnosisTaskServiceTest {
             TableInfoHelper.initTableInfo(assistant, type);
         }
 
-        ReflectionTestUtils.setField(snapshots, "strategies", Map.of("mockLlmStrategy",
-                new org.huangry.colorful.geo.infrastructure.client.llm.strategy.MockLlmStrategy()));
+        ReflectionTestUtils.setField(snapshots, "strategies", Map.of("responsesApiCommonStrategy",
+                new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiCommonStrategy()));
         ReflectionTestUtils.setField(service, "taskDao", tasks);
         ReflectionTestUtils.setField(service, "resultDao", results);
         ReflectionTestUtils.setField(service, "planDao", plans);
@@ -132,7 +132,7 @@ class GeoDiagnosisTaskServiceTest {
         assertFalse(task.getPlanSnapshot().contains("private-query"));
         assertFalse(task.getPlanSnapshot().contains("apiKey"));
         assertEquals("https://example.invalid/v1", JSON.parseObject(task.getPlanSnapshot()).getJSONArray("channels").getJSONObject(0).getString("baseUrl"));
-        assertEquals("MOCK", JSON.parseObject(task.getPlanSnapshot()).getJSONArray("channels").getJSONObject(0).getString("protocolType"));
+        assertEquals("OPENAI_RESPONSES", JSON.parseObject(task.getPlanSnapshot()).getJSONArray("channels").getJSONObject(0).getString("protocolType"));
         assertEquals(2, JSON.parseObject(task.getPlanSnapshot()).getJSONArray("questions").size());
         assertEquals("项目背景", JSON.parseObject(task.getPlanSnapshot()).getJSONObject("project").getString("coreFeatures"));
     }
@@ -305,7 +305,7 @@ class GeoDiagnosisTaskServiceTest {
     private GeoLlmChannelEntity channel(long id) {
         var channel = new GeoLlmChannelEntity(); channel.setId(id); channel.setEnabled(true);
         channel.setChannelCode("fixture-" + id); channel.setChannelName("渠道 " + id);
-        channel.setStrategyBeanName("mockLlmStrategy"); channel.setModelName("fixture-model");
+        channel.setStrategyBeanName("responsesApiCommonStrategy"); channel.setModelName("fixture-model");
         channel.setApiKey("qa-secret"); channel.setBaseUrl("https://qa-secret@example.invalid/v1?token=private-query");
         channel.setMaxTokens(100); return channel;
     }

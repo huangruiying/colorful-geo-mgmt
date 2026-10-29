@@ -26,7 +26,7 @@ class LLMStrategyRouterTest {
         var channel = mockChannel(); channel.setId(99L); channel.setEnabled(true);
         var strategy = mockStrategy();
         var request = new LLMQueryRequest("独立问题");
-        assertEquals("模拟结果", createRouter(Map.of("mockLlmStrategy", strategy)).query(request, channel).getContent());
+        assertEquals("模拟结果", createRouter(Map.of("testStrategy", strategy)).query(request, channel).getContent());
         verify(strategy).query(same(request), same(channel));
         verifyNoInteractions(dao);
     }
@@ -36,12 +36,12 @@ class LLMStrategyRouterTest {
     void shouldRejectDisabledExactTaskChannel() {
         var channel = mockChannel(); channel.setEnabled(false);
         var strategy = mockStrategy();
-        assertThrows(LLMClientException.class, () -> createRouter(Map.of("mockLlmStrategy", strategy))
+        assertThrows(LLMClientException.class, () -> createRouter(Map.of("testStrategy", strategy))
                 .query(new LLMQueryRequest("问题"), channel));
         verify(strategy, never()).query(any(), any());
         verifyNoInteractions(dao);
     }
-    /** 远程渠道缺少密钥时，在请求前拒绝，不影响 Mock 无密钥调用。 */
+    /** 渠道缺少密钥时，在请求前拒绝。 */
     @Test
     void shouldRejectBlankRemoteKeyBeforeCallingStrategy() {
         var strategy = mockStrategy();
@@ -50,7 +50,7 @@ class LLMStrategyRouterTest {
             var channel = mockChannel();
             channel.setApiKey(key);
             when(dao.selectOne(any())).thenReturn(channel);
-            assertThrows(LLMClientException.class, () -> createRouter(Map.of("mockLlmStrategy", strategy)).query(new LLMQueryRequest("问题")));
+            assertThrows(LLMClientException.class, () -> createRouter(Map.of("testStrategy", strategy)).query(new LLMQueryRequest("问题")));
         }
         verify(strategy, never()).query(any(), any());
     }
@@ -77,7 +77,7 @@ class LLMStrategyRouterTest {
         channel.setStrategyBeanName("missing");
         when(dao.selectOne(any())).thenReturn(channel);
         var strategy = mockStrategy();
-        assertThrows(LLMClientException.class, () -> createRouter(Map.of("mockLlmStrategy", strategy)).query(new LLMQueryRequest("问题")));
+        assertThrows(LLMClientException.class, () -> createRouter(Map.of("testStrategy", strategy)).query(new LLMQueryRequest("问题")));
         verify(strategy, never()).query(any(), any());
     }
     private final GeoLlmChannelDao dao = mock(GeoLlmChannelDao.class);
@@ -95,7 +95,7 @@ class LLMStrategyRouterTest {
             assertTrue(sql.contains("LIMIT 1"));
             return mockChannel();
         });
-        assertEquals("模拟结果", createRouter(Map.of("mockLlmStrategy", strategy)).query(new LLMQueryRequest("问题")).getContent());
+        assertEquals("模拟结果", createRouter(Map.of("testStrategy", strategy)).query(new LLMQueryRequest("问题")).getContent());
     }
 
     /** 指定渠道和模型时，两项约束进入筛选，协议不影响默认渠道选择。 */
@@ -112,7 +112,7 @@ class LLMStrategyRouterTest {
             assertTrue(wrapper.getParamNameValuePairs().containsValue("test-model"));
             return null;
         });
-        var router = createRouter(Map.of("mockLlmStrategy", mockStrategy()));
+        var router = createRouter(Map.of("testStrategy", mockStrategy()));
         assertThrows(LLMClientException.class, () -> router.query(new LLMQueryRequest(
             "问题", "chosen", "test-model")));
     }
@@ -127,7 +127,7 @@ class LLMStrategyRouterTest {
             assertTrue(sql.contains("modelName")); assertFalse(sql.contains("channelCode"));
             return mockChannel();
         });
-        createRouter(Map.of("mockLlmStrategy", mockStrategy())).query(
+        createRouter(Map.of("testStrategy", mockStrategy())).query(
             new LLMQueryRequest("问题", null, "test-model"));
     }
 
@@ -136,7 +136,7 @@ class LLMStrategyRouterTest {
     void shouldRejectUnavailableChannel() {
         when(dao.selectOne(any())).thenReturn(null);
         LLMStrategy strategy = mockStrategy();
-        assertThrows(LLMClientException.class, () -> createRouter(Map.of("mockLlmStrategy", strategy))
+        assertThrows(LLMClientException.class, () -> createRouter(Map.of("testStrategy", strategy))
             .query(new LLMQueryRequest("问题")));
         verify(strategy, never()).query(any(), any());
     }
@@ -147,7 +147,7 @@ class LLMStrategyRouterTest {
         LLMStrategy strategy = mockStrategy();
         when(dao.selectOne(any())).thenReturn(mockChannel());
         when(strategy.query(any(), any())).thenThrow(new IllegalStateException("远程失败"));
-        assertThrows(IllegalStateException.class, () -> createRouter(Map.of("mockLlmStrategy", strategy))
+        assertThrows(IllegalStateException.class, () -> createRouter(Map.of("testStrategy", strategy))
             .query(new LLMQueryRequest("问题")));
         verify(dao, times(1)).selectOne(any());
         verify(strategy, times(1)).query(any(), any());
@@ -161,18 +161,18 @@ class LLMStrategyRouterTest {
         return router;
     }
 
-    /** 构造无凭据的模拟渠道，测试不触发远程请求。 */
+    /** 构造测试渠道，策略由 Mockito 替身承接，不触发远程请求。 */
     private GeoLlmChannelEntity mockChannel() {
         GeoLlmChannelEntity c = new GeoLlmChannelEntity();
-        c.setChannelCode("mock"); c.setStrategyBeanName("mockLlmStrategy"); c.setTemperature(0.3);
+        c.setChannelCode("test"); c.setStrategyBeanName("testStrategy"); c.setApiKey("test-key"); c.setTemperature(0.3);
         c.setMaxTokens(1400); c.setTimeoutSeconds(60); c.setSslVerify(true);
         return c;
     }
 
-    /** 模拟协议策略，仅验证路由边界。 */
+    /** Mockito 策略替身，仅验证路由边界。 */
     private LLMStrategy mockStrategy() {
         LLMStrategy s = mock(LLMStrategy.class);
-        when(s.protocolType()).thenReturn(LLMProtocolType.MOCK);
+        when(s.protocolType()).thenReturn(LLMProtocolType.OPENAI_RESPONSES);
         when(s.query(any(), any())).thenReturn(LLMResponse.withoutCitations("模拟结果"));
         return s;
     }

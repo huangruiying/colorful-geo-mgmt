@@ -99,20 +99,10 @@ class GeoLlmChannelServiceTest {
         verify(service, never()).updateById(any());
     }
 
-    /** 接口协议独立于联网能力，只包含已实现的交互格式。 */
-    @Test
-    void shouldRejectSearchForMockChannel() {
-        GeoLlmChannelEntity c = channel(); c.setStrategyBeanName("mockLlmStrategy");
-        assertEquals("mockLlmStrategy", c.getStrategyBeanName());
-        c.setStrategyBeanName("responsesApiCommonStrategy");
-        assertEquals("responsesApiCommonStrategy", c.getStrategyBeanName());
-    }
-
     /** 模拟 Spring 注册与字段注入，校验走实际策略注册表。 */
     private GeoLlmChannelService configuredService() {
         var service = new GeoLlmChannelService();
         org.springframework.test.util.ReflectionTestUtils.setField(service, "strategies", java.util.Map.of(
-                "mockLlmStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.MockLlmStrategy(),
                 "chatCompletionsApiCommonStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ChatCompletionsApiCommonStrategy(),
                 "responsesApiCommonStrategy", new org.huangry.colorful.geo.infrastructure.client.llm.strategy.ResponsesApiCommonStrategy()));
         return service;

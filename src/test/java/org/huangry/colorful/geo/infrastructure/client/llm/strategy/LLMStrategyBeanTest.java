@@ -3,8 +3,6 @@ package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 import org.huangry.colorful.geo.infrastructure.client.llm.LLMStrategyRouter;
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMStrategy;
 import org.huangry.colorful.geo.infrastructure.repository.GeoLlmChannelDao;
-import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
-import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
@@ -15,26 +13,21 @@ import static org.mockito.Mockito.*;
 class LLMStrategyBeanTest {
     /** 数据库 Bean 名直接命中实例，同协议厂商策略共存。 */
     @Test
-    void shouldInjectActualBeanNamesAndRouteWithoutRegistry() {
+    void shouldInjectActualBeanNamesWithoutRegistry() {
         var dao = mock(GeoLlmChannelDao.class);
-        var channel = new GeoLlmChannelEntity();
-        channel.setChannelCode("qa");
-        channel.setStrategyBeanName("mockLlmStrategy");
-        channel.setSslVerify(true);
-        when(dao.selectOne(any())).thenReturn(channel);
         try (var context = new AnnotationConfigApplicationContext()) {
             org.springframework.test.context.support.TestPropertySourceUtils.addInlinedPropertiesToEnvironment(context,
                     "http.llm.timeout-seconds=60", "http.llm.ssl-verify=true");
             context.registerBean(GeoLlmChannelDao.class, () -> dao);
             context.register(org.huangry.colorful.geo.infrastructure.config.RestTemplateConfig.class,
-                    LLMStrategyRouter.class, MockLlmStrategy.class,
+                    LLMStrategyRouter.class,
                     ChatCompletionsApiCommonStrategy.class, ResponsesApiCommonStrategy.class,
                     ChatCompletionsApiOpenAiStrategy.class, ResponsesApiOpenAiStrategy.class, ResponsesApiDoubaoStrategy.class,
                     ResponsesApiDeepSeekStrategy.class, ResponsesApiQwenStrategy.class,
                     ResponsesApiZhipuStrategy.class, ChatCompletionsApiQianfanStrategy.class);
             context.refresh();
             var strategies = context.getBeansOfType(LLMStrategy.class);
-            assertEquals(10, strategies.size());
+            assertEquals(9, strategies.size());
             assertSame(context.getBean(ChatCompletionsApiCommonStrategy.class), strategies.get("chatCompletionsApiCommonStrategy"));
             assertSame(context.getBean(ResponsesApiCommonStrategy.class), strategies.get("responsesApiCommonStrategy"));
             assertFalse(strategies.containsKey("compatibleChatCompletionsApiStrategy"));
@@ -49,7 +42,6 @@ class LLMStrategyBeanTest {
             assertFalse(strategies.containsKey("doubao_responses"));
             assertEquals(strategies.get("responsesApiOpenAiStrategy").protocolType(),
                     strategies.get("responsesApiDoubaoStrategy").protocolType());
-            assertTrue(context.getBean(LLMStrategyRouter.class).query(new LLMQueryRequest("问题")).getContent().contains("mock"));
         }
     }
 }
