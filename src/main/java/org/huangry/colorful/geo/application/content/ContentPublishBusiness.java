@@ -11,9 +11,6 @@ import org.huangry.colorful.geo.infrastructure.common.model.PageQuery;
 import org.huangry.colorful.geo.infrastructure.common.model.PageResponse;
 import org.huangry.colorful.geo.domain.service.content.ContentOptimizationRecordService;
 import org.huangry.colorful.geo.domain.service.content.ContentPublishRecordService;
-import org.huangry.colorful.geo.domain.service.publish.ContentPublicationService;
-import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationRequest;
-import org.huangry.colorful.geo.infrastructure.client.publish.model.PublicationResult;
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformType;
 import org.springframework.stereotype.Service;
 
@@ -27,8 +24,6 @@ import java.util.NoSuchElementException;
 @Service
 public class ContentPublishBusiness {
 
-    @Resource
-    private ContentPublicationService publicationService;
     @Resource
     private ContentOptimizationRecordService optimizationRecordService;
     @Resource
@@ -90,7 +85,10 @@ public class ContentPublishBusiness {
     }
 
     /**
-     * 用户在弹窗确认标题、正文和平台后，为每个平台建立发布记录并创建草稿。
+     * 用户在弹窗确认标题、正文和平台后，为每个平台建立待预发布记录后立即返回。
+     * <p>写入 content_publish_record：每个平台一条，状态为“初始化”（待预发布），保存确认稿快照；
+     * 已有成功或执行中记录的平台跳过，明确失败且无草稿信息的旧记录先删除再重建。
+     * 不调用平台，草稿由 ContentPrePublishWorker 在后台逐条创建，页面轮询记录状态取得结果。</p>
      *
      * @param id 内容记录 ID
      * @param publicationTitle 用户确认的发布标题
@@ -114,20 +112,9 @@ public class ContentPublishBusiness {
         }
         optimizationRecordService.findById(id).orElseThrow(() -> new NoSuchElementException("内容记录不存在"));
 
-        // 2. 每个平台先插入初始化记录及确认稿快照，再进入预发布中。
+        // 2. 每个平台插入待预发布记录及确认稿快照，由预发布后台任务调用平台；明确失败的旧记录会被清理后重建
         for (PublicationPlatformType platformType : new LinkedHashSet<>(platformTypes)) {
-            if (publishRecordService.createInitializedRecord(id, platformType,
-                    publicationTitle.trim(), publicationContent)) {
-                publishRecordService.startPrePublish(id, platformType);
-
-                // 3. 逐平台调用并立即回写草稿结果；明确失败的旧记录由持久化服务清理后可重新调用。
-                PublicationRequest request = PublicationRequest.builder()
-                        .title(publicationTitle.trim()).content(publicationContent)
-                        .platformTypes(List.of(platformType)).build();
-                for (PublicationResult result : publicationService.prePublishContent(request)) {
-                    publishRecordService.savePrePublishResult(id, result);
-                }
-            }
+            publishRecordService.createInitializedRecord(id, platformType, publicationTitle.trim(), publicationContent);
         }
         return publishRecordService.listByContentOptimizationRecordId(id);
     }

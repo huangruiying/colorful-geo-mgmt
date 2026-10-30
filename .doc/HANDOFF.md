@@ -2,6 +2,16 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：预发布改为后台执行（人工验证框架一期，2026-10-30）
+
+- 设计文档：`.doc/20261029_login_use_config/人工验证框架-详细设计.md`（一期已完成，二期“人工验证框架”、三期待开发）。
+- 提交预发布 `POST /content-publish/{id}/pre-publish` 只为每个平台插入“初始化”（待预发布）记录后立即返回，不再在请求里调用平台。
+- 新增 `presentation/task/ContentPrePublishWorker`：应用启动后在专用单线程池 `prePublishTaskExecutor` 中每秒扫描；`ContentPublishRecordService.claimNextInitializedRecord` 用带状态条件的更新领取（初始化→预发布中，成功才算领到），用记录里的确认稿快照调用平台，再 `savePrePublishResult` 回写。平台间串行；单条回写失败只记日志、记录停在“预发布中”待核对，不影响后续；领取失败暂停 5 秒。开关 `content.prepublish.worker.enabled`（默认 true，关闭后记录停在“初始化”）。
+- 服务重启：遗留“预发布中”记录不改动（即待核对），不自动重试；未加数据库会话锁，防重复靠条件更新。
+- 删除：原 `ContentPublishRecordService.startPrePublish` 与 Business 对 `ContentPublicationService` 的依赖。
+- 前端：内容优化详情弹窗、发布记录页在有“待预发布 / 预发布中”记录时每 3 秒刷新，全部结束即停，最长 15 分钟；提交按钮文案改为“正在提交…”。资源版本 `contents.js` / `publications.js` `?v=20261030-async1`。
+- 验证：新增/调整单测（Worker 3、Service 领取 3、Business 1）；Java 全量 452 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败。未启动服务做真实接口回归；服务未重启。
+
 ## 当前交接：发布记录按文章筛选，支持拼音搜索（2026-10-30）
 
 - 发布记录页“发布列表”右上角新增可输入下拉框：列出有发布记录的文章（每篇一项，标题取该文章最新一条发布记录的标题快照），输入汉字、全拼或首字母都能模糊匹配（不分大小写、忽略空格），选中后按文章 ID 筛选，第一项“全部文章”清除筛选；支持上下键、回车、Esc。

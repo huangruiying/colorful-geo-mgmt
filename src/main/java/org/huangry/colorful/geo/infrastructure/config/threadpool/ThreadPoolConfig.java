@@ -48,4 +48,21 @@ public class ThreadPoolConfig {
 		executor.initialize();
 		return executor;
 	}
+
+	/**
+	 * 预发布后台任务线程池：只运行一个轮询线程，平台逐条串行执行，避免同一平台浏览器登录态被并发使用。
+	 */
+	@Bean
+	@Qualifier("prePublishTaskExecutor")
+	public ThreadPoolTaskExecutor prePublishTaskExecutor() {
+
+		ThreadPoolTaskExecutor executor = new ThreadPoolMDCExecutor();
+		executor.setCorePoolSize(1);
+		executor.setMaxPoolSize(1);
+		executor.setQueueCapacity(1);
+		executor.setThreadNamePrefix("预发布线程-");
+		executor.setRejectedExecutionHandler(new OverflowRecordPolicy());
+		executor.initialize();
+		return executor;
+	}
 }

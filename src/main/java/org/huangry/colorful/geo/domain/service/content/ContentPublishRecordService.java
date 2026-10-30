@@ -129,17 +129,26 @@ public class ContentPublishRecordService extends ServiceImpl<ContentPublishRecor
     }
 
     /**
-     * 将初始化记录推进到预发布中；未命中说明不能安全地调用平台。
+     * 领取最早一条待预发布（初始化）的记录，并原子改为预发布中，供预发布后台任务调用平台。
+     * <p>只有带状态条件的更新成功才算领到：记录已被删除或已被其他执行者领走时返回空，下一轮再取，
+     * 保证同一条记录只调用一次平台。</p>
      *
-     * @param contentOptimizationRecordId 内容优化记录标识
-     * @param platformType 目标平台
+     * @return 已改为预发布中的记录（含确认稿标题与正文）；没有待预发布记录或本次未领到时为空
      */
-    public void startPrePublish(long contentOptimizationRecordId, PublicationPlatformType platformType) {
-        if (baseMapper.startPrePublish(contentOptimizationRecordId, platformType) != 1) {
-            throw new IllegalStateException("发布记录未能进入预发布中，未调用平台");
+    public ContentPublishRecordEntity claimNextInitializedRecord() {
+        // 条件直接用状态编码，与 DAO 手写 SQL 的数字状态一致，不依赖枚举类型转换
+        ContentPublishRecordEntity next = baseMapper.selectOne(new LambdaQueryWrapper<ContentPublishRecordEntity>()
+                .eq(ContentPublishRecordEntity::getPublishStatus, ContentPublishRecordStatus.INITIALIZED.getCode())
+                .orderByAsc(ContentPublishRecordEntity::getId).last("LIMIT 1"));
+        if (next == null) {
+            return null;
         }
-        log.info("内容发布记录进入预发布中，contentOptimizationRecordId={}，platformType={}",
-                contentOptimizationRecordId, platformType);
+        if (baseMapper.startPrePublish(next.getContentOptimizationRecordId(), next.getPlatformType()) != 1) {
+            return null;
+        }
+        log.info("内容发布记录进入预发布中，publishRecordId={}，contentOptimizationRecordId={}，platformType={}",
+                next.getId(), next.getContentOptimizationRecordId(), next.getPlatformType());
+        return next;
     }
 
     /**
