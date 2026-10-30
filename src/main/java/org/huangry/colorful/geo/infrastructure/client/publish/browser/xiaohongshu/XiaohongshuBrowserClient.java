@@ -20,7 +20,11 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * <pre>
- * 使用数据库保存的小红书登录态创建长文草稿；入口为 createDraft。
+ * 小红书写长文编辑器的浏览器客户端：用数据库登录态打开长文编辑器并写入标题、正文；入口为 createDraft。
+ *
+ * 当前未被调用（2026-10-30）：小红书草稿只存在浏览器本地，建草稿对用户不可见，预发布已改为只保存确认稿
+ * （见 XiaohongshuPublicationStrategy 类注释）。保留本类供以后实现公开发布时复用“打开编辑器、写入内容”的步骤，
+ * 届时去掉“暂存离开”，改为点击发布并确认结果。
  *
  * 负责：
  * - 从 platform_browser_login 恢复小红书 Playwright 会话
