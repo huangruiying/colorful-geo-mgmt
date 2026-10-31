@@ -40,3 +40,6 @@ output/
 /blog-vitepress/src/main/resources/node_modules/
 /blog-vitepress/src/main/resources/docs/.vitepress/cache/deps/
 /blog-vitepress/src/main/resources/docs/.vitepress/dist/
+
+# Python 运行时缓存
+__pycache__/
