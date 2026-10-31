@@ -58,4 +58,18 @@ public interface PlatformBrowserLoginDao extends BaseMapper<PlatformBrowserLogin
     int updateCheckedStatus(@Param("platformType") String platformType,
                             @Param("status") String status,
                             @Param("accountName") String accountName);
+
+    /**
+     * 用户在自动化流程中完成平台安全验证后，写回带验证结果的浏览器会话；只更新仍为已登录的记录。
+     *
+     * @param platformType 平台枚举名称
+     * @param storageState Playwright 浏览器会话 JSON
+     * @return 受影响行数；登录态已失效或被删除时为 0
+     */
+    @Update("""
+            UPDATE platform_browser_login SET storage_state = #{storageState}
+            WHERE platform_type = #{platformType} AND login_status = 'LOGGED_IN'
+            """)
+    int updateStorageState(@Param("platformType") String platformType,
+                           @Param("storageState") String storageState);
 }

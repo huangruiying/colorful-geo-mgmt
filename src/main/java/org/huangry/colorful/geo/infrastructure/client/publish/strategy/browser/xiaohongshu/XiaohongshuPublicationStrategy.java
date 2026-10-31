@@ -28,8 +28,8 @@ import org.springframework.stereotype.Component;
  *     {@code creator.xiaohongshu.com/publish/publish?from=menu&target=article} →“新的创作”{@code button.new-btn} →
  *     标题 {@code textarea[placeholder="输入标题"]} → 正文 {@code div.tiptap.ProseMirror}），不再点“暂存离开”。</li>
  *     <li>长文页的“发布”按钮及发布后的确认方式尚未实测（可能先进入“下一步”或长文合集设置），需先探查；
- *     发布是真实服务端动作，要以接口响应或已发布笔记列表确认，并评估风控与人工验证（见
- *     {@code .doc/20261029_login_use_config/人工验证框架-详细设计.md}）。</li>
+ *     发布是真实服务端动作，要以接口响应或已发布笔记列表确认，并评估风控；遇到验证时接入浏览器人工接管的人工验证场景（见
+ *     {@code .doc/20261029_login_use_config/浏览器人工接管框架-详细设计.md}）。</li>
  * </ol>
  * <p>其他参考：{@code .doc/平台发文入口与选择器.md} 的“小红书 XIAOHONGSHU”一节。</p>
  */
