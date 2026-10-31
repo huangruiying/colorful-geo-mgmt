@@ -31,3 +31,9 @@
 a.primary-button { display:inline-flex; align-items:center; }
 .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 @media(max-width:600px) { .modal-body { padding:18px; } :where(.standard-page) table { min-width:760px; } }
+/* 全局浏览器人工接管窗口：服务器浏览器实时画面按窗口宽度等比缩放，坐标由脚本换算回页面。 */
+.browser-takeover-dialog { width: min(1320px, calc(100vw - 28px)); }
+.browser-takeover-countdown { flex: none; color: #af423a; font-size: 13px; font-weight: 600; }
+.browser-takeover-status { margin: 0; color: #5d7088; font-size: 12px; }
+.browser-takeover-canvas { display: block; width: 100%; height: auto; border: 1px solid #dce6f1; border-radius: 7px; background: #f3f6fa; touch-action: none; outline: none; }
+.browser-takeover-canvas:focus { border-color: #6b9ce2; }
