@@ -252,6 +252,17 @@ class QrPlatformPlaywrightLoginClientTest {
         assertEquals("作者", probe.accountName());
     }
 
+    /** 抖音账号接口新格式把账号 ID 放在最外层 uid、不带昵称，仍可确认登录并以 ID 展示。 */
+    @Test
+    void 抖音接口最外层uid可确认登录() throws JsonProcessingException {
+        var response = JSON.parseObject("{\"is_registered\":true,\"status_code\":0,\"status_msg\":\"\",\"uid\":\"82408484657\"}");
+
+        var probe = client.parseAccountResponse(PublicationPlatformType.DOUYIN, response);
+
+        assertEquals(PlatformBrowserLoginStatus.LOGGED_IN, probe.status());
+        assertEquals("82408484657", probe.accountName());
+    }
+
     /** 抖音创作者主页显示本账号抖音号时，可以不依赖旧账号接口直接确认登录。 */
     @Test
     void 抖音主页账号标识可以确认登录() {

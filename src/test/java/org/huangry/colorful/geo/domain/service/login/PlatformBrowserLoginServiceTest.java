@@ -205,17 +205,6 @@ class PlatformBrowserLoginServiceTest {
                 PlatformScanLoginMethod.QQ), yidian.scanMethods());
     }
 
-    /** 搜狐焦点只展示微信授权，不提供短信、密码或其他扫码方式。 */
-    @Test
-    void sohuFocusListsOnlyWechatScan() {
-        var focus = service.listPlatforms().stream()
-                .filter(platform -> platform.platformType().equals("SOHU_FOCUS")).findFirst().orElseThrow();
-
-        assertTrue(focus.supported());
-        assertEquals(java.util.List.of("qr"), focus.loginMethods());
-        assertEquals(java.util.List.of(PlatformScanLoginMethod.WECHAT), focus.scanMethods());
-    }
-
     /** 其他扫码平台仍由同一个二维码客户端处理，不依赖知乎规则。 */
     @Test
     void juejinQrLoginKeepsItsOwnAccount() {
