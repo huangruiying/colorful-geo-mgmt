@@ -2,6 +2,22 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：一点资讯、慕课网、抖音接入预发布（2026-10-31）
+
+19 个平台已全部登录。无预发布的 6 个中，本次接入 3 个，3 个仍受阻：
+
+| 平台 | 结果 | 要点 |
+|---|---|---|
+| 一点资讯 | 已实现，真实账号跑通 | `#/Writing/articleEditor`，标题 `input.post-title`（5–64 字，超出在打开浏览器前拒绝），正文 `div.editor-content`。存草稿前端校验：必须选内容声明（未选只弹一闪而过的“请选择内容声明”，不发请求），封面选“默认”可不传图。内容声明固定“内容由AI生成”（用户可要求改）。`POST /model/Article` 返回 `{"id":...}`；草稿地址 `#/Writing/{id}?from=articleEditor`。实测 1141534006604800、1141538193580352。 |
+| 慕课网 | 已实现，真实账号跑通 | `article/publish` 切“Markdown”编辑器（`.editor__inner`，同 CSDN），正文为 Markdown 原文。自动保存 `POST /article/savedraft`（`editor=0`，带正文的那次为准）返回 `{"result":0,"data":id}`；草稿地址 `/article/draft/id/{id}`。实测 208443–208446。 |
+| 抖音 | 已实现，部分实测 | 文章只有一个草稿位。打开 `content/upload?default-tab=5` 时等页面自身的草稿查询 `POST /web/api/media/aweme/draft`（200），响应带 `draft.creation_id` 即已有未发布文章 → 拒绝不覆盖（“继续编辑”提示晚于“我要发文”约 2 秒出现，不能以提示为准）。否则“我要发文” → 标题（≤30 字，超出拒绝）+ tiptap 正文 → “暂存离开” → “继续编辑”打开 `post/article?enter_from=draft&creation_id=…` 回读，creation_id 为草稿 ID。已实测：被占用时拒绝；各步骤用脚本分别实测。未实测：草稿位为空时的完整 Java 流程（草稿位被测试文章 onufykqd1793431499893 占用，页面无删除入口）。 |
+| 51CTO | 受阻 | `blog.51cto.com/blogger/publish` HTML 可打开，但脚本、样式在被拦截的 `static*.51cto.com`，编辑器不加载；需用户在自己浏览器抓保存草稿请求后按接口实现。 |
+| 网易号 | 受阻 | 账号仍在审核中，今日可发 0/0。 |
+| 人人都是产品经理 | 受阻 | 仍需实名认证。 |
+
+- 新增 `publish/browser/{yidian,imooc,douyin}` 与对应策略、单测（20 个）。Java 全量通过（仅既有 `shouldRejectDisabledExactTaskChannel` 失败）。服务未重启。
+- 测试草稿（标题“测试草稿可删除+数字”）：一点资讯 4 篇、慕课网 4 篇、抖音 1 篇（占用草稿位），用户可删除。
+
 ## 当前交接：浏览器登录页“检测”按钮防重复点击（2026-10-31）
 
 - 点击“检测”后按钮置灰并显示“检测中…”，结束（成功或失败）后随列表重绘恢复；正在检测的平台记在 `checkingPlatforms`，期间列表重绘仍保持禁用，刷新页面即清空。
