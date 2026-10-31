@@ -2,6 +2,16 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：浏览器人工接管框架 + 人工验证场景，搜狐号试点（2026-10-31）
+
+- 术语（用户确认）：**浏览器人工接管**是框架（技术），服务器 Playwright 页面需要人时把实时画面推到管理页，用户点击、拖动、输入，操作转发回页面，直到调用方的完成条件满足；**人工验证**是第一个场景（业务侧），识别到平台验证就请求接管，验证消失即完成。只有必须直接在平台页面上操作的（拖滑块等）才用接管；代码能处理的（弹窗、协议勾选）和能用管理页表单转交的（填短信码）不用。设计见 `.doc/20261029_login_use_config/浏览器人工接管框架-详细设计.md`（原名“人工验证框架-详细设计.md”）。
+- 代码：框架 `infrastructure/client/playwright/takeover/`（入口 `BrowserTakeoverRegistry.requestTakeover(页面, 标题, 原因, 完成条件)`，不引用平台、业务枚举）；场景 `takeover/verification/`（`HumanVerificationRule`、`HumanVerificationTakeover.ensureHumanVerified`）；接口 `MgmtBrowserTakeoverController`（`/browser-takeovers`）；前端 `shared/browser-takeover.js`（12 个管理页引入，`components.css` 版本 `20261031-takeover1`）；配置 `colorful.geo.browser-takeover.timeout-seconds`（默认 600）。
+- 关键约束：Playwright 对象只能在创建它的线程使用，所以由请求接管的后台线程循环转发操作、截图和检查完成条件，HTTP 线程只读帧、放操作、标记放弃。
+- 搜狐号接入：`/clientAuth` 不再直接失败，改为人工接管；完成后写回登录态（`PlatformBrowserLoginDao.updateStorageState`），下次预发布不再要求验证。
+- 验证：新增单测 20 项，Java 全量 490 项，仅既有 `shouldRejectDisabledExactTaskChannel` 失败；本机无头 Chromium 模拟验证页（路由拦截，不访问真实站点）走“人工验证场景 → 接管框架”全链路，点击、输入、拖动滑块均生效，结局 COMPLETED，无验证时 NOT_REQUIRED。前端未写自动化测试，未在浏览器里实际打开窗口。
+- 真实实测（2026-10-31，本机）：用户重启服务、重新登录搜狐号后提交预发布，弹出接管窗口，在窗口中完成搜狐安全验证，记录 59 预发布成功（草稿 1095458552）。用户确认可用。
+- 未完成：未在服务器部署环境实测；三期（其他平台接入人工验证）未开始。测试草稿：搜狐 1095457765（未触发验证那次）、1095458552。
+
 ## 当前交接：一点资讯、慕课网、抖音接入预发布（2026-10-31）
 
 19 个平台已全部登录。无预发布的 6 个中，本次接入 3 个，3 个仍受阻：
@@ -43,9 +53,9 @@
 - 历史发布记录 #49（小红书，“预发布成功”）是旧逻辑的假成功，用户未决定是否处理。
 - 验证：Java 全量 453 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败。服务未重启。
 
-## 当前交接：预发布改为后台执行（人工验证框架一期，2026-10-30）
+## 当前交接：预发布改为后台执行（浏览器人工接管框架一期，2026-10-30）
 
-- 设计文档：`.doc/20261029_login_use_config/人工验证框架-详细设计.md`（一期已完成，二期“人工验证框架”、三期待开发）。
+- 设计文档：`.doc/20261029_login_use_config/浏览器人工接管框架-详细设计.md`（一期已完成；二期 2026-10-31 完成，见上方交接）。
 - 提交预发布 `POST /content-publish/{id}/pre-publish` 只为每个平台插入“初始化”（待预发布）记录后立即返回，不再在请求里调用平台。
 - 新增 `presentation/task/ContentPrePublishWorker`：应用启动后在专用单线程池 `prePublishTaskExecutor` 中每秒扫描；`ContentPublishRecordService.claimNextInitializedRecord` 用带状态条件的更新领取（初始化→预发布中，成功才算领到），用记录里的确认稿快照调用平台，再 `savePrePublishResult` 回写。平台间串行；单条回写失败只记日志、记录停在“预发布中”待核对，不影响后续；领取失败暂停 5 秒。开关 `content.prepublish.worker.enabled`（默认 true，关闭后记录停在“初始化”）。
 - 服务重启：遗留“预发布中”记录不改动（即待核对），不自动重试；未加数据库会话锁，防重复靠条件更新。

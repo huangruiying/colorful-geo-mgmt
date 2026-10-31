@@ -91,8 +91,15 @@ infrastructure/client：外部协议、平台及浏览器适配
 
 - 管理后台只有一个登录账号，不提供注册；账号来自环境变量 `GEO_ADMIN_USERNAME`、`GEO_ADMIN_PASSWORD_HASH`（BCrypt 哈希），不建用户表，未配置哈希时服务拒绝启动。
 - 访问控制集中在 `infrastructure/config/security/AdminSecurityConfig`：除登录页及其样式、脚本和 `robots.txt` 外全部要求登录；新增公开资源只改这里的放行清单。未登录访问页面跳转登录页，访问接口返回 401 ProblemDetail；同一 IP 15 分钟内连续失败 5 次锁定 15 分钟（`LoginAttemptLimiter`）。
-- 写请求必须带跨站令牌：页面接口请求统一走 `shared/http.js` 的 `AdminHttp.requestJson`（自动附带 `X-XSRF-TOKEN`，401 跳转登录页），不直接使用 `fetch`；表单提交用 `AdminHttp.csrfToken()` 填 `_csrf`。新页面必须引入 `shared/http.js` 与 `shared/navigation.js`（含退出入口）。
+- 写请求必须带跨站令牌：页面接口请求统一走 `shared/http.js` 的 `AdminHttp.requestJson`（自动附带 `X-XSRF-TOKEN`，401 跳转登录页），不直接使用 `fetch`；表单提交用 `AdminHttp.csrfToken()` 填 `_csrf`。新页面必须引入 `shared/http.js`、`shared/navigation.js`（含退出入口）与 `shared/browser-takeover.js`（人工接管弹窗）。
 - 所有响应带 `X-Robots-Tag: noindex, nofollow`，并提供禁止抓取的 `robots.txt`；这只约束遵守规则的爬虫，真正的访问控制仍是登录。
+
+## 浏览器人工接管
+
+- 术语（2026-10-31 用户确认）：「浏览器人工接管」指框架：服务器上的 Playwright 页面需要人时，把实时画面推到管理页，用户在画面上点击、拖动、输入，操作转发回页面，直到调用方给出的完成条件满足。「人工验证」只是其中一个场景，不再用来指整个框架。
+- 框架与业务隔离：框架在 `infrastructure/client/playwright/takeover/`，类名前缀 `BrowserTakeover`，入口 `BrowserTakeoverRegistry.requestTakeover(页面, 标题, 原因, 完成条件)`，接口 `/browser-takeovers`；只认页面、标题、原因、完成条件和超时，不引用平台、业务枚举。场景放在 `takeover/` 下的子包（人工验证为 `takeover/verification/`），由场景决定何时请求接管、怎样算完成；平台客户端只调用场景入口。
+- 何时用接管：代码能自动处理的（弹窗、协议勾选）写在平台适配里；要人做但能用管理页表单转交的（选验证方式、填短信码）用表单；只有必须直接在平台页面上操作的（拖滑块、点选图片）才用接管。不提前做没有真实需求的场景。
+- 人工验证的识别规则集中在 `HumanVerificationRule`，只收录实际遇到并核对过页面特征的验证；不识别验证码内容、不模拟拖动、不代替用户完成验证。
 
 ## 已确认的大模型设计
 
