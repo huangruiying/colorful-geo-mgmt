@@ -7,8 +7,8 @@
 (() => {
     /** 查询待接管列表的间隔。 */
     const LIST_INTERVAL_MS = 3000;
-    /** 取画面的间隔，约每秒 6～7 帧。 */
-    const FRAME_INTERVAL_MS = 150;
+    /** 取画面的间隔（约每秒 12 次）；服务端每 100ms 才确认一次截图，新画面最多约每秒 10 帧。 */
+    const FRAME_INTERVAL_MS = 80;
     /** 允许转发的功能键，与服务端白名单一致；字符输入走文字输入。 */
     const SPECIAL_KEYS = new Set(["Backspace", "Tab", "Enter", "Escape", "Delete",
         "ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown"]);
