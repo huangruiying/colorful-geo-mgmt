@@ -2,6 +2,23 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：浏览器登录页“检测”按钮防重复点击（2026-10-31）
+
+- 点击“检测”后按钮置灰并显示“检测中…”，结束（成功或失败）后随列表重绘恢复；正在检测的平台记在 `checkingPlatforms`，期间列表重绘仍保持禁用，刷新页面即清空。
+- `browser-login.js` 版本 `20261031-check1`；JS 语法检查通过，`browser-login.test.cjs` 仍是既有 9 项失败。
+
+## 当前交接：抖音检测登录态误报“无法确认”（2026-10-31）
+
+- 原因 1：`PlatformScanLoginClient.probeSavedDouyinPageAccount` 调用 `page.waitForFunction(表达式, 选项)`，Playwright Java 的两参数版本第二个参数是传给页面函数的参数，传选项直接抛“Unsupported type of argument”，被捕获后返回无法确认——主页核验从未真正执行。改为三参数 `(表达式, null, 选项)`。全项目其他 `waitForFunction` 均为正确写法。
+- 原因 2：兜底的账号接口 `creator.douyin.com/aweme/v1/creator/pc/user/info/` 新格式把账号 ID 放在最外层 `uid`、无昵称，`parseDouyinAccount` 只认 `user_info.uid`、`data.user_id`。补充最外层 `uid`，以 ID 展示。
+- 验证：用用户刚登录的数据库会话直接调用 `verifySavedLogin`，修复前 UNKNOWN，修复后 LOGGED_IN（A9.888888888.）；新增 1 个单测，Java 全量 449 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败。服务未重启。
+
+## 当前交接：移除搜狐焦点（2026-10-31）
+
+- 用户确认搜狐焦点是房产平台，不需要。删除 `PublicationPlatformType.SOHU_FOCUS` 及其表单站点、账号解析（含转义还原）、第三方微信入口与协议勾选、前端协议链接、`config/browser-login.md` 说明和对应单测；`PlatformAccountLoginClient` 不再使用的正则 import 一并删除。
+- 数据库无搜狐焦点的登录或发布记录。`browser-login.js` 版本 `20261031-no-focus1`。
+- 验证：Java 全量 448 个，仅既有的 `shouldRejectDisabledExactTaskChannel` 失败。服务未重启。
+
 ## 当前交接：小红书预发布改为只保存确认稿（2026-10-30）
 
 - 原因：小红书网页版草稿只存在浏览器本地（IndexedDB），系统临时浏览器关闭即消失，用户 App 永远看不到，原“建草稿后返回预发布成功”为假成功。

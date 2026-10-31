@@ -53,9 +53,6 @@ public enum PublicationPlatformType {
     /** 什么值得买，用于消费内容草稿投放。 */
     SMZDM("什么值得买"),
 
-    /** 搜狐焦点，用于房产内容草稿投放。 */
-    SOHU_FOCUS("搜狐焦点"),
-
     /** 一点资讯，用于文章草稿投放。 */
     YIDIAN("一点资讯"),
 

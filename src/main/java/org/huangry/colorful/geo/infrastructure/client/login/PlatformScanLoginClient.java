@@ -503,8 +503,9 @@ public class PlatformScanLoginClient {
             // 恢复的会话必须重新进入创作者主页，不能复用登录时的页面截图。
             page.navigate("https://creator.douyin.com/creator-micro/home", new Page.NavigateOptions()
                     .setWaitUntil(WaitUntilState.DOMCONTENTLOADED).setTimeout(20_000));
+            // 必须用（表达式, 参数, 选项）三参数形式：两参数版本的第二个参数是传给页面函数的参数，传选项会直接报错
             page.waitForFunction("() => /抖音号\\s*[：:]\\s*[A-Za-z0-9._-]{3,32}/.test(document.body?.innerText || '')",
-                    new Page.WaitForFunctionOptions().setTimeout(8_000));
+                    null, new Page.WaitForFunctionOptions().setTimeout(8_000));
             // 只有页面地址与抖音号同时匹配，才能返回已登录。
             return probeDouyinPageAccount(page);
         } catch (PlaywrightException exception) {
@@ -932,6 +933,11 @@ public class PlatformScanLoginClient {
         if (accountId.isBlank()) {
             account = JSONPath.eval(response, "$.data");
             accountId = readAccountText(account, "$.user_id", "");
+        }
+        if (accountId.isBlank()) {
+            // 2026-10 起接口把账号 ID 放在最外层 uid，且不再返回昵称
+            account = response;
+            accountId = readAccountText(account, "$.uid", "");
         }
         String accountName = readAccountText(account, "$.nickname", "");
         return accountId.isBlank()
