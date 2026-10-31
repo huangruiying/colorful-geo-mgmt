@@ -13,13 +13,14 @@ const loginFeedback = document.getElementById('login-feedback');
 const platformAgreementLinks = {
     BAIJIAHAO: ['https://baijiahao.baidu.com/docs/#/markdownsingle/BaiJiaHaoFuWuXieYi', '《百家号用户协议》'],
     SOHU: ['https://mp.sohu.com/baike#/dashboard?id=435536343', '《搜狐号用户服务协议》'],
-    SOHU_FOCUS: ['https://login.focus.cn/privacy/policy', '《搜狐焦点网隐私政策》'],
     EASTMONEY: ['https://mp.eastmoney.com/', '在东方财富登录页查看《隐私政策》和《服务协议》'],
     TOUTIAO: ['https://mp.toutiao.com/profile_v3_public/public/protocol/agreement', '《头条号用户协议》'],
     NETEASE: ['https://hc.reg.163.com/iTerm/doc.html?id=542', '《网易服务条款》']
 };
 let activePlatform = null;
 let platformNames = {};
+/** 正在检测的平台；列表重绘时据此保持按钮禁用，防止重复点击。刷新页面即清空。 */
+const checkingPlatforms = new Set();
 let platformLoginMethods = {};
 let platformScanMethods = {};
 let activeScanMethod = 'PLATFORM_APP';
@@ -107,9 +108,10 @@ async function loadPlatforms() {
                 loginButton.textContent = platform.status === 'LOGGED_IN' ? '重新登录' : '登录';
                 loginButton.addEventListener('click', () => startLogin(platform.platformType));
                 const checkButton = document.createElement('button');
-                checkButton.textContent = '检测';
-                checkButton.disabled = platform.status === 'NOT_LOGGED_IN';
-                checkButton.addEventListener('click', () => checkLogin(platform.platformType));
+                const checking = checkingPlatforms.has(platform.platformType);
+                checkButton.textContent = checking ? '检测中…' : '检测';
+                checkButton.disabled = checking || platform.status === 'NOT_LOGGED_IN';
+                checkButton.addEventListener('click', () => checkLogin(platform.platformType, checkButton));
                 action.append(loginButton, checkButton);
             } else {
                 action.textContent = '待接入';
@@ -288,7 +290,7 @@ loginScreenshot.addEventListener('error', () => {
 /** 在选定平台开启登录页；旧读取失效后展示新进度，扫码模式才启动结果轮询。 */
 async function startLogin(platform, scanMethod = 'PLATFORM_APP', requestedMode) {
     if (loginBusy) return;
-    // 没有平台 App 扫码的平台（如搜狐焦点只有微信），默认改用它实际支持的第一种扫码方式
+    // 没有平台 App 扫码的平台（如一点资讯只有微信、QQ），默认改用它实际支持的第一种扫码方式
     const supportedScanMethods = platformScanMethods[platform] || [];
     if (scanMethod === 'PLATFORM_APP' && supportedScanMethods.length && !supportedScanMethods.includes('PLATFORM_APP')) {
         scanMethod = supportedScanMethods[0];
@@ -429,13 +431,20 @@ async function refreshScanImage() {
 }
 
 /** 核验指定平台已保存的登录态，显示结果并刷新列表，不自动发起登录。 */
-async function checkLogin(platform) {
+async function checkLogin(platform, button) {
+    if (checkingPlatforms.has(platform)) return;
+    // 检测期间按钮置灰并提示，结束后由列表重绘恢复
+    checkingPlatforms.add(platform);
+    button.disabled = true;
+    button.textContent = '检测中…';
     try {
         const result = await request(`${baseUrl}/${platform}/check`, { method: 'POST' });
         showNotice(`${result.platformName}：${statusText(result.status)}`);
-        await loadPlatforms();
     } catch (error) {
         showNotice(error.message);
+    } finally {
+        checkingPlatforms.delete(platform);
+        await loadPlatforms();
     }
 }
 
