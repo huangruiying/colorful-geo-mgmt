@@ -19,6 +19,8 @@
     // 按模型筛选：空字符串为全部模型；只作用于按模型分行的表格，排行与清单是全部模型合计
     let modelFilter = "";
     const ofModel = rows => modelFilter ? rows.filter(row => String(row.channelId) === modelFilter) : rows;
+    // 导出网页时收集正文引用到的证据与回答，「看证据」「看回答」改为打开导出网页内置弹窗的链接；页面浏览时为 null
+    let exportRefs = null;
     const request = window.AdminHttp.requestJson;
     const answerRequests = window.AdminAsync.createRequestScope();
     const createRequests = window.AdminAsync.createRequestScope();
@@ -211,27 +213,142 @@
     }
 
     /**
-     * 把已完成报告的六个页签按顺序展开，导出为可离线打开的独立网页。
-     * 内容与页面当前看到的一致：沿用模型筛选；证据与回答原文需在系统内点开查看，不进入导出网页。
+     * 把已完成报告连同证据与回答原文导出为可离线打开的独立网页，六个页签与系统中一样切换查看。
+     * <p>内容与页面当前看到的一致，沿用模型筛选。页签切换与「看证据」「看回答」弹窗由网页内置的小段脚本完成，
+     * 弹窗内容随网页一起导出；只导出正文引用到的证据与回答。回答原文逐条读取，任一条失败就不下载，避免文件缺内容。</p>
      */
-    function exportReportHtml() {
-        // 1. 抬头：报告编号、所属任务与判定模型、导出时间，有模型筛选时一并注明
-        const documentNode = element("article", "report-export");
-        documentNode.append(element("h1", null, "诊断报告 #" + report.id), element("p", "report-export-note", reportNote(report)),
-            element("p", "report-export-note", "导出时间：" + window.AdminFormat.dateTime(new Date())));
-        if (modelFilter) documentNode.append(modelFilterNote());
-        // 导出网页无法补全，缺失内容在抬头提醒先补全再导出
-        if (report.missingParts?.length) documentNode.append(element("p", "report-filter-note", "本报告有缺失内容（见各部分提示），建议先在系统中点击「补全报告」，完成后再导出。"));
-        // 2. 六个页签依次展开，各自成一部分
-        for (const [key, title] of tabs) {
-            const part = element("section", "report-export-part");
-            part.append(element("h2", null, title));
-            renderTabContent(part, key, report.summary);
-            documentNode.append(part);
+    async function exportReportHtml() {
+        const button = byId("export-report-html"), exported = report;
+        button.disabled = true; button.textContent = "正在准备…"; show("detail-error", "");
+        try {
+            // 1. 抬头：报告编号、所属任务与判定模型、导出时间，有模型筛选时一并注明
+            const documentNode = element("article", "report-export");
+            documentNode.append(element("h1", null, "诊断报告 #" + exported.id), element("p", "report-export-note", reportNote(exported)),
+                element("p", "report-export-note", "导出时间：" + window.AdminFormat.dateTime(new Date())));
+            if (modelFilter) documentNode.append(modelFilterNote());
+            // 导出网页无法补全，缺失内容在抬头提醒先补全再导出
+            if (exported.missingParts?.length) documentNode.append(element("p", "report-filter-note", "本报告有缺失内容（见各部分提示），建议先在系统中点击「补全报告」，完成后再导出。"));
+
+            // 2. 页签栏与六个页签内容，同时收集正文引用到的证据和回答
+            exportRefs = {evidenceGroups:new Map(), resultIds:new Set()};
+            appendExportTabs(documentNode, exported.summary);
+
+            // 3. 证据弹窗：每组「看证据」一个，内容与系统中的证据弹窗相同；证据里的回答也计入要导出的回答
+            for (const [groupKey, issueIds] of exportRefs.evidenceGroups) {
+                const content = element("div");
+                renderEvidence(content, issueIds);
+                documentNode.append(exportDialog("evidence-" + groupKey, "证据", "由规则从本报告数据中计算，点「看回答」可查看完整回答。", content));
+            }
+            // 收集结束即恢复页面行为，读取回答期间打开的弹窗仍是按钮
+            const resultIds = [...exportRefs.resultIds];
+            exportRefs = null;
+
+            // 4. 回答弹窗：逐条读取回答原文，每条一个
+            const answers = await loadAnswers(exported.diagnosisTaskId, resultIds,
+                done => { button.textContent = "正在读取回答 " + done + "/" + resultIds.length; });
+            for (const answer of answers) {
+                const body = element("div", "answer-body");
+                MarkdownView.render(body, answer.answerText || "无回答正文");
+                documentNode.append(exportDialog("answer-" + answer.id, "回答原文",
+                    (answer.channelName || "—") + " · 问题：" + (answer.questionText || "—"), body));
+            }
+
+            // 5. 交给公共导出模块，附上切换页签、打开弹窗的脚本；文件名带方案名与报告编号，便于区分多份报告
+            window.AdminHtmlExport.downloadPage(documentNode, {
+                title:"诊断报告-" + (exported.planName || "未命名方案") + "-" + exported.id, bodyClass:"diagnosis-page",
+                script:"(" + exportPageScript + ")();"});
+        } catch (error) {
+            show("detail-error", "导出失败：" + error.message);
+        } finally {
+            exportRefs = null;
+            button.disabled = false; button.textContent = "导出网页";
         }
-        // 3. 交给公共导出模块，文件名带方案名与报告编号，便于区分多份报告
-        window.AdminHtmlExport.downloadPage(documentNode, {
-            title:"诊断报告-" + (report.planName || "未命名方案") + "-" + report.id, bodyClass:"diagnosis-page"});
+    }
+
+    /**
+     * 导出网页的页签栏与六个页签内容，结构和样式与页面上的页签相同；默认显示第一个，其余隐藏，由导出网页内置的脚本切换。
+     * @param {HTMLElement} documentNode 导出内容，页签栏和内容依次追加到末尾
+     * @param {object} summary 已完成报告的冻结汇总
+     */
+    function appendExportTabs(documentNode, summary) {
+        const tabBar = element("div", "report-tabs");
+        tabBar.setAttribute("role", "tablist");
+        documentNode.append(tabBar);
+        tabs.forEach(([key, title], index) => {
+            const tab = element("a", "report-tab", title);
+            tab.href = "#"; tab.dataset.exportTab = key;
+            tab.setAttribute("role", "tab"); tab.setAttribute("aria-selected", String(index === 0));
+            tabBar.append(tab);
+            const panel = element("section");
+            panel.dataset.exportPanel = key; panel.hidden = index > 0;
+            renderTabContent(panel, key, summary);
+            documentNode.append(panel);
+        });
+    }
+
+    /**
+     * 逐条读取导出要用的回答原文，按传入顺序返回。
+     * @param {number} taskId 诊断任务 ID
+     * @param {number[]} resultIds 诊断结果 ID，已去重
+     * @param {function(number):void} onProgress 每读完一条回调一次，参数为已读完的条数
+     * @return {Promise<object[]>} 回答详情；任一条失败即整体失败
+     */
+    async function loadAnswers(taskId, resultIds, onProgress) {
+        const answers = [];
+        for (const resultId of resultIds) {
+            answers.push(await request("/diagnosis-tasks/" + taskId + "/results/" + resultId));
+            onProgress(answers.length);
+        }
+        return answers;
+    }
+
+    /**
+     * 导出网页中的一个弹窗，结构和样式与系统中的证据、回答弹窗相同；平时隐藏，由「看证据」「看回答」打开。
+     * @param {string} id 弹窗标识，打开链接按它找到弹窗
+     * @param {string} title 标题
+     * @param {string} note 标题下的说明
+     * @param {HTMLElement} content 弹窗正文
+     * @return {HTMLElement} 弹窗
+     */
+    function exportDialog(id, title, note, content) {
+        const dialog = element("dialog", "task-dialog task-answer-dialog");
+        dialog.id = id;
+        const heading = element("div", "panel-heading"), text = element("div");
+        text.append(element("h2", null, title), element("p", "help", note));
+        // 导出时页面按钮会被去掉，关闭入口用链接
+        const close = element("a", "refresh-button", "返回报告");
+        close.href = "#"; close.dataset.closeDialog = "";
+        heading.append(text, close);
+        const body = element("div", "task-dialog-body");
+        body.append(content);
+        dialog.append(heading, body);
+        return dialog;
+    }
+
+    /**
+     * 导出网页内置的脚本：点页签切换显示的内容；点「看证据」「看回答」打开对应弹窗，点「返回报告」或弹窗外的遮罩关闭，弹窗可以叠开。
+     * 只在导出的网页里运行，不在系统页面中调用；以源码形式写入网页，因此不引用本文件的其他变量。
+     */
+    function exportPageScript() {
+        document.addEventListener("click", event => {
+            const tab = event.target.closest("[data-export-tab]");
+            const opener = event.target.closest("[data-open-dialog]");
+            const closer = event.target.closest("[data-close-dialog]");
+            if (tab) {
+                event.preventDefault();
+                document.querySelectorAll("[data-export-tab]").forEach(item => item.setAttribute("aria-selected", String(item === tab)));
+                document.querySelectorAll("[data-export-panel]").forEach(panel => { panel.hidden = panel.dataset.exportPanel !== tab.dataset.exportTab; });
+            } else if (opener) {
+                event.preventDefault();
+                document.getElementById(opener.dataset.openDialog).showModal();
+            } else if (closer) {
+                event.preventDefault();
+                closer.closest("dialog").close();
+            } else if (event.target instanceof HTMLDialogElement) {
+                // 点在弹窗外的遮罩上时，事件目标是弹窗本身
+                event.target.close();
+            }
+        });
     }
 
     function renderOverview(panel, summary) {
@@ -401,9 +518,12 @@
         item.append(element("strong", null, title));
         if (meta) item.append(element("span", "report-advice-meta", meta));
         if (content) item.append(element("p", "report-advice-content", content));
-        const open = element("button", "text-button", "看证据（" + issueIds.join("、") + "）"); open.type = "button";
-        open.addEventListener("click", () => openEvidence(issueIds));
-        const line = element("p", "report-quote"); line.append(open); item.append(line);
+        // 导出网页中同一组问题共用一个证据弹窗
+        const groupKey = issueIds.join("-");
+        exportRefs?.evidenceGroups.set(groupKey, issueIds);
+        const line = element("p", "report-quote");
+        line.append(buildViewEntry("看证据（" + issueIds.join("、") + "）", "evidence-" + groupKey, () => openEvidence(issueIds)));
+        item.append(line);
         return item;
     }
 
@@ -415,15 +535,24 @@
     /** 证据弹窗：展示所选问题的数字和证据（回答原文或问题），可继续打开完整回答。 */
     function openEvidence(issueIds) {
         const content = byId("evidence-content"); content.replaceChildren();
+        renderEvidence(content, issueIds);
+        if (!evidenceDialog.open) evidenceDialog.showModal();
+    }
+
+    /**
+     * 逐个问题写出编号标题、支撑数字和证据；系统中的证据弹窗与导出网页中的证据弹窗共用。
+     * @param {HTMLElement} container 写入的容器
+     * @param {string[]} issueIds 问题编号，按报告中的问题顺序输出
+     */
+    function renderEvidence(container, issueIds) {
         for (const issue of report.summary.issues.filter(item => issueIds.includes(item.id))) {
-            content.append(element("h4", null, issue.id + " " + issue.title), element("p", "help", metricsText(issue.metrics)));
-            if (!issue.evidence.length) content.append(element("p", "report-empty", "此问题由上面的数字支撑，没有对应的回答原文。"));
+            container.append(element("h4", null, issue.id + " " + issue.title), element("p", "help", metricsText(issue.metrics)));
+            if (!issue.evidence.length) container.append(element("p", "report-empty", "此问题由上面的数字支撑，没有对应的回答原文。"));
             for (const item of issue.evidence) {
                 const from = item.channelName + (item.brand ? " · " + item.brand : "");
-                content.append(item.quote != null ? quoteLine(item.quote, from, item.resultId) : answerLine("问题：" + item.question + " — " + from, item.resultId));
+                container.append(item.quote != null ? quoteLine(item.quote, from, item.resultId) : answerLine("问题：" + item.question + " — " + from, item.resultId));
             }
         }
-        if (!evidenceDialog.open) evidenceDialog.showModal();
     }
 
     /** 维度排行：describe 决定每行右侧的计数写法，示例中有品牌时一并展示。 */
@@ -457,13 +586,30 @@
         return answerLine("“" + quote + "” — " + from, resultId);
     }
 
-    /** 一行说明文字加「看回答」按钮，点开对应的完整回答。 */
+    /** 一行说明文字加「看回答」按钮，点开对应的完整回答；导出网页中改为打开随网页导出的回答弹窗。 */
     function answerLine(text, resultId) {
         const line = element("p", "report-quote", text);
-        const open = element("button", "text-button", "看回答"); open.type = "button";
-        open.addEventListener("click", () => openAnswer(resultId));
-        line.append(open);
+        exportRefs?.resultIds.add(resultId);
+        line.append(buildViewEntry("看回答", "answer-" + resultId, () => openAnswer(resultId)));
         return line;
+    }
+
+    /**
+     * 「看证据」「看回答」的入口：页面上是按钮，点击执行 onClick；导出网页中是打开随网页导出的弹窗的链接，样式相同。
+     * @param {string} text 入口文字
+     * @param {string} dialogId 导出网页中要打开的弹窗标识
+     * @param {function():void} onClick 页面上点击时的处理
+     * @return {HTMLElement} 按钮或链接
+     */
+    function buildViewEntry(text, dialogId, onClick) {
+        if (exportRefs) {
+            const link = element("a", "text-button", text);
+            link.href = "#"; link.dataset.openDialog = dialogId;
+            return link;
+        }
+        const button = element("button", "text-button", text); button.type = "button";
+        button.addEventListener("click", onClick);
+        return button;
     }
 
     /** 读取报告对应的完整回答，正文使用 Markdown，问题与错误提示保持原文。 */

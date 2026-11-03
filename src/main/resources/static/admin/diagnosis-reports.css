@@ -32,5 +32,5 @@
 .report-export h1 { margin:0 0 8px; font-size:22px; }
 .report-export-note { margin:0 0 4px; color:#4b5f79; font-size:13px; }
 .report-export > .report-filter-note { margin-top:12px; }
-.report-export-part { margin-top:36px; }
-.report-export-part > h2 { margin:0 0 16px; padding-bottom:8px; border-bottom:2px solid #347de6; font-size:18px; }
+/* 导出网页中切换页签、打开和关闭弹窗的链接，外观与系统中的按钮一致 */
+.report-export a.text-button, .report-export a.refresh-button, .report-export a.report-tab { text-decoration:none; }

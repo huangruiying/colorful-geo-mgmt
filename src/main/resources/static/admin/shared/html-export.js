@@ -1,13 +1,14 @@
 "use strict";
-/** 把一段页面内容保存为可离线打开的独立 HTML 文件；不请求接口，内容与文件名由业务模块决定。 */
+/** 把一段页面内容保存为可离线打开的独立 HTML 文件；不请求接口，内容、文件名和导出网页需要的交互脚本由业务模块决定。 */
 (() => {
     /**
-     * 生成独立网页并触发浏览器下载：内联当前页面的样式，去掉无法在静态网页中使用的按钮。
+     * 生成独立网页并触发浏览器下载：内联当前页面的样式，去掉无法在导出网页中使用的按钮。
      * @param {HTMLElement} content 要导出的完整内容；导出的是副本，页面上的内容不受影响
-     * @param {{title:string, bodyClass:string}} options title 同时作为网页标题和下载文件名；bodyClass 让页面样式在导出网页中同样生效
+     * @param {{title:string, bodyClass:string, script?:string}} options title 同时作为网页标题和下载文件名；
+     *     bodyClass 让页面样式在导出网页中同样生效；script 为导出网页需要的交互脚本源码，内联到正文末尾，不传则是纯静态网页
      */
-    function downloadPage(content, {title, bodyClass}) {
-        // 1. 复制内容并去掉按钮：静态网页没有脚本，按钮点击后不会有任何反应
+    function downloadPage(content, {title, bodyClass, script}) {
+        // 1. 复制内容并去掉按钮：按钮的点击处理在系统页面的脚本里，导出网页中点击不会有反应
         const copy = content.cloneNode(true);
         copy.querySelectorAll("button").forEach(button => button.remove());
 
@@ -24,6 +25,12 @@
         page.head.append(style);
         page.body.className = bodyClass;
         page.body.append(page.importNode(copy, true));
+        // 交互脚本由调用方写死在代码中，不含接口返回的内容
+        if (script) {
+            const scriptNode = page.createElement("script");
+            scriptNode.textContent = script;
+            page.body.append(scriptNode);
+        }
 
         // 3. 以文件形式下载；部分浏览器在点击后才异步读取文件，下载地址延后释放
         const html = "<!doctype html>\n" + page.documentElement.outerHTML;
