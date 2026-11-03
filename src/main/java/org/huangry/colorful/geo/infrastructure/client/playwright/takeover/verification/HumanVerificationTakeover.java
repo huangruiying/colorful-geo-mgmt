@@ -2,7 +2,7 @@ package org.huangry.colorful.geo.infrastructure.client.playwright.takeover.verif
 
 import com.microsoft.playwright.Page;
 import jakarta.annotation.Resource;
-import org.huangry.colorful.geo.infrastructure.client.playwright.takeover.BrowserTakeoverOutcome;
+import org.huangry.colorful.geo.infrastructure.client.playwright.takeover.BrowserTakeoverOutcomeEnum;
 import org.huangry.colorful.geo.infrastructure.client.playwright.takeover.BrowserTakeoverRegistry;
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformType;
 import org.springframework.stereotype.Component;
@@ -30,10 +30,10 @@ public class HumanVerificationTakeover {
 	 * @param businessName 正在执行的业务名称，如“预发布”，用于窗口标题
 	 * @return 无需验证、已完成、已放弃或超时；放弃和超时由调用方按失败处理
 	 */
-	public BrowserTakeoverOutcome ensureHumanVerified(Page page, PublicationPlatformType platform, String businessName) {
+	public BrowserTakeoverOutcomeEnum ensureHumanVerified(Page page, PublicationPlatformType platform, String businessName) {
 		Optional<HumanVerificationRule> rule = HumanVerificationRule.detect(page, platform);
 		if (rule.isEmpty()) {
-			return BrowserTakeoverOutcome.NOT_REQUIRED;
+			return BrowserTakeoverOutcomeEnum.NOT_REQUIRED;
 		}
 		// 验证消失即算完成：用户提交后平台会跳离验证页或关闭验证组件
 		return takeoverRegistry.requestTakeover(page, platform.getDisplayName() + " · " + businessName,

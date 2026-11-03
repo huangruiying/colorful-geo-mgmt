@@ -3,18 +3,21 @@ package org.huangry.colorful.geo.infrastructure.client.playwright.takeover;
 import java.util.Map;
 
 /**
- * 用户在接管窗口里的一次鼠标、滚轮或键盘操作，由后台线程转发到服务器上的真实页面。
+ * 存储用户的一次操作
+ * 用户在接管窗口里的一次鼠标、滚轮或键盘操作，由后台线程按操作时的时间间隔回放到服务器上的真实页面。
  * <p>坐标是页面 CSS 像素（前端已按画面缩放换算）；只支持鼠标左键。</p>
  *
- * @param type 操作类型
- * @param x 横坐标，鼠标与滚轮操作使用
- * @param y 纵坐标，鼠标与滚轮操作使用
- * @param deltaX 横向滚动量，仅滚轮使用
- * @param deltaY 纵向滚动量，仅滚轮使用
- * @param text 输入文字，仅 INSERT_TEXT 使用
- * @param key 功能键名称，仅 KEY_PRESS 使用，取值见 {@link #SPECIAL_KEY_CODES}
+ * @param type             操作类型
+ * @param clientTimeMillis 操作在窗口发生的时间（毫秒，取自浏览器事件的 timeStamp）；只用相邻操作的差值还原间隔
+ * @param x                横坐标，鼠标与滚轮操作使用
+ * @param y                纵坐标，鼠标与滚轮操作使用
+ * @param deltaX           横向滚动量，仅滚轮使用
+ * @param deltaY           纵向滚动量，仅滚轮使用
+ * @param text             输入文字，仅 INSERT_TEXT 使用
+ * @param key              功能键名称，仅 KEY_PRESS 使用，取值见 {@link #SPECIAL_KEY_CODES}
  */
-public record BrowserTakeoverInput(Type type, double x, double y, double deltaX, double deltaY, String text, String key) {
+public record BrowserTakeoverInput(Type type, Double clientTimeMillis, double x, double y, double deltaX, double deltaY,
+		String text, String key) {
 
 	/** 一次输入文字上限；人工操作只需填验证码、手机号等短文本。 */
 	private static final int MAX_TEXT_LENGTH = 100;
@@ -45,11 +48,15 @@ public record BrowserTakeoverInput(Type type, double x, double y, double deltaX,
 	/**
 	 * 校验操作能否转发；不合法的操作直接拒绝，不进入页面。
 	 *
-	 * @throws IllegalArgumentException 类型缺失、坐标越界、文字为空或超长、功能键不在允许范围
+	 * @throws IllegalArgumentException 类型或发生时间缺失、坐标越界、文字为空或超长、功能键不在允许范围
 	 */
 	public void validate() {
 		if (type == null) {
 			throw new IllegalArgumentException("请指定操作类型");
+		}
+		// 回放按发生时间还原间隔，缺了时间无法排定执行时刻
+		if (clientTimeMillis == null || !Double.isFinite(clientTimeMillis)) {
+			throw new IllegalArgumentException("缺少操作发生时间");
 		}
 		if (!(x >= 0 && x <= MAX_COORDINATE && y >= 0 && y <= MAX_COORDINATE)) {
 			throw new IllegalArgumentException("操作坐标超出页面范围");

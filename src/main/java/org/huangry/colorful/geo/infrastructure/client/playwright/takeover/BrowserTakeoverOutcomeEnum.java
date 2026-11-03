@@ -8,21 +8,31 @@ import lombok.RequiredArgsConstructor;
  */
 @Getter
 @RequiredArgsConstructor
-public enum BrowserTakeoverOutcome {
+public enum BrowserTakeoverOutcomeEnum {
 
-	/** 场景判断页面不需要人工，未发起接管；只由场景入口返回，框架的接管本身不会返回它。 */
+	/**
+	 * 场景判断页面不需要人工，未发起接管；只由场景入口返回，框架的接管本身不会返回它。
+	 */
 	NOT_REQUIRED("无需人工接管"),
 
-	/** 用户操作后，调用方给出的完成条件已满足，可以继续。 */
+	/**
+	 * 用户操作后，调用方给出的完成条件已满足，可以继续。
+	 */
 	COMPLETED("人工接管已完成"),
 
-	/** 用户在接管窗口点了放弃。 */
+	/**
+	 * 用户在接管窗口点了放弃。
+	 */
 	ABANDONED("已放弃人工接管"),
 
-	/** 超过等待期限仍未完成。 */
+	/**
+	 * 超过等待期限仍未完成。
+	 */
 	TIMED_OUT("等待人工接管超时");
 
-	/** 结局说明，失败时写入业务失败原因。 */
+	/**
+	 * 结局说明，失败时写入业务失败原因。
+	 */
 	private final String description;
 
 	/**

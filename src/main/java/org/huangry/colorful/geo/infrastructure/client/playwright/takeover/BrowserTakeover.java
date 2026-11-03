@@ -4,6 +4,7 @@ import lombok.Getter;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -19,8 +20,11 @@ public final class BrowserTakeover {
 
 	/** 窗口超过这么久没来取画面，视为已关闭，后台线程停止截图。 */
 	private static final Duration VIEWER_IDLE = Duration.ofSeconds(5);
-	/** 尚未转发的操作上限；页面卡住时拒绝继续堆积。 */
-	private static final int MAX_QUEUED_INPUTS = 200;
+	/**
+	 * 尚未执行的操作上限；页面卡住时拒绝继续堆积。
+	 * 网络卡顿后回放整体推迟，队列里可能压着 1 秒以上的操作（每秒最多约 200 个点），上限留出余量。
+	 */
+	private static final int MAX_QUEUED_INPUTS = 500;
 
 	/** 接管标识（随机 UUID），不是数据库 ID。 */
 	@Getter
@@ -72,17 +76,19 @@ public final class BrowserTakeover {
 	}
 
 	/**
-	 * 放入一次用户操作，等后台线程转发到页面。
+	 * 放入窗口攒下的一批操作，按顺序排在已有操作之后，等后台线程按发生时间回放到页面。
+	 * <p>整批校验通过才放入，不会只执行半批。</p>
 	 *
-	 * @param input 用户操作
-	 * @throws IllegalArgumentException 操作不合法，或积压的操作过多
+	 * @param inputs 一批用户操作，按发生先后排列
+	 * @throws IllegalArgumentException 任一操作不合法，或积压的操作过多
 	 */
-	public void addInput(BrowserTakeoverInput input) {
-		input.validate();
-		if (queuedInputs.size() >= MAX_QUEUED_INPUTS) {
+	public void addInputs(List<BrowserTakeoverInput> inputs) {
+		inputs.forEach(BrowserTakeoverInput::validate);
+		// 放不下就整批拒绝：只放入半批会让一次拖动缺头少尾
+		if (queuedInputs.size() + inputs.size() > MAX_QUEUED_INPUTS) {
 			throw new IllegalArgumentException("页面暂未响应，请稍后再操作");
 		}
-		queuedInputs.add(input);
+		queuedInputs.addAll(inputs);
 	}
 
 	/** 用户放弃接管；后台线程下一轮看到后结束等待，由调用方按失败处理原业务。 */
@@ -102,7 +108,7 @@ public final class BrowserTakeover {
 	}
 
 	/**
-	 * 后台线程按先后顺序取出一次待转发的操作。
+	 * 后台线程按先后顺序取出一次待执行的操作。
 	 *
 	 * @return 最早的操作；没有时为空
 	 */

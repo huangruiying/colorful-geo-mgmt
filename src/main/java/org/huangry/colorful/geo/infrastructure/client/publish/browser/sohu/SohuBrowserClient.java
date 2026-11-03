@@ -13,7 +13,7 @@ import com.microsoft.playwright.options.WaitUntilState;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.huangry.colorful.geo.infrastructure.client.playwright.PlaywrightBrowserComponent;
-import org.huangry.colorful.geo.infrastructure.client.playwright.takeover.BrowserTakeoverOutcome;
+import org.huangry.colorful.geo.infrastructure.client.playwright.takeover.BrowserTakeoverOutcomeEnum;
 import org.huangry.colorful.geo.infrastructure.client.playwright.takeover.verification.HumanVerificationRule;
 import org.huangry.colorful.geo.infrastructure.client.playwright.takeover.verification.HumanVerificationTakeover;
 import org.huangry.colorful.geo.infrastructure.client.publish.browser.PublicationBrowserProperties;
@@ -190,7 +190,7 @@ public class SohuBrowserClient {
      * @throws PublicationClientException 用户放弃或等待超时
      */
     private void completeClientAuth(PlaywrightBrowserComponent.BrowserSession session, Page page) {
-        BrowserTakeoverOutcome outcome = humanVerificationTakeover.ensureHumanVerified(
+        BrowserTakeoverOutcomeEnum outcome = humanVerificationTakeover.ensureHumanVerified(
                 page, PublicationPlatformType.SOHU, TAKEOVER_BUSINESS_NAME);
         if (!outcome.canContinue()) {
             throw new PublicationClientException("搜狐号安全验证未完成：" + outcome.getDescription());

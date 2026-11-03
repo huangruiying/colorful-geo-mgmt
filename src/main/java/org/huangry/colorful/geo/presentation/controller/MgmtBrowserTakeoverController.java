@@ -53,16 +53,16 @@ public class MgmtBrowserTakeoverController {
     }
 
     /**
-     * 转发一次鼠标、滚轮或键盘操作到服务器页面，按提交顺序执行。
+     * 转发窗口攒下的一批鼠标、滚轮或键盘操作到服务器页面，按提交顺序、按用户操作时的时间间隔执行。
      *
      * @param takeoverId 接管标识
-     * @param input 用户操作；不合法返回 400
+     * @param inputs 一批用户操作，按发生先后排列；任一不合法或积压过多时整批拒绝，返回 400
      */
-    @PostMapping("/{takeoverId}/input")
+    @PostMapping("/{takeoverId}/inputs")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void addTakeoverInput(@PathVariable("takeoverId") String takeoverId,
-                                 @RequestBody BrowserTakeoverInput input) {
-        registry.getTakeover(takeoverId).addInput(input);
+    public void addTakeoverInputs(@PathVariable("takeoverId") String takeoverId,
+                                  @RequestBody List<BrowserTakeoverInput> inputs) {
+        registry.getTakeover(takeoverId).addInputs(inputs);
     }
 
     /**

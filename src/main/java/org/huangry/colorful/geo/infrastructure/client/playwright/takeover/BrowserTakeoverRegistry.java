@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -27,12 +28,14 @@ import java.util.function.Predicate;
 @Component
 public class BrowserTakeoverRegistry {
 
-	/** 等待期间每轮的间隔：转发操作、确认截图、检查完成条件各一次。 */
+	/** 等待期间每轮的间隔：确认截图、检查完成条件各一次；轮内按各操作的执行时刻回放。 */
 	private static final double LOOP_INTERVAL_MILLIS = 100;
 
 	/** 单次接管最长等待时间，单位秒。 */
 	@Value("${colorful.geo.browser-takeover.timeout-seconds:600}")
 	private long timeoutSeconds;
+	/** 计时用的时钟：登记时间、等待期限和操作回放时刻都按它算；测试替换为可控时钟。 */
+	private Clock clock = Clock.systemUTC();
 
 	private final Map<String, BrowserTakeover> takeovers = new ConcurrentHashMap<>();
 
@@ -46,10 +49,10 @@ public class BrowserTakeoverRegistry {
 	 * @param completionCondition 判断用户是否已完成，由调用线程每轮检查；页面跳转中读取失败按未完成处理
 	 * @return 已完成、已放弃或超时；放弃和超时由调用方按失败处理
 	 */
-	public BrowserTakeoverOutcome requestTakeover(Page page, String title, String reason,
-			Predicate<Page> completionCondition) {
+	public BrowserTakeoverOutcomeEnum requestTakeover(Page page, String title, String reason,
+	                                                  Predicate<Page> completionCondition) {
 		// 1. 登记接管记录，管理页轮询后弹出接管窗口
-		Instant startedAt = Instant.now();
+		Instant startedAt = clock.instant();
 		BrowserTakeover takeover = new BrowserTakeover(UUID.randomUUID().toString(), title, reason,
 				startedAt, startedAt.plusSeconds(timeoutSeconds));
 		takeovers.put(takeover.getTakeoverId(), takeover);
@@ -58,7 +61,7 @@ public class BrowserTakeoverRegistry {
 
 		// 2. 在本线程驱动接管窗口直到有结局，结束后移除记录，窗口取画面时得到 404 并关闭
 		try (BrowserTakeoverSession session = BrowserTakeoverSession.open(page, takeover)) {
-			BrowserTakeoverOutcome outcome = waitForOutcome(page, takeover, session, completionCondition);
+			BrowserTakeoverOutcomeEnum outcome = waitForOutcome(page, takeover, session, completionCondition);
 			log.info("browser takeover finished, takeoverId={}, title={}, outcome={}",
 					takeover.getTakeoverId(), title, outcome);
 			return outcome;
@@ -95,6 +98,7 @@ public class BrowserTakeoverRegistry {
 
 	/**
 	 * 循环转发窗口操作和画面，直到完成条件满足、用户放弃或超时。
+	 * <p>每轮确认一次截图、检查一次完成条件，轮内按执行时刻回放操作。</p>
 	 *
 	 * @param page 需要人工操作的页面
 	 * @param takeover 接管记录
@@ -102,24 +106,25 @@ public class BrowserTakeoverRegistry {
 	 * @param completionCondition 调用方给出的完成条件
 	 * @return 已完成、已放弃或超时
 	 */
-	private BrowserTakeoverOutcome waitForOutcome(Page page, BrowserTakeover takeover, BrowserTakeoverSession session,
-			Predicate<Page> completionCondition) {
+	private BrowserTakeoverOutcomeEnum waitForOutcome(Page page, BrowserTakeover takeover, BrowserTakeoverSession session,
+	                                                  Predicate<Page> completionCondition) {
 		while (true) {
-			// 放弃和超时优先：用户已放弃时不再把积压的操作作用到页面
+			// 1. 放弃和超时优先：用户已放弃时不再把积压的操作作用到页面
 			if (takeover.isAbandoned()) {
-				return BrowserTakeoverOutcome.ABANDONED;
+				return BrowserTakeoverOutcomeEnum.ABANDONED;
 			}
-			if (takeover.isExpired(Instant.now())) {
-				return BrowserTakeoverOutcome.TIMED_OUT;
+			if (takeover.isExpired(clock.instant())) {
+				return BrowserTakeoverOutcomeEnum.TIMED_OUT;
 			}
+			// 2. 按窗口是否在看开关截图，并确认已收到的帧，浏览器才会继续推送画面变化
 			session.syncScreencast();
-			session.dispatchInputs();
 			session.acknowledgeFrames();
+			// 3. 调用方的完成条件满足即结束
 			if (isCompleted(page, completionCondition)) {
-				return BrowserTakeoverOutcome.COMPLETED;
+				return BrowserTakeoverOutcomeEnum.COMPLETED;
 			}
-			// 等待期间 Playwright 才会派发截图事件
-			page.waitForTimeout(LOOP_INTERVAL_MILLIS);
+			// 4. 本轮余下时间按执行时刻回放操作
+			replayInputsForOneRound(page, takeover, session);
 		}
 	}
 
@@ -136,5 +141,37 @@ public class BrowserTakeoverRegistry {
 		} catch (PlaywrightException exception) {
 			return false;
 		}
+	}
+
+	/**
+	 * 在一轮间隔内按执行时刻回放窗口操作，其余时间等待；等待期间 Playwright 才会派发截图事件。
+	 * <p>用户中途放弃时立即停止，不再执行剩余操作。</p>
+	 *
+	 * @param page 需要人工操作的页面
+	 * @param takeover 接管记录
+	 * @param session 接管通道
+	 */
+	private void replayInputsForOneRound(Page page, BrowserTakeover takeover, BrowserTakeoverSession session) {
+		double nowMillis = readClockMillis();
+		double roundEndsAtMillis = nowMillis + LOOP_INTERVAL_MILLIS;
+		while (nowMillis < roundEndsAtMillis && !takeover.isAbandoned()) {
+			double wakeAtMillis = Math.min(session.dispatchDueInputs(nowMillis), roundEndsAtMillis);
+			// 执行操作本身要花时间，按执行后的时刻算还要等多久，下一个操作才不会晚
+			nowMillis = readClockMillis();
+			if (wakeAtMillis > nowMillis) {
+				page.waitForTimeout(wakeAtMillis - nowMillis);
+				nowMillis = readClockMillis();
+			}
+		}
+	}
+
+	/**
+	 * 读取时钟，保留毫秒以下的精度，供回放排定执行时刻。
+	 *
+	 * @return 当前时刻（毫秒）
+	 */
+	private double readClockMillis() {
+		Instant now = clock.instant();
+		return now.getEpochSecond() * 1000.0 + now.getNano() / 1_000_000.0;
 	}
 }
