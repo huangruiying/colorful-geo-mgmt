@@ -5,9 +5,11 @@
 ## 当前交接：诊断报告导出网页补全证据与回答，改为页签（2026-11-04）
 
 - 原因：导出时页面按钮全部去掉，「看证据」「看回答」在导出网页里没有内容。现在导出网页与系统页面一样：六个页签切换查看，「看证据」「看回答」弹窗打开，证据弹窗里可再叠开回答弹窗。
-- 实现（只改前端）：`diagnosis-reports.js` 导出时用 `exportRefs` 收集正文引用到的证据组与回答，证据弹窗沿用 `renderEvidence`，回答原文用现有详情接口逐条读取（任一条失败就不下载）；查看入口统一走 `buildViewEntry`（页面上是按钮、导出时是链接）；`appendExportTabs` 生成页签，`exportPageScript` 以源码写入导出网页，负责切换页签与开关弹窗。`shared/html-export.js` 新增可选参数 `script`，只有诊断报告使用。页面资源版本 `20261104-cleanup1`。
-- 页面整理第一部分（同日）：证据标题样式由 `#evidence-content` 改为 `renderEvidence` 加上的类 `report-evidence`，修复导出证据标题字号与间距和网站不一致（原为浏览器默认 16px）；`renderEvidence` 改为传入报告数据，不读全局 `report`；列表每页条数提为 `PAGE_SIZE`；修正 CSS 注释与导出按钮提示中「六个页签展开」的过时说法。第二部分（拆分文件、去掉全局开关 `exportRefs`、页签表带渲染函数、注明数据来源）待用户提供报告 JSON 做重构前后比对后再做。
-- 规则：项目约定新增「诊断报告导出网页」，改报告页面时内容只用报告数据同步渲染、查看入口用 `buildViewEntry`，导出自动跟上。
+- 实现（只改前端）：导出由 `diagnosis-report-export.js` 的 `DiagnosisReportExport.downloadReport` 完成：查看入口是打开弹窗的链接，并收集正文引用到的证据组与回答；证据弹窗沿用 `DiagnosisReportView.renderEvidence`，回答原文用现有详情接口逐条读取（任一条失败就不下载）；`appendExportTabs` 生成页签，`exportPageScript` 以源码写入导出网页，负责切换页签与开关弹窗。`shared/html-export.js` 新增可选参数 `script`，只有诊断报告使用。页面资源版本：`diagnosis-reports.js` 为 `20261104-split2`，渲染与导出模块为 `20261104-split1`，样式为 `20261104-cleanup1`。
+- 页面整理第一部分（同日）：证据标题样式由 `#evidence-content` 改为 `renderEvidence` 加上的类 `report-evidence`，修复导出证据标题字号与间距和网站不一致（原为浏览器默认 16px）；`renderEvidence` 改为传入报告数据，不读全局 `report`；列表每页条数提为 `PAGE_SIZE`；修正 CSS 注释与导出按钮提示中「六个页签展开」的过时说法。第二部分见下条。
+- 页面整理第二部分（同日）：`diagnosis-reports.js`（681 行）按职责拆成 `diagnosis-report-view.js`（`DiagnosisReportView`，六个页签与证据、回答片段的渲染）、`diagnosis-report-export.js`（`DiagnosisReportExport`，导出网页）和页面本身 `diagnosis-reports.js`；去掉全局开关 `exportRefs`，渲染函数经第一个参数 `context` 接收模型筛选与查看入口（页面是按钮，导出是链接并收集引用）；页签表 `tabs` 带渲染函数与缺失字段；各页签渲染函数注明后端数据来源（`Report*Summarizer`、`ReportLlmAnalyzer`），补齐函数注释；生成报告的提交处理抽为 `submitCreate`。行为不变：用用户提供的真实报告 #10 及派生的两模型、缺内容报告，在无头 Chrome 中采集重构前后的列表分页、生成窗口、六个页签、全部证据弹窗、回答弹窗、模型筛选、补全、导出网页（含导出网页里的页签与弹窗操作）共 86 项，逐项完全一致，页面无脚本错误；采集前同一代码连跑两次结果一致。前端 Node 测试 63 项中 11 项失败，均为既有（`browser-login.test.cjs` 9 项、`http.test.cjs` 2 项），不涉及报告页。比对用的测试服务器与脚本留在临时目录，未放进项目。
+- 同日清理：列表翻页、查询处 3 个 `loadList().catch(...)` 为死代码（列表轮询的 `refresh` 已在内部把错误交给 `onError` 提示，不会失败），改为直接调用并注明原因；重跑 86 项比对与留底一致，另验证第二页列表返回 503 时列表上方仍显示错误、无未处理异常。
+- 规则：项目约定「诊断报告页面与导出网页」一节：改报告页面时内容只用报告数据同步渲染、查看入口经 `context.entries` 生成，导出自动跟上。
 - 验证：用户导出的真实报告 #10 核对 187 个入口均有对应弹窗（证据 14、回答 12），无头 Chrome 截图与网站对比证据弹窗、回答弹窗一致；用该报告内容组装新页签页面，验证切换页签、页签内打开弹窗、地址不跳转；`buildViewEntry`、`loadAnswers` 单独验证。报告页无前端自动化测试，未对新版页签再导出一份真实文件。
 - 限制：只为网页查看设计，不考虑打印（用户确认）；导出网页依赖内置脚本，禁止脚本的预览打开时页签与弹窗无反应。回答详情带厂商原始响应，1M 带宽服务器上导出较慢。改动未提交，服务未重启（前端文件已同步到运行实例）。
 - 同期小改：`LlmCitationParser` 移到 `llm/tools` 并改名 `LLMWebSearchResultParser`（方法 `collectUrlCitations`、`collectWebSearchSources`）；OpenAI 渠道（`chatgpt`，gpt-5.5）首次真实调用因填了随机性 0.2 被拒（该模型不接受 temperature），需在渠道配置中清空。

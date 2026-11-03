@@ -1,17 +1,14 @@
 "use strict";
+/**
+ * 诊断报告页：报告列表、生成报告、报告详情（六个页签、按模型筛选、补全）、证据与回答弹窗，以及导出网页按钮。
+ * <p>页签内容由 DiagnosisReportView（diagnosis-report-view.js）渲染，导出网页由 DiagnosisReportExport（diagnosis-report-export.js）组装；
+ * 本文件负责页面状态、接口读取、弹窗与轮询的生命周期。</p>
+ */
 (() => {
+    const view = window.DiagnosisReportView;
     const byId = id => document.getElementById(id);
     const createDialog = byId("create-report-dialog"), detailDialog = byId("report-detail-dialog"), answerDialog = byId("answer-dialog");
     const evidenceDialog = byId("evidence-dialog");
-    const labels = {PENDING:"待生成", RUNNING:"生成中", SUCCEEDED:"已完成", FAILED:"失败"};
-    const strengthLabels = {FIRST_CHOICE:"首推", STRONG:"强推", PARALLEL:"并列", PASSING:"顺带一提", WITH_RESERVATION:"附带缺点", NOT_RECOMMENDED:"不推荐"};
-    const intentLabels = {RECOMMENDATION:"推荐选择", PROBLEM_SOLVING:"解决问题", COMPARISON:"对比", PURCHASE:"购买决策", TECHNICAL:"技术细节", AWARENESS:"了解认知"};
-    const sourceTypeLabels = {OWNED:"官网", PUBLISHED:"我方发布", THIRD_PARTY_TARGET:"提到目标的第三方", COMPETITOR:"提到竞品", OTHER:"其他"};
-    const categoryLabels = {FILL_CONTENT_GAP:"补内容空缺", IMPROVE_CONTENT:"完善已有内容", ADD_EVIDENCE:"增加可信证据",
-        CORRECT_INFORMATION:"纠正和统一信息", IMPROVE_ACCESS:"改善公开访问与检索", ADD_THIRD_PARTY:"补充第三方覆盖"};
-    const evidenceStatusLabels = {ANSWER_STATED:"回答明确表达", INFERRED:"待验证推测"};
-    // 子 Tab 与诊断报告全景一致，六个页签均已接入
-    const tabs = [["overview", "① 诊断概览"], ["visibility", "② 可见度与推荐"], ["brand", "③ 品牌认知"], ["competitor", "④ 竞品对比"], ["source", "⑤ 引用与内容"], ["advice", "⑥ 优化建议"]];
     // 报告列表每页条数；查询参数与「下一页」是否可用共用
     const PAGE_SIZE = 10;
     let page = 0, reportId = null, answerId = null;
@@ -20,15 +17,11 @@
     const supplementingIds = new Set();
     // 按模型筛选：空字符串为全部模型；只作用于按模型分行的表格，排行与清单是全部模型合计
     let modelFilter = "";
-    const ofModel = rows => modelFilter ? rows.filter(row => String(row.channelId) === modelFilter) : rows;
-    // 导出网页时收集正文引用到的证据与回答，「看证据」「看回答」改为打开导出网页内置弹窗的链接；页面浏览时为 null
-    let exportRefs = null;
     const request = window.AdminHttp.requestJson;
     const answerRequests = window.AdminAsync.createRequestScope();
     const createRequests = window.AdminAsync.createRequestScope();
     const active = status => status === "PENDING" || status === "RUNNING";
     const time = value => value?.replace("T", " ") || "—";
-    const percent = value => value == null ? "—" : (value * 100).toFixed(1) + "%";
     const show = (id, text) => { byId(id).textContent = text; byId(id).hidden = !text; };
     const listPoller = window.AdminAsync.createPoller(readReportList, error => show("report-error", error.message));
     const detailPoller = window.AdminAsync.createPoller(readReportDetail, error => show("detail-error", error.message));
@@ -39,38 +32,17 @@
         if (text != null) node.textContent = text;
         return node;
     };
-    function statusBadge(status) {
-        const span = element("span", "task-status", labels[status] || status);
-        span.dataset.status = status;
-        return span;
-    }
-    function progressText(progress) {
-        const done = progress.succeeded + progress.failed;
-        return done + " / " + progress.total + (progress.failed ? "（失败 " + progress.failed + "）" : "");
-    }
-    // 表格单元格统一用文本节点写入，模型原文不作为 HTML 解析
-    function table(headers, rows, metricFrom = 1) {
-        const wrapper = element("div", "table-scroll"), tableNode = element("table", "report-table");
-        const head = tableNode.createTHead().insertRow();
-        headers.forEach((text, index) => { const cell = element("th", index >= metricFrom ? "metric" : null, text); cell.scope = "col"; head.append(cell); });
-        const body = tableNode.createTBody();
-        if (!rows.length) { const cell = body.insertRow().insertCell(); cell.colSpan = headers.length; cell.className = "table-message"; cell.textContent = "暂无数据"; }
-        for (const values of rows) {
-            const row = body.insertRow();
-            values.forEach((value, index) => { const cell = row.insertCell(); if (index >= metricFrom) cell.className = "metric"; cell.textContent = value; });
-        }
-        wrapper.append(tableNode);
-        return wrapper;
-    }
-    function section(title, help, ...children) {
-        const node = element("section", "report-section");
-        node.append(element("h3", null, title));
-        if (help) node.append(element("p", "help", help));
-        node.append(...children);
-        return node;
-    }
+    // 页面上的「看证据」「看回答」是按钮，点开本页的证据、回答弹窗；导出网页另有自己的入口
+    const pageEntries = Object.freeze({
+        evidence:issueIds => entryButton("看证据（" + issueIds.join("、") + "）", () => openEvidence(issueIds)),
+        answer:resultId => entryButton("看回答", () => openAnswer(resultId))
+    });
 
-    /** 当前筛选页的数据才可写入列表；生成中的报告继续刷新，失败不再静默停止。 */
+    /**
+     * 当前筛选页的数据才可写入列表；生成中的报告继续刷新，失败不再静默停止。
+     * @param {{signal:AbortSignal, isCurrent:function():boolean}} ticket 本次读取的归属，过期后不再写入列表
+     * @return {Promise<boolean>} 列表中有生成中的报告时为 true，由公共轮询继续刷新
+     */
     async function readReportList(ticket) {
         const query = new URLSearchParams({page, size:PAGE_SIZE});
         if (byId("filter-status").value) query.set("status", byId("filter-status").value);
@@ -90,14 +62,33 @@
             row.insertCell().append(statusBadge(item.status));
             row.insertCell().textContent = progressText(item.progress);
             row.insertCell().textContent = time(item.createdAt);
-            const view = element("button", "text-button", "查看"); view.type = "button";
-            view.addEventListener("click", () => openDetail(item.id).catch(error => show("report-error", error.message)));
-            row.insertCell().append(view);
+            const viewButton = element("button", "text-button", "查看"); viewButton.type = "button";
+            viewButton.addEventListener("click", () => openDetail(item.id).catch(error => show("report-error", error.message)));
+            row.insertCell().append(viewButton);
         }
         byId("report-page-info").textContent = "第 " + (page + 1) + " 页 · 共 " + result.total + " 份";
         byId("report-previous").disabled = page === 0;
         byId("report-next").disabled = (page + 1) * PAGE_SIZE >= result.total;
         return result.items.some(item => active(item.status));
+    }
+
+    /**
+     * @param {string} status 报告状态
+     * @return {HTMLElement} 带颜色的状态标签
+     */
+    function statusBadge(status) {
+        const span = element("span", "task-status", view.statusLabels[status] || status);
+        span.dataset.status = status;
+        return span;
+    }
+
+    /**
+     * @param {{total:number, succeeded:number, failed:number}} progress 判定进度
+     * @return {string} 已判定条数 / 总条数，有失败时注明失败条数
+     */
+    function progressText(progress) {
+        const done = progress.succeeded + progress.failed;
+        return done + " / " + progress.total + (progress.failed ? "（失败 " + progress.failed + "）" : "");
     }
 
     /** 读取全部候选任务；关闭窗口或再次打开时，旧候选请求不再回填。 */
@@ -121,7 +112,28 @@
         select.disabled = false; byId("submit-create").disabled = !tasks.length;
     });
 
-    /** 打开指定报告，先取消旧详情与回答，避免不同报告之间共享未完成读取。 */
+    /**
+     * 提交生成报告：成功后关闭窗口、刷新列表并打开新报告；提交中不能重复提交，失败时在窗口内提示。
+     * @param {SubmitEvent} event 生成窗口的表单提交事件
+     */
+    async function submitCreate(event) {
+        event.preventDefault();
+        if (creating || !byId("create-task").value) return;
+        creating = true; byId("submit-create").disabled = true; show("create-error", "");
+        try {
+            const created = await request("/diagnosis-reports/diagnosis-tasks/" + Number(byId("create-task").value), {method:"POST"});
+            createDialog.close();
+            show("report-success", "已开始生成报告 #" + created.id + "，共 " + created.progress.total + " 条有效回答待判定。");
+            page = 0; await loadList();
+            await openDetail(created.id);
+        } catch (error) { show("create-error", error.message); }
+        finally { creating = false; byId("submit-create").disabled = false; }
+    }
+
+    /**
+     * 打开指定报告，先取消旧详情与回答，避免不同报告之间共享未完成读取。
+     * @param {number} id 报告 ID
+     */
     async function openDetail(id) {
         detailPoller.stop(); answerRequests.cancel(); answerDialog.close();
         reportId = id; report = null; activeTab = "overview"; modelFilter = ""; show("detail-error", "");
@@ -134,7 +146,11 @@
         await detailPoller.refresh();
     }
 
-    /** 只更新仍打开的当前报告；读取完成后由公共轮询按报告状态决定是否继续。 */
+    /**
+     * 只更新仍打开的当前报告；读取完成后由公共轮询按报告状态决定是否继续。
+     * @param {{signal:AbortSignal, isCurrent:function():boolean}} ticket 本次读取的归属，过期后不再写入详情
+     * @return {Promise<boolean>} 报告仍在生成时为 true，继续轮询
+     */
     async function readReportDetail(ticket) {
         if (!detailDialog.open) return false;
         const id = reportId;
@@ -142,20 +158,13 @@
         if (!ticket.isCurrent() || reportId !== id || !detailDialog.open) return false;
         show("detail-error", "");
         report = detail;
-        byId("report-detail-note").textContent = reportNote(detail);
+        byId("report-detail-note").textContent = view.buildReportNote(detail);
         renderModelFilter();
         renderSupplementButton();
         byId("export-report-html").hidden = detail.status !== "SUCCEEDED";
         renderTabs();
         renderPanel();
         return active(detail.status);
-    }
-
-    /** @return 报告所属方案、项目、诊断任务、判定模型与状态的一行说明，详情抬头与导出网页抬头共用 */
-    function reportNote(detail) {
-        const judge = detail.judgeChannel ? (detail.judgeChannel.channelName || "—") + " · " + (detail.judgeChannel.modelName || "—") : "未开始";
-        return (detail.planName || "—") + " / " + (detail.projectName || "—") + " · 诊断任务 #" + detail.diagnosisTaskId
-            + " · 判定模型：" + judge + " · " + (labels[detail.status] || detail.status);
     }
 
     /** 报告完成且有两个以上模型时才显示模型筛选，选项来自汇总中的模型。 */
@@ -167,9 +176,11 @@
         select.value = modelFilter;
     }
 
+    /** 详情顶部的六个页签，点击切换当前页签并重新渲染内容。 */
     function renderTabs() {
-        const container = byId("report-tabs"); container.replaceChildren();
-        for (const [key, title] of tabs) {
+        const container = byId("report-tabs");
+        container.replaceChildren();
+        for (const {key, title} of view.tabs) {
             const tab = element("button", "report-tab", title); tab.type = "button"; tab.setAttribute("role", "tab");
             tab.setAttribute("aria-selected", String(key === activeTab));
             tab.addEventListener("click", () => { activeTab = key; renderTabs(); renderPanel(); });
@@ -177,314 +188,39 @@
         }
     }
 
+    /** 详情内容：报告未完成时显示判定进度；完成后渲染当前页签，有模型筛选时先给出筛选说明。 */
     function renderPanel() {
-        const panel = byId("report-panel"); panel.replaceChildren();
+        const panel = byId("report-panel");
+        panel.replaceChildren();
         if (report.status !== "SUCCEEDED") {
             const progress = element("div", "report-progress");
             if (report.status === "FAILED") progress.append(element("strong", null, "报告生成失败：" + (report.errorMessage || "原因未知")));
-            else progress.append(element("strong", null, labels[report.status] + "：已判定 " + progressText(report.progress)));
+            else progress.append(element("strong", null, view.statusLabels[report.status] + "：已判定 " + progressText(report.progress)));
             progress.append(element("p", "help", "报告完成后展示指标；判定使用已启用渠道中分数最高的模型，失败的回答不计入依赖判定的指标。"));
             panel.append(progress);
             return;
         }
-        if (modelFilter) panel.append(modelFilterNote());
-        renderTabContent(panel, activeTab, report.summary);
+        if (modelFilter) panel.append(view.buildModelFilterNote(selectedModelName()));
+        view.renderTab({modelFilter, entries:pageEntries}, panel, activeTab, report.summary);
     }
 
-    /** 已选模型时的筛选说明，提醒哪些表格只含该模型、哪些仍是全部模型合计。 */
-    function modelFilterNote() {
-        const model = byId("report-model-filter").selectedOptions[0]?.textContent;
-        return element("p", "report-filter-note", "已筛选模型：" + model + "。按模型分行的表格只显示该模型；维度排行、链接与清单为全部模型合计。");
+    /** @return {string|undefined} 模型筛选下拉框当前选中的模型名称，用于筛选说明 */
+    function selectedModelName() {
+        return byId("report-model-filter").selectedOptions[0]?.textContent;
     }
 
-    /**
-     * 渲染一个页签的内容；页面切换页签与导出网页逐个输出页签都走这里，保证两边内容一致。
-     * @param {HTMLElement} panel 内容写入的容器
-     * @param {string} key 页签标识，取自 tabs
-     * @param {object} summary 已完成报告的冻结汇总
-     */
-    function renderTabContent(panel, key, summary) {
-        if (key === "overview") renderOverview(panel, summary);
-        else if (key === "visibility") renderVisibility(panel, summary);
-        // 页签内容缺失时提示用右上角「补全报告」补全
-        else if (!summary[key]) panel.append(supplementNotice());
-        else if (key === "brand") renderBrand(panel, summary.brand);
-        else if (key === "competitor") renderCompetitor(panel, summary.competitor);
-        else if (key === "source") renderSource(panel, summary.source);
-        else renderAdvice(panel, summary);
-    }
-
-    /**
-     * 把已完成报告连同证据与回答原文导出为可离线打开的独立网页，六个页签与系统中一样切换查看。
-     * <p>内容与页面当前看到的一致，沿用模型筛选。页签切换与「看证据」「看回答」弹窗由网页内置的小段脚本完成，
-     * 弹窗内容随网页一起导出；只导出正文引用到的证据与回答。回答原文逐条读取，任一条失败就不下载，避免文件缺内容。</p>
-     */
+    /** 「导出网页」按钮：导出期间禁用并显示进度，失败时在详情顶部提示原因；网页由 DiagnosisReportExport 组装和下载。 */
     async function exportReportHtml() {
-        const button = byId("export-report-html"), exported = report;
+        const button = byId("export-report-html");
         button.disabled = true; button.textContent = "正在准备…"; show("detail-error", "");
         try {
-            // 1. 抬头：报告编号、所属任务与判定模型、导出时间，有模型筛选时一并注明
-            const documentNode = element("article", "report-export");
-            documentNode.append(element("h1", null, "诊断报告 #" + exported.id), element("p", "report-export-note", reportNote(exported)),
-                element("p", "report-export-note", "导出时间：" + window.AdminFormat.dateTime(new Date())));
-            if (modelFilter) documentNode.append(modelFilterNote());
-            // 导出网页无法补全，缺失内容在抬头提醒先补全再导出
-            if (exported.missingParts?.length) documentNode.append(element("p", "report-filter-note", "本报告有缺失内容（见各部分提示），建议先在系统中点击「补全报告」，完成后再导出。"));
-
-            // 2. 页签栏与六个页签内容，同时收集正文引用到的证据和回答
-            exportRefs = {evidenceGroups:new Map(), resultIds:new Set()};
-            appendExportTabs(documentNode, exported.summary);
-
-            // 3. 证据弹窗：每组「看证据」一个，内容与系统中的证据弹窗相同；证据里的回答也计入要导出的回答
-            for (const [groupKey, issueIds] of exportRefs.evidenceGroups) {
-                const content = element("div");
-                renderEvidence(content, exported.summary, issueIds);
-                documentNode.append(exportDialog("evidence-" + groupKey, "证据", "由规则从本报告数据中计算，点「看回答」可查看完整回答。", content));
-            }
-            // 收集结束即恢复页面行为，读取回答期间打开的弹窗仍是按钮
-            const resultIds = [...exportRefs.resultIds];
-            exportRefs = null;
-
-            // 4. 回答弹窗：逐条读取回答原文，每条一个
-            const answers = await loadAnswers(exported.diagnosisTaskId, resultIds,
-                done => { button.textContent = "正在读取回答 " + done + "/" + resultIds.length; });
-            for (const answer of answers) {
-                const body = element("div", "answer-body");
-                MarkdownView.render(body, answer.answerText || "无回答正文");
-                documentNode.append(exportDialog("answer-" + answer.id, "回答原文",
-                    (answer.channelName || "—") + " · 问题：" + (answer.questionText || "—"), body));
-            }
-
-            // 5. 交给公共导出模块，附上切换页签、打开弹窗的脚本；文件名带方案名与报告编号，便于区分多份报告
-            window.AdminHtmlExport.downloadPage(documentNode, {
-                title:"诊断报告-" + (exported.planName || "未命名方案") + "-" + exported.id, bodyClass:"diagnosis-page",
-                script:"(" + exportPageScript + ")();"});
+            await window.DiagnosisReportExport.downloadReport(report, {modelFilter, modelName:selectedModelName(),
+                onProgress:(done, total) => { button.textContent = "正在读取回答 " + done + "/" + total; }});
         } catch (error) {
             show("detail-error", "导出失败：" + error.message);
         } finally {
-            exportRefs = null;
             button.disabled = false; button.textContent = "导出网页";
         }
-    }
-
-    /**
-     * 导出网页的页签栏与六个页签内容，结构和样式与页面上的页签相同；默认显示第一个，其余隐藏，由导出网页内置的脚本切换。
-     * @param {HTMLElement} documentNode 导出内容，页签栏和内容依次追加到末尾
-     * @param {object} summary 已完成报告的冻结汇总
-     */
-    function appendExportTabs(documentNode, summary) {
-        const tabBar = element("div", "report-tabs");
-        tabBar.setAttribute("role", "tablist");
-        documentNode.append(tabBar);
-        tabs.forEach(([key, title], index) => {
-            const tab = element("a", "report-tab", title);
-            tab.href = "#"; tab.dataset.exportTab = key;
-            tab.setAttribute("role", "tab"); tab.setAttribute("aria-selected", String(index === 0));
-            tabBar.append(tab);
-            const panel = element("section");
-            panel.dataset.exportPanel = key; panel.hidden = index > 0;
-            renderTabContent(panel, key, summary);
-            documentNode.append(panel);
-        });
-    }
-
-    /**
-     * 逐条读取导出要用的回答原文，按传入顺序返回。
-     * @param {number} taskId 诊断任务 ID
-     * @param {number[]} resultIds 诊断结果 ID，已去重
-     * @param {function(number):void} onProgress 每读完一条回调一次，参数为已读完的条数
-     * @return {Promise<object[]>} 回答详情；任一条失败即整体失败
-     */
-    async function loadAnswers(taskId, resultIds, onProgress) {
-        const answers = [];
-        for (const resultId of resultIds) {
-            answers.push(await request("/diagnosis-tasks/" + taskId + "/results/" + resultId));
-            onProgress(answers.length);
-        }
-        return answers;
-    }
-
-    /**
-     * 导出网页中的一个弹窗，结构和样式与系统中的证据、回答弹窗相同；平时隐藏，由「看证据」「看回答」打开。
-     * @param {string} id 弹窗标识，打开链接按它找到弹窗
-     * @param {string} title 标题
-     * @param {string} note 标题下的说明
-     * @param {HTMLElement} content 弹窗正文
-     * @return {HTMLElement} 弹窗
-     */
-    function exportDialog(id, title, note, content) {
-        const dialog = element("dialog", "task-dialog task-answer-dialog");
-        dialog.id = id;
-        const heading = element("div", "panel-heading"), text = element("div");
-        text.append(element("h2", null, title), element("p", "help", note));
-        // 导出时页面按钮会被去掉，关闭入口用链接
-        const close = element("a", "refresh-button", "返回报告");
-        close.href = "#"; close.dataset.closeDialog = "";
-        heading.append(text, close);
-        const body = element("div", "task-dialog-body");
-        body.append(content);
-        dialog.append(heading, body);
-        return dialog;
-    }
-
-    /**
-     * 导出网页内置的脚本：点页签切换显示的内容；点「看证据」「看回答」打开对应弹窗，点「返回报告」或弹窗外的遮罩关闭，弹窗可以叠开。
-     * 只在导出的网页里运行，不在系统页面中调用；以源码形式写入网页，因此不引用本文件的其他变量。
-     */
-    function exportPageScript() {
-        document.addEventListener("click", event => {
-            const tab = event.target.closest("[data-export-tab]");
-            const opener = event.target.closest("[data-open-dialog]");
-            const closer = event.target.closest("[data-close-dialog]");
-            if (tab) {
-                event.preventDefault();
-                document.querySelectorAll("[data-export-tab]").forEach(item => item.setAttribute("aria-selected", String(item === tab)));
-                document.querySelectorAll("[data-export-panel]").forEach(panel => { panel.hidden = panel.dataset.exportPanel !== tab.dataset.exportTab; });
-            } else if (opener) {
-                event.preventDefault();
-                document.getElementById(opener.dataset.openDialog).showModal();
-            } else if (closer) {
-                event.preventDefault();
-                closer.closest("dialog").close();
-            } else if (event.target instanceof HTMLDialogElement) {
-                // 点在弹窗外的遮罩上时，事件目标是弹窗本身
-                event.target.close();
-            }
-        });
-    }
-
-    function renderOverview(panel, summary) {
-        const sample = summary.sample, judge = sample.judgeChannel || {};
-        const grid = element("div", "task-overview");
-        for (const [label, value] of [["有效回答", sample.validAnswers], ["判定成功", sample.judged], ["判定失败", sample.judgeFailed],
-            ["带来源回答", sample.withSources], ["实际联网回答", sample.searched], ["模型数", sample.models], ["题数", sample.questions],
-            ["最大采样次数", sample.maxRepeat], ["判定模型", (judge.channelName || "—") + " · " + (judge.modelName || "—") + " · 提示词 " + (sample.promptVersion || "—")]]) {
-            const item = element("div"); item.append(element("span", null, label), element("strong", null, String(value ?? "—"))); grid.append(item);
-        }
-        panel.append(section("样本说明", "只分析成功且未被截断的回答；依赖判定的指标只统计判定成功的回答。", grid));
-        panel.append(section("各模型核心指标", "提及率、推荐率、首推率按非品牌问题计算；品牌正面率按点名问题计算；推荐份额 = 目标被推荐次数 ÷（目标 + 预设竞品被推荐次数）。",
-            table(["模型", "判定回答", "提及率", "推荐率", "首推率", "品牌正面率", "推荐份额"], ofModel(summary.models).map(model => [
-                model.channelName + " · " + model.modelName, model.judgedAnswers, percent(model.mentionRate), percent(model.recommendRate),
-                percent(model.firstChoiceRate), percent(model.brandPositiveRate), percent(model.recommendShare)]))));
-        panel.append(section("主要发现与优先行动", "由模型根据规则发现的问题归纳，每条都可以点「看证据」核对；完整内容见 ⑥ 优化建议。", renderKeyFindings(summary)));
-    }
-
-    function renderVisibility(panel, summary) {
-        panel.append(section("可见度（非品牌问题）", "问题覆盖率：至少有一次提到目标的题数占比；稳定性：同一题多次采样中提及结果一致的题数占比。",
-            table(["模型", "非品牌回答", "提及率", "推荐率", "首推率", "平均排名", "问题覆盖率", "稳定性"], ofModel(summary.models).map(model => [
-                model.channelName + " · " + model.modelName, model.nonBrandAnswers, percent(model.mentionRate), percent(model.recommendRate),
-                percent(model.firstChoiceRate), model.averageRank ?? "—", percent(model.questionCoverage), percent(model.stability)]))));
-        const strengthKeys = Object.keys(strengthLabels);
-        panel.append(section("推荐强度（非品牌问题中提到目标时）", "提到不等于推荐得好：顺带一提、附带缺点都说明推荐不够坚定。点名与对比问题必然提到目标，不计入。",
-            table(["模型", ...strengthKeys.map(key => strengthLabels[key])], ofModel(summary.strength).map(row => [
-                row.channelName, ...strengthKeys.map(key => row.distribution[key] || 0)]))));
-        const lists = element("div", "report-dimensions");
-        lists.append(dimensionList("目标的保留意见", "被推荐时附带的缺点，是要补的短板", summary.reservations),
-            dimensionList("用户选择标准", "未提到目标的回答强调了什么", summary.criteria),
-            dimensionList("用户顾虑", "未提到目标的回答提醒了什么", summary.concerns));
-        panel.append(section("推荐理由与用户关注点", "按归一后的维度统计次数，附回答原文。", lists));
-    }
-
-    /** ③ 品牌认知：只看点名问题，模型怎么评价目标、描述对不对、负面来自哪里、卖点说没说到。 */
-    function renderBrand(panel, brand) {
-        panel.append(section("各模型评价（点名问题）", "情感按回答计数；描述准确率只统计判定给出了对错的回答，依据是项目资料；卖点覆盖率 = 至少说到一个核心卖点的回答占比。",
-            table(["模型", "点名回答", "正面", "中性", "负面", "描述准确率", "卖点覆盖率"], ofModel(brand.models).map(model => [
-                model.channelName + " · " + model.modelName, model.brandAnswers, model.positive, model.neutral, model.negative,
-                percent(model.accurateRate), percent(model.sellingPointRate)]))));
-        const lists = element("div", "report-dimensions");
-        lists.append(dimensionList("正面点", "继续强化的优势", brand.positives),
-            dimensionList("负面点", "需要回应或纠正", brand.negatives),
-            dimensionList("提到的卖点", "模型已经知道的核心卖点", brand.sellingPoints));
-        panel.append(section("正面点、负面点与卖点", "按归一后的维度统计次数，附回答原文。", lists));
-        panel.append(section("负面来源", "判定为负面的点名回答引用了哪些平台，决定去哪里处理。", table(["平台", "引用次数", "链接示例"],
-            brand.negativeSources.map(row => [row.platform, row.count, row.links.map(link => link.title || link.url).join("；")]), 1)));
-        panel.append(section("错误信息清单", "与项目资料不符的描述，资料没写的内容不判对错。", quoteList(ofModel(brand.factErrors).map(error => ({
-            title:error.content, quote:error.quote, channelName:error.channelName, resultId:error.resultId})))));
-    }
-
-    /** ④ 竞品对比：目标与预设竞品同口径比较，再看同题先后、竞品强在哪些场景、对比维度谁赢。 */
-    function renderCompetitor(panel, competitor) {
-        panel.append(section("目标与竞品（非品牌问题）", "与 ② 的口径相同，分母为该模型的非品牌回答；对比问题点了竞品的名，不计入提及率。",
-            table(["模型", "品牌", "提及率", "推荐率", "首推率"], ofModel(competitor.brands).map(row => [
-                row.channelName + " · " + row.modelName, row.brandName + (row.target ? "（目标）" : ""),
-                percent(row.mentionRate), percent(row.recommendRate), percent(row.firstChoiceRate)]), 2)));
-        panel.append(section("同题胜率", "同一条回答里目标和竞品都被推荐且都有排名时，目标排在前面的占比。",
-            table(["模型", "竞品", "可比较的回答", "目标在前", "竞品在前", "同题胜率"], ofModel(competitor.headToHead).map(row => [
-                row.channelName + " · " + row.modelName, row.competitor, row.sameAnswers, row.targetAhead, row.competitorAhead, percent(row.winRate)]), 2)));
-        panel.append(section("竞品的优势场景", "按问题意图拆分非品牌问题，只列出竞品推荐率高于目标的组合。",
-            table(["模型", "问题意图", "竞品", "回答数", "目标推荐率", "竞品推荐率"], ofModel(competitor.advantageScenes).map(row => [
-                row.channelName, intentLabels[row.intent] || row.intent, row.competitor, row.answers,
-                percent(row.targetRecommendRate), percent(row.competitorRecommendRate)]), 3)));
-        const lists = element("div", "report-dimensions");
-        lists.append(dimensionList("分维度胜负（对比问题）", "目标相对竞品在各维度上的结果", competitor.dimensions,
-                row => "赢 " + row.win + " · 输 " + row.lose + " · 平 " + row.tie),
-            dimensionList("竞品被推荐的理由", "只取回答里明确写出的理由", competitor.competitorReasons));
-        panel.append(section("对比维度与竞品理由", "按归一后的维度统计，附回答原文。", lists));
-        panel.append(section("新出现的同类产品", "不在预设竞品里、回答中出现过的产品，可考虑加入竞品。",
-            table(["产品", "出现回答数", "被推荐回答数"], competitor.candidates.map(row => [row.name, row.mentions, row.recommended]))));
-    }
-
-    /** ⑤ 引用与内容：模型引用了哪些来源，我方内容有没有被用上，竞品靠哪些内容，用户关心的方向有没有我方内容。 */
-    function renderSource(panel, source) {
-        panel.append(section("各模型来源情况", "来源覆盖率 = 带来源回答 ÷ 全部回答；各类引用率的分母为带来源回答。各平台“引用”含义不同，只在同类平台之间比较。",
-            table(["模型", "回答", "带来源", "来源覆盖率", "引用官网", "引用我方发布", "引用提到目标的第三方", "引用提到竞品的内容"], ofModel(source.models).map(model => [
-                model.channelName + " · " + model.modelName, model.answers, model.withSources, percent(model.sourceCoverage),
-                percent(model.ownedRate), percent(model.publishedRate), percent(model.thirdPartyRate), percent(model.competitorRate)]))));
-        panel.append(section("各模型常引用的平台", "按被引用次数排序，每个模型最多 10 个。", table(["模型", "平台", "引用次数"],
-            ofModel(source.platforms).flatMap(row => row.platforms.map(platform => [row.channelName, platform.platform, platform.count])), 2)));
-        panel.append(section("被引用的我方链接", "官网域名下的页面，以及与发布记录一致的链接；按生成报告时的发布记录判断。",
-            table(["链接", "标题", "类型", "引用回答数"], source.ownLinks.map(link => [link.url, link.title || "—", sourceTypeLabels[link.sourceType] || link.sourceType, link.count]), 3)));
-        panel.append(section("竞品的来源", "推荐了预设竞品的回答引用了哪些内容，看竞品被推荐靠的是什么。",
-            table(["链接", "标题", "平台", "类型", "引用回答数"], source.competitorLinks.map(link => [link.url, link.title || "—", link.platform || "—",
-                sourceTypeLabels[link.sourceType] || link.sourceType, link.count]), 4)));
-        const gaps = element("div", "report-dimensions");
-        gaps.append(dimensionList("用户关心的方向", "引用我方为 0 的方向，说明我方内容没被用上（可能没有、不公开或不好找），需要人工确认",
-            source.contentGaps, row => "提到 " + row.answers + " 条 · 引用我方 " + row.ownCitedAnswers + " 条"));
-        panel.append(section("内容差距", "非品牌问题中回答强调的选择标准和用户顾虑，相关回答有没有引用官网或我方发布内容。", gaps));
-    }
-
-    /** ① 概览中的主要发现与前三条建议，内容来自 summary.advice。 */
-    function renderKeyFindings(summary) {
-        const advice = summary.advice;
-        if (!summary.issues || !summary.advice) return supplementNotice();
-        if (advice.status === "NO_ISSUES") return element("p", "report-empty", "规则没有发现需要处理的问题。");
-        if (advice.status === "FAILED") return element("p", "report-empty", advice.errorMessage + "，见 ⑥ 优化建议。");
-        const box = element("div", "report-dimension-list");
-        box.append(element("h4", null, "主要发现"));
-        for (const finding of advice.findings) box.append(adviceItem(finding.content, null, null, finding.issueIds));
-        box.append(element("h4", null, "优先行动"));
-        for (const action of advice.actions.slice(0, 3)) box.append(adviceItem(action.title, categoryLabels[action.category], action.content, action.issueIds));
-        return box;
-    }
-
-    /** ⑥ 优化建议：模型写的建议与主要发现，以及规则发现的全部问题；每条都能打开证据。 */
-    function renderAdvice(panel, summary) {
-        const advice = summary.advice;
-        if (advice.status === "SUCCEEDED") {
-            const actions = element("div", "report-dimension-list");
-            if (!advice.actions.length) actions.append(element("p", "report-empty", "暂无"));
-            advice.actions.forEach((action, index) => actions.append(adviceItem((index + 1) + ". " + action.title,
-                categoryLabels[action.category] + " · " + evidenceStatusLabels[action.evidenceStatus], action.content, action.issueIds)));
-            panel.append(section("优化建议（按优先级）", "由模型根据下方规则发现的问题归纳；“待验证推测”表示原因或做法是推断，需要先核实。", actions));
-            const findings = element("div", "report-dimension-list");
-            if (!advice.findings.length) findings.append(element("p", "report-empty", "暂无"));
-            for (const finding of advice.findings) findings.append(adviceItem(finding.content, null, null, finding.issueIds));
-            panel.append(section("主要发现", null, findings));
-        } else {
-            panel.append(element("div", "report-progress", advice.status === "NO_ISSUES" ? "规则没有发现需要处理的问题，未生成建议。" : advice.errorMessage));
-        }
-        const issues = element("div", "report-dimension-list");
-        const visibleIssues = summary.issues.filter(issue => !modelFilter || issue.channelId == null || String(issue.channelId) === modelFilter);
-        if (!visibleIssues.length) issues.append(element("p", "report-empty", "暂无"));
-        for (const issue of visibleIssues) issues.append(adviceItem(issue.id + " " + issue.title, metricsText(issue.metrics), null, [issue.id]));
-        panel.append(section("规则发现的问题", "由程序按固定阈值从 ②–⑤ 的结果中挑出，不经过模型；建议只能引用这里的编号。", issues));
-        panel.append(section("复测方式", null, element("p", "help",
-            "按建议调整后，用同一诊断方案（原问题、原渠道配置）重新执行诊断任务并生成报告；判定模型与提示词版本一致时，再与本报告对比。")));
-    }
-
-    /** 报告内容缺失时页签里的提示，补全入口在详情右上角。 */
-    function supplementNotice() {
-        return element("div", "report-progress", "报告内容缺失时，点击补全报告可补全");
     }
 
     /** 报告缺少任何内容（接口返回 missingParts 不为空）就显示「补全报告」；只有当前报告正在补全时才禁用。 */
@@ -514,106 +250,27 @@
         }
     }
 
-    /** 建议、发现或问题的一行：标题、补充说明、正文，以及「看证据」。 */
-    function adviceItem(title, meta, content, issueIds) {
-        const item = element("div", "report-dimension report-advice-item");
-        item.append(element("strong", null, title));
-        if (meta) item.append(element("span", "report-advice-meta", meta));
-        if (content) item.append(element("p", "report-advice-content", content));
-        // 导出网页中同一组问题共用一个证据弹窗
-        const groupKey = issueIds.join("-");
-        exportRefs?.evidenceGroups.set(groupKey, issueIds);
-        const line = element("p", "report-quote");
-        line.append(buildViewEntry("看证据（" + issueIds.join("、") + "）", "evidence-" + groupKey, () => openEvidence(issueIds)));
-        item.append(line);
-        return item;
-    }
-
-    /** @return 问题的支撑数字，比率按百分比展示 */
-    function metricsText(metrics) {
-        return metrics.map(metric => metric.label + " " + (metric.rate ? percent(metric.value) : metric.value)).join(" · ");
-    }
-
-    /** 证据弹窗：展示所选问题的数字和证据（回答原文或问题），可继续打开完整回答。 */
-    function openEvidence(issueIds) {
-        const content = byId("evidence-content"); content.replaceChildren();
-        renderEvidence(content, report.summary, issueIds);
-        if (!evidenceDialog.open) evidenceDialog.showModal();
-    }
-
     /**
-     * 逐个问题写出编号标题、支撑数字和证据；系统中的证据弹窗与导出网页中的证据弹窗共用。
-     * @param {HTMLElement} container 写入的容器；加上证据样式类，两处证据弹窗的标题样式一致
-     * @param {object} summary 证据所属报告的冻结汇总
-     * @param {string[]} issueIds 问题编号，按报告中的问题顺序输出
+     * 页面上的查看入口按钮。
+     * @param {string} text 按钮文字
+     * @param {function():void} onClick 点击时打开对应弹窗
+     * @return {HTMLElement} 按钮
      */
-    function renderEvidence(container, summary, issueIds) {
-        container.classList.add("report-evidence");
-        for (const issue of summary.issues.filter(item => issueIds.includes(item.id))) {
-            container.append(element("h4", null, issue.id + " " + issue.title), element("p", "help", metricsText(issue.metrics)));
-            if (!issue.evidence.length) container.append(element("p", "report-empty", "此问题由上面的数字支撑，没有对应的回答原文。"));
-            for (const item of issue.evidence) {
-                const from = item.channelName + (item.brand ? " · " + item.brand : "");
-                container.append(item.quote != null ? quoteLine(item.quote, from, item.resultId) : answerLine("问题：" + item.question + " — " + from, item.resultId));
-            }
-        }
-    }
-
-    /** 维度排行：describe 决定每行右侧的计数写法，示例中有品牌时一并展示。 */
-    function dimensionList(title, help, rows, describe = row => row.count + " 次") {
-        const box = element("div", "report-dimension-list");
-        box.append(element("h4", null, title), element("p", "help", help));
-        if (!rows.length) box.append(element("p", "report-empty", "暂无"));
-        for (const row of rows) {
-            const item = element("div", "report-dimension");
-            item.append(element("strong", null, row.dimension), element("span", "count", describe(row)));
-            for (const example of row.examples) item.append(quoteLine(example.quote, example.channelName + (example.brand ? " · " + example.brand : ""), example.resultId));
-            box.append(item);
-        }
-        return box;
-    }
-
-    /** 逐条清单（如错误信息）：每条一个标题加一句原文。 */
-    function quoteList(rows) {
-        const box = element("div", "report-dimension-list");
-        if (!rows.length) box.append(element("p", "report-empty", "暂无"));
-        for (const row of rows) {
-            const item = element("div", "report-dimension");
-            item.append(element("strong", null, row.title || "—"), quoteLine(row.quote, row.channelName, row.resultId));
-            box.append(item);
-        }
-        return box;
-    }
-
-    /** 一句回答原文加来源，点「看回答」打开完整回答。 */
-    function quoteLine(quote, from, resultId) {
-        return answerLine("“" + quote + "” — " + from, resultId);
-    }
-
-    /** 一行说明文字加「看回答」按钮，点开对应的完整回答；导出网页中改为打开随网页导出的回答弹窗。 */
-    function answerLine(text, resultId) {
-        const line = element("p", "report-quote", text);
-        exportRefs?.resultIds.add(resultId);
-        line.append(buildViewEntry("看回答", "answer-" + resultId, () => openAnswer(resultId)));
-        return line;
-    }
-
-    /**
-     * 「看证据」「看回答」的入口：页面上是按钮，点击执行 onClick；导出网页中是打开随网页导出的弹窗的链接，样式相同。
-     * @param {string} text 入口文字
-     * @param {string} dialogId 导出网页中要打开的弹窗标识
-     * @param {function():void} onClick 页面上点击时的处理
-     * @return {HTMLElement} 按钮或链接
-     */
-    function buildViewEntry(text, dialogId, onClick) {
-        if (exportRefs) {
-            const link = element("a", "text-button", text);
-            link.href = "#"; link.dataset.openDialog = dialogId;
-            return link;
-        }
+    function entryButton(text, onClick) {
         const button = element("button", "text-button", text); button.type = "button";
         button.addEventListener("click", onClick);
         return button;
+    }
+
+    /**
+     * 证据弹窗：展示所选问题的数字和证据（回答原文或问题），可继续打开完整回答。
+     * @param {string[]} issueIds 问题编号
+     */
+    function openEvidence(issueIds) {
+        const content = byId("evidence-content");
+        content.replaceChildren();
+        view.renderEvidence({modelFilter, entries:pageEntries}, content, report.summary, issueIds);
+        if (!evidenceDialog.open) evidenceDialog.showModal();
     }
 
     /** 读取报告对应的完整回答，正文使用 Markdown，问题与错误提示保持原文。 */
@@ -636,12 +293,14 @@
         }
     });
 
-    byId("report-filters").addEventListener("submit", event => { event.preventDefault(); page = 0; loadList().catch(error => show("report-error", error.message)); });
-    byId("report-previous").addEventListener("click", () => { page--; loadList().catch(error => show("report-error", error.message)); });
-    byId("report-next").addEventListener("click", () => { page++; loadList().catch(error => show("report-error", error.message)); });
+    // 列表读取失败由轮询的 onError 在列表上方提示，loadList 本身不会失败，这里不再处理
+    byId("report-filters").addEventListener("submit", event => { event.preventDefault(); page = 0; loadList(); });
+    byId("report-previous").addEventListener("click", () => { page--; loadList(); });
+    byId("report-next").addEventListener("click", () => { page++; loadList(); });
     byId("new-report").addEventListener("click", () => openCreate(null).catch(error => show("create-error", error.message)));
     byId("close-create").addEventListener("click", () => { if (!creating) createDialog.close(); });
     byId("cancel-create").addEventListener("click", () => { if (!creating) createDialog.close(); });
+    byId("create-report-form").addEventListener("submit", submitCreate);
     byId("close-detail").addEventListener("click", () => detailDialog.close());
     byId("close-answer").addEventListener("click", () => answerDialog.close());
     byId("close-evidence").addEventListener("click", () => evidenceDialog.close());
@@ -652,22 +311,17 @@
         canClose:dialog => dialog !== createDialog || !creating,
         onClose:dialog => {
             if (dialog === createDialog) createRequests.cancel();
-            if (dialog === detailDialog) { detailPoller.stop(); answerRequests.cancel(); answerDialog.close(); evidenceDialog.close(); reportId = null; report = null; }
+            // 关闭详情时一并结束轮询、回答读取和子弹窗，并清掉当前报告
+            if (dialog === detailDialog) {
+                detailPoller.stop();
+                answerRequests.cancel();
+                answerDialog.close();
+                evidenceDialog.close();
+                reportId = null;
+                report = null;
+            }
             if (dialog === answerDialog) { answerRequests.cancel(); answerId = null; }
         }
-    });
-    byId("create-report-form").addEventListener("submit", async event => {
-        event.preventDefault();
-        if (creating || !byId("create-task").value) return;
-        creating = true; byId("submit-create").disabled = true; show("create-error", "");
-        try {
-            const created = await request("/diagnosis-reports/diagnosis-tasks/" + Number(byId("create-task").value), {method:"POST"});
-            createDialog.close();
-            show("report-success", "已开始生成报告 #" + created.id + "，共 " + created.progress.total + " 条有效回答待判定。");
-            page = 0; await loadList();
-            await openDetail(created.id);
-        } catch (error) { show("create-error", error.message); }
-        finally { creating = false; byId("submit-create").disabled = false; }
     });
 
     // 从诊断任务详情跳转时带 diagnosisTaskId，直接打开生成对话框并选中该任务
