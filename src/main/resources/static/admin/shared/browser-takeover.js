@@ -1,7 +1,7 @@
 "use strict";
 /**
  * 全局浏览器人工接管窗口：服务器上的自动化浏览器需要人工操作时（如平台验证），在任意管理页弹出接管窗口，
- * 由用户本人在服务器页面的实时画面上操作。只展示画面、转发鼠标键盘操作，不替用户判断或操作。
+ * 由用户本人在服务器页面的实时画面上操作。只展示画面、按原始时间间隔转发鼠标键盘操作，不替用户判断或操作。
  * 依赖 shared/http.js；一次只展示一条，处理完自动轮到下一条。
  */
 (() => {
@@ -9,6 +9,10 @@
     const LIST_INTERVAL_MS = 3000;
     /** 取画面的间隔（约每秒 12 次）；服务端每 100ms 才确认一次截图，新画面最多约每秒 10 帧。 */
     const FRAME_INTERVAL_MS = 80;
+    /** 操作攒批发送的间隔：间隔内的操作合成一个请求，服务器按每个操作的发生时间回放。 */
+    const INPUT_BATCH_INTERVAL_MS = 50;
+    /** 移动采样点的最小间隔：高回报率鼠标每秒上千个点，过密的跳过；每秒最多约 200 个点，不低于常见鼠标的回报率。 */
+    const MIN_MOVE_INTERVAL_MS = 5;
     /** 允许转发的功能键，与服务端白名单一致；字符输入走文字输入。 */
     const SPECIAL_KEYS = new Set(["Backspace", "Tab", "Enter", "Escape", "Delete",
         "ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown"]);
@@ -80,7 +84,10 @@
     /** 打开一条接管的窗口，开始取画面。 */
     function openTakeover(takeover) {
         if (!dialog) createDialog();
-        current = {takeover, lastSequence: 0, frameWidth: 0, frameHeight: 0, inputs: [], sending: false};
+        current = {
+            takeover, lastSequence: 0, frameWidth: 0, frameHeight: 0,
+            inputs: [], sending: false, sendTimer: null, lastSentAt: -Infinity, lastMovedAt: -Infinity
+        };
         title.textContent = `需要人工接管：${takeover.title}`;
         reason.textContent = `${takeover.reason}。请在下方画面中操作，完成后自动继续。`;
         status.textContent = "正在连接服务器浏览器…";
@@ -167,30 +174,30 @@
         countdown.textContent = `剩余 ${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, "0")}`;
     }
 
-    /** 画布上的鼠标、滚轮、键盘、粘贴操作都转发到服务器页面。 */
+    /** 画布上的鼠标、滚轮、键盘、粘贴操作都转发到服务器页面，每个操作带上发生时间，服务器按原间隔回放。 */
     function bindCanvasInput() {
         canvas.addEventListener("pointerdown", event => {
             if (event.button !== 0) return;
             canvas.focus();
             canvas.setPointerCapture(event.pointerId);
-            enqueueInput({type: "MOUSE_PRESSED", ...pagePoint(event)});
+            enqueueInput({type: "MOUSE_PRESSED", ...pagePoint(event)}, event);
             event.preventDefault();
         });
-        canvas.addEventListener("pointermove", event => enqueueInput({type: "MOUSE_MOVED", ...pagePoint(event)}));
+        canvas.addEventListener("pointermove", enqueueMoves);
         canvas.addEventListener("pointerup", event => {
             if (event.button !== 0) return;
-            enqueueInput({type: "MOUSE_RELEASED", ...pagePoint(event)});
+            enqueueInput({type: "MOUSE_RELEASED", ...pagePoint(event)}, event);
         });
         canvas.addEventListener("wheel", event => {
-            enqueueInput({type: "MOUSE_WHEEL", ...pagePoint(event), deltaX: event.deltaX, deltaY: event.deltaY});
+            enqueueInput({type: "MOUSE_WHEEL", ...pagePoint(event), deltaX: event.deltaX, deltaY: event.deltaY}, event);
             event.preventDefault();
         }, {passive: false});
         canvas.addEventListener("keydown", event => {
             if (event.ctrlKey || event.metaKey || event.altKey) return;
             if (event.key.length === 1) {
-                enqueueInput({type: "INSERT_TEXT", text: event.key});
+                enqueueInput({type: "INSERT_TEXT", text: event.key}, event);
             } else if (SPECIAL_KEYS.has(event.key)) {
-                enqueueInput({type: "KEY_PRESS", key: event.key});
+                enqueueInput({type: "KEY_PRESS", key: event.key}, event);
             } else {
                 return;
             }
@@ -199,8 +206,26 @@
         // 验证码等短文本可从剪贴板粘贴
         canvas.addEventListener("paste", event => {
             const text = event.clipboardData?.getData("text/plain")?.trim();
-            if (text) enqueueInput({type: "INSERT_TEXT", text: text.slice(0, 100)});
+            if (text) enqueueInput({type: "INSERT_TEXT", text: text.slice(0, 100)}, event);
             event.preventDefault();
+        });
+    }
+
+    /**
+     * 记下一次移动的全部采样点：浏览器把一帧内的多次移动合成一个事件，逐个取回原始采样点，轨迹不丢点。
+     * 相邻不足 5ms 的点跳过，但每个事件的最后一点保留，鼠标停下时位置准确；
+     * 用 HTTP（非 localhost）访问时浏览器可能不提供原始采样点，退回每帧一个点。
+     * @param {PointerEvent} event 移动事件
+     */
+    function enqueueMoves(event) {
+        if (!current) return;
+        const samples = event.getCoalescedEvents?.() || [];
+        const points = samples.length ? samples : [event];
+        points.forEach((point, index) => {
+            const isLast = index === points.length - 1;
+            if (!isLast && point.timeStamp - current.lastMovedAt < MIN_MOVE_INTERVAL_MS) return;
+            current.lastMovedAt = point.timeStamp;
+            enqueueInput({type: "MOUSE_MOVED", ...pagePoint(point)}, point);
         });
     }
 
@@ -214,38 +239,48 @@
     }
 
     /**
-     * 按顺序逐个发送操作，保证按下、拖动、松开的先后；连续的移动只保留最新一次，避免拖动积压。
-     * @param {object} input 操作，字段与服务端 BrowserTakeoverInput 一致
+     * 记下一次操作及其发生时间，攒批发送；不合并、不丢弃，服务器按发生时间还原间隔。
+     * @param {object} input 操作，字段与服务端 BrowserTakeoverInput 一致（发生时间除外）
+     * @param {Event} event 产生该操作的事件，取它的发生时间
      */
-    function enqueueInput(input) {
+    function enqueueInput(input, event) {
         if (!current || !current.frameWidth) return;
-        const session = current;
-        const last = session.inputs[session.inputs.length - 1];
-        if (input.type === "MOUSE_MOVED" && last?.type === "MOUSE_MOVED") {
-            session.inputs[session.inputs.length - 1] = input;
-        } else {
-            session.inputs.push(input);
-        }
-        sendInputs(session);
+        current.inputs.push({...input, clientTimeMillis: event.timeStamp});
+        scheduleSend(current);
     }
 
-    /** 串行发送队列中的操作；失败时提示，不重发，避免同一操作在页面上执行两次。 */
+    /**
+     * 安排发送：距上次发送已满一个间隔就立即发，不满则等到满；有请求在途时，等它返回后再安排。
+     * @param {object} session 当前接管
+     */
+    function scheduleSend(session) {
+        if (session.sending || session.sendTimer) return;
+        const waitMs = Math.max(0, session.lastSentAt + INPUT_BATCH_INTERVAL_MS - performance.now());
+        session.sendTimer = setTimeout(() => sendInputs(session), waitMs);
+    }
+
+    /**
+     * 把攒下的操作作为一批发出，一次只有一个请求在途，保证先后顺序。
+     * 失败时提示并丢弃未发的操作，不重发，避免同一操作在页面上执行两次。
+     * @param {object} session 当前接管
+     */
     async function sendInputs(session) {
-        if (session.sending) return;
+        session.sendTimer = null;
+        if (current !== session || !session.inputs.length) return;
+        const batch = session.inputs.splice(0);
         session.sending = true;
+        session.lastSentAt = performance.now();
         try {
-            while (session.inputs.length && current === session) {
-                const input = session.inputs.shift();
-                await AdminHttp.requestJson(
-                    `/browser-takeovers/${encodeURIComponent(session.takeover.takeoverId)}/input`,
-                    {method: "POST", body: JSON.stringify(input)});
-            }
+            await AdminHttp.requestJson(
+                `/browser-takeovers/${encodeURIComponent(session.takeover.takeoverId)}/inputs`,
+                {method: "POST", body: JSON.stringify(batch)});
         } catch (error) {
             session.inputs.length = 0;
             if (error.status !== 404) status.textContent = error.message;
         } finally {
             session.sending = false;
         }
+        if (session.inputs.length) scheduleSend(session);
     }
 
     // 部分页面在本脚本之后才引入 http.js；所有 defer 脚本执行完才触发 DOMContentLoaded
