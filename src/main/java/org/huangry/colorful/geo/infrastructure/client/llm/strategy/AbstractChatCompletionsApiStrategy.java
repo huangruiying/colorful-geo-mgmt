@@ -1,6 +1,7 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMStrategy;
+import org.huangry.colorful.geo.infrastructure.client.llm.tools.LLMWebSearchResultParser;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 
 import com.alibaba.fastjson.JSON;
@@ -118,7 +119,7 @@ public abstract class AbstractChatCompletionsApiStrategy implements LLMStrategy 
         }
         // 2. 引用先取当前回答的注解，厂商以顶层结构化字段返回来源时由子策略补充；正文 URL 不作为引用来源
         Map<String, LLMCitation> citations = new LinkedHashMap<>();
-        LlmCitationParser.collect(message.get("annotations"), citations);
+        LLMWebSearchResultParser.collectUrlCitations(message.get("annotations"), citations);
         collectStrategyCitations(response, citations);
         String reason = first.get("finish_reason") instanceof String value ? value : null;
         // 3. 元数据保留厂商原始字段及显式空值，结果对象不负责 JSON 解析

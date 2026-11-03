@@ -3,6 +3,7 @@ package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 import com.alibaba.fastjson.JSONArray;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMCitation;
 import org.huangry.colorful.geo.infrastructure.client.llm.model.LLMQueryRequest;
+import org.huangry.colorful.geo.infrastructure.client.llm.tools.LLMWebSearchResultParser;
 import org.huangry.colorful.geo.infrastructure.repository.entity.GeoLlmChannelEntity;
 import org.springframework.stereotype.Component;
 import java.util.List;
@@ -58,6 +59,6 @@ public class ResponsesApiZhipuStrategy extends AbstractResponsesApiStrategy {
      */
     @Override
     protected void collectStrategyCitations(JSONArray output, Map<String, LLMCitation> citationByUrl) {
-        LlmCitationParser.collectSearchSources(output, citationByUrl);
+        LLMWebSearchResultParser.collectWebSearchSources(output, citationByUrl);
     }
 }

@@ -1,6 +1,7 @@
 package org.huangry.colorful.geo.infrastructure.client.llm.strategy;
 
 import org.huangry.colorful.geo.infrastructure.client.llm.strategy.template.LLMStrategy;
+import org.huangry.colorful.geo.infrastructure.client.llm.tools.LLMWebSearchResultParser;
 import org.huangry.colorful.geo.infrastructure.common.enums.LLMProtocolType;
 
 import com.alibaba.fastjson.JSON;
@@ -254,7 +255,7 @@ public abstract class AbstractResponsesApiStrategy implements LLMStrategy {
                 hasText = true;
                 content.append(contentItem.getString("text"));
                 // 引用只从当前文本注解提取，搜索召回来源不计入回答引用。
-                LlmCitationParser.collect(contentItem.get("annotations"), citationByUrl);
+                LLMWebSearchResultParser.collectUrlCitations(contentItem.get("annotations"), citationByUrl);
             }
         }
         // 3. 只有工具调用而没有文本时明确失败，成功时保留原始元数据和显式空值

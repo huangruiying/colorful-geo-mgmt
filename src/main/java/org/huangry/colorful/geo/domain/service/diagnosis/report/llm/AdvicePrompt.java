@@ -8,9 +8,9 @@ import org.springframework.stereotype.Component;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.huangry.colorful.geo.infrastructure.client.llm.output.LLMJsonOutputParser.extractObject;
-import static org.huangry.colorful.geo.infrastructure.client.llm.output.LLMJsonOutputParser.isAllowed;
-import static org.huangry.colorful.geo.infrastructure.client.llm.output.LLMJsonOutputParser.listObjects;
+import static org.huangry.colorful.geo.infrastructure.client.llm.tools.LLMJsonOutputParser.extractObject;
+import static org.huangry.colorful.geo.infrastructure.client.llm.tools.LLMJsonOutputParser.isAllowed;
+import static org.huangry.colorful.geo.infrastructure.client.llm.tools.LLMJsonOutputParser.listObjects;
 
 /**
  * 诊断报告优化建议提示词：把规则发现的问题交给模型，让它挑重点写出主要发现与优化建议，并严格校验输出；本类不调用模型。

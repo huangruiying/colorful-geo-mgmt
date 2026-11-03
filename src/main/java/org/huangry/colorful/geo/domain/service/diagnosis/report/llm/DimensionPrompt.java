@@ -2,7 +2,7 @@ package org.huangry.colorful.geo.domain.service.diagnosis.report.llm;
 
 import com.alibaba.fastjson.JSONObject;
 import org.huangry.colorful.geo.domain.service.diagnosis.GeoDiagnosisTaskReportService.ReportAnswer;
-import org.huangry.colorful.geo.infrastructure.client.llm.output.LLMJsonOutputParser;
+import org.huangry.colorful.geo.infrastructure.client.llm.tools.LLMJsonOutputParser;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;

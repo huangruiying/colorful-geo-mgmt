@@ -13,9 +13,9 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.huangry.colorful.geo.infrastructure.client.llm.output.LLMJsonOutputParser.extractObject;
-import static org.huangry.colorful.geo.infrastructure.client.llm.output.LLMJsonOutputParser.isAllowed;
-import static org.huangry.colorful.geo.infrastructure.client.llm.output.LLMJsonOutputParser.listObjects;
+import static org.huangry.colorful.geo.infrastructure.client.llm.tools.LLMJsonOutputParser.extractObject;
+import static org.huangry.colorful.geo.infrastructure.client.llm.tools.LLMJsonOutputParser.isAllowed;
+import static org.huangry.colorful.geo.infrastructure.client.llm.tools.LLMJsonOutputParser.listObjects;
 
 /**
  * 诊断结果分析提示词：组装模型判定提示词，并严格校验模型返回的 JSON；本类不调用模型。
