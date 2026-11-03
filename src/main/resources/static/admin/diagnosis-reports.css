@@ -23,11 +23,11 @@
 .report-advice-meta { color:#73849b; font-size:13px; margin-left:6px; }
 .report-advice-content { margin:6px 0 0; color:#33465e; font-size:14px; line-height:1.7; }
 .report-advice-item .text-button { padding:0; font-size:13px; }
-#evidence-content h4 { margin:16px 0 4px; font-size:14px; }
-#evidence-content h4:first-child { margin-top:0; }
+.report-evidence h4 { margin:16px 0 4px; font-size:14px; }
+.report-evidence h4:first-child { margin-top:0; }
 .report-progress { padding:18px; background:#f7f9fd; border:1px solid #e0e7f1; border-radius:10px; line-height:1.8; }
 @media(max-width:900px) { .report-dimensions { grid-template-columns:1fr; } }
-/* 导出网页的版面：六个页签在一页内依次展开，内容居中限宽，各部分以标题分隔 */
+/* 导出网页的版面：抬头与页签内容居中限宽，页签切换和弹窗与系统页面一致 */
 .report-export { max-width:1180px; margin:0 auto; padding:32px 24px 48px; background:white; }
 .report-export h1 { margin:0 0 8px; font-size:22px; }
 .report-export-note { margin:0 0 4px; color:#4b5f79; font-size:13px; }

@@ -12,6 +12,8 @@
     const evidenceStatusLabels = {ANSWER_STATED:"回答明确表达", INFERRED:"待验证推测"};
     // 子 Tab 与诊断报告全景一致，六个页签均已接入
     const tabs = [["overview", "① 诊断概览"], ["visibility", "② 可见度与推荐"], ["brand", "③ 品牌认知"], ["competitor", "④ 竞品对比"], ["source", "⑤ 引用与内容"], ["advice", "⑥ 优化建议"]];
+    // 报告列表每页条数；查询参数与「下一页」是否可用共用
+    const PAGE_SIZE = 10;
     let page = 0, reportId = null, answerId = null;
     let report = null, activeTab = "overview", creating = false;
     // 正在补全的报告 ID：只防同一份报告重复补全，不同报告可以同时补全
@@ -70,7 +72,7 @@
 
     /** 当前筛选页的数据才可写入列表；生成中的报告继续刷新，失败不再静默停止。 */
     async function readReportList(ticket) {
-        const query = new URLSearchParams({page, size:10});
+        const query = new URLSearchParams({page, size:PAGE_SIZE});
         if (byId("filter-status").value) query.set("status", byId("filter-status").value);
         const result = await request("/diagnosis-reports?" + query, {signal:ticket.signal});
         if (!ticket.isCurrent()) return false;
@@ -94,7 +96,7 @@
         }
         byId("report-page-info").textContent = "第 " + (page + 1) + " 页 · 共 " + result.total + " 份";
         byId("report-previous").disabled = page === 0;
-        byId("report-next").disabled = (page + 1) * 10 >= result.total;
+        byId("report-next").disabled = (page + 1) * PAGE_SIZE >= result.total;
         return result.items.some(item => active(item.status));
     }
 
@@ -236,7 +238,7 @@
             // 3. 证据弹窗：每组「看证据」一个，内容与系统中的证据弹窗相同；证据里的回答也计入要导出的回答
             for (const [groupKey, issueIds] of exportRefs.evidenceGroups) {
                 const content = element("div");
-                renderEvidence(content, issueIds);
+                renderEvidence(content, exported.summary, issueIds);
                 documentNode.append(exportDialog("evidence-" + groupKey, "证据", "由规则从本报告数据中计算，点「看回答」可查看完整回答。", content));
             }
             // 收集结束即恢复页面行为，读取回答期间打开的弹窗仍是按钮
@@ -535,17 +537,19 @@
     /** 证据弹窗：展示所选问题的数字和证据（回答原文或问题），可继续打开完整回答。 */
     function openEvidence(issueIds) {
         const content = byId("evidence-content"); content.replaceChildren();
-        renderEvidence(content, issueIds);
+        renderEvidence(content, report.summary, issueIds);
         if (!evidenceDialog.open) evidenceDialog.showModal();
     }
 
     /**
      * 逐个问题写出编号标题、支撑数字和证据；系统中的证据弹窗与导出网页中的证据弹窗共用。
-     * @param {HTMLElement} container 写入的容器
+     * @param {HTMLElement} container 写入的容器；加上证据样式类，两处证据弹窗的标题样式一致
+     * @param {object} summary 证据所属报告的冻结汇总
      * @param {string[]} issueIds 问题编号，按报告中的问题顺序输出
      */
-    function renderEvidence(container, issueIds) {
-        for (const issue of report.summary.issues.filter(item => issueIds.includes(item.id))) {
+    function renderEvidence(container, summary, issueIds) {
+        container.classList.add("report-evidence");
+        for (const issue of summary.issues.filter(item => issueIds.includes(item.id))) {
             container.append(element("h4", null, issue.id + " " + issue.title), element("p", "help", metricsText(issue.metrics)));
             if (!issue.evidence.length) container.append(element("p", "report-empty", "此问题由上面的数字支撑，没有对应的回答原文。"));
             for (const item of issue.evidence) {
