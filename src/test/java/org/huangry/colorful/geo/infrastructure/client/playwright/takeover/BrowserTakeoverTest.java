@@ -3,6 +3,8 @@ package org.huangry.colorful.geo.infrastructure.client.playwright.takeover;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -39,25 +41,24 @@ class BrowserTakeoverTest {
         assertEquals(2, frame.sequence());
     }
 
-    /** 操作按提交顺序取出。 */
+    /** 一批操作按提交顺序取出。 */
     @Test
     void shouldPollInputsInSubmittedOrder() {
-        takeover.addInput(new BrowserTakeoverInput(BrowserTakeoverInput.Type.MOUSE_PRESSED, 1, 1, 0, 0, null, null));
-        takeover.addInput(new BrowserTakeoverInput(BrowserTakeoverInput.Type.MOUSE_RELEASED, 1, 1, 0, 0, null, null));
+        takeover.addInputs(List.of(mouseInput(BrowserTakeoverInput.Type.MOUSE_PRESSED, 0, 1),
+                mouseInput(BrowserTakeoverInput.Type.MOUSE_RELEASED, 80, 1)));
 
         assertEquals(BrowserTakeoverInput.Type.MOUSE_PRESSED, takeover.pollInput().type());
         assertEquals(BrowserTakeoverInput.Type.MOUSE_RELEASED, takeover.pollInput().type());
     }
 
-    /** 页面卡住、操作积压到上限时拒绝继续放入。 */
+    /** 页面卡住、积压到 500 条时，放不下的一批整批拒绝，不只放入半批；正好放满仍可放入。 */
     @Test
-    void shouldRejectInputsBeyondQueueLimit() {
-        BrowserTakeoverInput move = new BrowserTakeoverInput(BrowserTakeoverInput.Type.MOUSE_MOVED, 1, 1, 0, 0, null, null);
-        for (int index = 0; index < 200; index++) {
-            takeover.addInput(move);
-        }
+    void shouldRejectWholeBatchBeyondQueueLimit() {
+        BrowserTakeoverInput move = mouseInput(BrowserTakeoverInput.Type.MOUSE_MOVED, 0, 1);
+        takeover.addInputs(Collections.nCopies(499, move));
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> takeover.addInput(move));
+        var exception = assertThrows(IllegalArgumentException.class, () -> takeover.addInputs(List.of(move, move)));
+        takeover.addInputs(List.of(move));
 
         assertEquals("页面暂未响应，请稍后再操作", exception.getMessage());
     }
@@ -69,17 +70,35 @@ class BrowserTakeoverTest {
         assertTrue(takeover.isExpired(startedAt.plusSeconds(600)));
     }
 
-    /** 不合法的操作在进入队列前拒绝：类型缺失、坐标越界、文字超长、未放行的按键。 */
+    /**
+     * 不合法的操作在进入队列前拒绝：类型或发生时间缺失、坐标越界、文字超长、未放行的按键；
+     * 一批里只要有一个不合法，前面合法的也不放入。
+     */
     @Test
     void shouldRejectInvalidInputs() {
-        assertThrows(IllegalArgumentException.class, () -> takeover.addInput(
-                new BrowserTakeoverInput(null, 0, 0, 0, 0, null, null)));
-        assertThrows(IllegalArgumentException.class, () -> takeover.addInput(
-                new BrowserTakeoverInput(BrowserTakeoverInput.Type.MOUSE_MOVED, -1, 0, 0, 0, null, null)));
-        assertThrows(IllegalArgumentException.class, () -> takeover.addInput(
-                new BrowserTakeoverInput(BrowserTakeoverInput.Type.INSERT_TEXT, 0, 0, 0, 0, "x".repeat(101), null)));
-        assertThrows(IllegalArgumentException.class, () -> takeover.addInput(
-                new BrowserTakeoverInput(BrowserTakeoverInput.Type.KEY_PRESS, 0, 0, 0, 0, null, "F5")));
+        assertThrows(IllegalArgumentException.class, () -> takeover.addInputs(List.of(
+                new BrowserTakeoverInput(null, 0.0, 0, 0, 0, 0, null, null))));
+        assertThrows(IllegalArgumentException.class, () -> takeover.addInputs(List.of(
+                new BrowserTakeoverInput(BrowserTakeoverInput.Type.MOUSE_MOVED, null, 0, 0, 0, 0, null, null))));
+        assertThrows(IllegalArgumentException.class, () -> takeover.addInputs(List.of(
+                mouseInput(BrowserTakeoverInput.Type.MOUSE_MOVED, 0, -1))));
+        assertThrows(IllegalArgumentException.class, () -> takeover.addInputs(List.of(
+                new BrowserTakeoverInput(BrowserTakeoverInput.Type.INSERT_TEXT, 0.0, 0, 0, 0, 0, "x".repeat(101), null))));
+        assertThrows(IllegalArgumentException.class, () -> takeover.addInputs(List.of(
+                mouseInput(BrowserTakeoverInput.Type.MOUSE_PRESSED, 0, 1),
+                new BrowserTakeoverInput(BrowserTakeoverInput.Type.KEY_PRESS, 10.0, 0, 0, 0, 0, null, "F5"))));
         assertNull(takeover.pollInput());
+    }
+
+    /**
+     * 鼠标操作。
+     *
+     * @param type 操作类型
+     * @param clientTimeMillis 窗口记录的发生时间
+     * @param x 横坐标，纵坐标与之相同
+     * @return 用户操作
+     */
+    private static BrowserTakeoverInput mouseInput(BrowserTakeoverInput.Type type, double clientTimeMillis, double x) {
+        return new BrowserTakeoverInput(type, clientTimeMillis, x, x, 0, 0, null, null);
     }
 }

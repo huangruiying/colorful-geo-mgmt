@@ -79,19 +79,22 @@ class MgmtBrowserTakeoverControllerTest {
                 .andExpect(jsonPath("$.detail").value("人工接管已结束或不存在"));
     }
 
-    /** 操作原样交给接管记录；不合法时 400。 */
+    /** 一批操作连同发生时间原样交给接管记录；不合法时整批 400。 */
     @Test
-    void shouldForwardInputAndRejectInvalidInput() throws Exception {
+    void shouldForwardInputBatchAndRejectInvalidBatch() throws Exception {
         when(registry.getTakeover("id-1")).thenReturn(takeover);
 
-        mvc.perform(post("/browser-takeovers/id-1/input").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"MOUSE_PRESSED\",\"x\":10,\"y\":20}"))
+        mvc.perform(post("/browser-takeovers/id-1/inputs").contentType(MediaType.APPLICATION_JSON)
+                        .content("[{\"type\":\"MOUSE_PRESSED\",\"clientTimeMillis\":1000.5,\"x\":10,\"y\":20},"
+                                + "{\"type\":\"MOUSE_RELEASED\",\"clientTimeMillis\":1080.25,\"x\":10,\"y\":20}]"))
                 .andExpect(status().isNoContent());
-        verify(takeover).addInput(new BrowserTakeoverInput(BrowserTakeoverInput.Type.MOUSE_PRESSED, 10, 20, 0, 0, null, null));
+        verify(takeover).addInputs(List.of(
+                new BrowserTakeoverInput(BrowserTakeoverInput.Type.MOUSE_PRESSED, 1000.5, 10, 20, 0, 0, null, null),
+                new BrowserTakeoverInput(BrowserTakeoverInput.Type.MOUSE_RELEASED, 1080.25, 10, 20, 0, 0, null, null)));
 
-        doThrow(new IllegalArgumentException("不支持的按键")).when(takeover).addInput(any());
-        mvc.perform(post("/browser-takeovers/id-1/input").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"KEY_PRESS\",\"key\":\"F5\"}"))
+        doThrow(new IllegalArgumentException("不支持的按键")).when(takeover).addInputs(any());
+        mvc.perform(post("/browser-takeovers/id-1/inputs").contentType(MediaType.APPLICATION_JSON)
+                        .content("[{\"type\":\"KEY_PRESS\",\"clientTimeMillis\":1,\"key\":\"F5\"}]"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("不支持的按键"));
     }

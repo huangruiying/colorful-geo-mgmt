@@ -2,7 +2,7 @@ package org.huangry.colorful.geo.infrastructure.client.playwright.takeover.verif
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
-import org.huangry.colorful.geo.infrastructure.client.playwright.takeover.BrowserTakeoverOutcome;
+import org.huangry.colorful.geo.infrastructure.client.playwright.takeover.BrowserTakeoverOutcomeEnum;
 import org.huangry.colorful.geo.infrastructure.client.playwright.takeover.BrowserTakeoverRegistry;
 import org.huangry.colorful.geo.infrastructure.common.enums.PublicationPlatformType;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,9 +48,9 @@ class HumanVerificationTakeoverTest {
     void shouldReturnNotRequiredWithoutRequestingTakeover() {
         when(page.url()).thenReturn(SOHU_EDITOR_URL);
 
-        BrowserTakeoverOutcome outcome = verificationTakeover.ensureHumanVerified(page, PublicationPlatformType.SOHU, "预发布");
+        BrowserTakeoverOutcomeEnum outcome = verificationTakeover.ensureHumanVerified(page, PublicationPlatformType.SOHU, "预发布");
 
-        assertEquals(BrowserTakeoverOutcome.NOT_REQUIRED, outcome);
+        assertEquals(BrowserTakeoverOutcomeEnum.NOT_REQUIRED, outcome);
         verifyNoInteractions(takeoverRegistry);
     }
 
@@ -71,11 +71,11 @@ class HumanVerificationTakeoverTest {
         when(page.url()).thenReturn(SOHU_CLIENT_AUTH_URL);
         ArgumentCaptor<Predicate<Page>> completionCondition = ArgumentCaptor.forClass(Predicate.class);
         when(takeoverRegistry.requestTakeover(eq(page), eq("搜狐号 · 预发布"), eq("搜狐号要求对本浏览器做短信安全验证"),
-                completionCondition.capture())).thenReturn(BrowserTakeoverOutcome.COMPLETED);
+                completionCondition.capture())).thenReturn(BrowserTakeoverOutcomeEnum.COMPLETED);
 
-        BrowserTakeoverOutcome outcome = verificationTakeover.ensureHumanVerified(page, PublicationPlatformType.SOHU, "预发布");
+        BrowserTakeoverOutcomeEnum outcome = verificationTakeover.ensureHumanVerified(page, PublicationPlatformType.SOHU, "预发布");
 
-        assertEquals(BrowserTakeoverOutcome.COMPLETED, outcome);
+        assertEquals(BrowserTakeoverOutcomeEnum.COMPLETED, outcome);
         assertFalse(completionCondition.getValue().test(page));
         when(page.url()).thenReturn(SOHU_EDITOR_URL);
         assertTrue(completionCondition.getValue().test(page));
