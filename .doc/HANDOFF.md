@@ -2,6 +2,13 @@
 
 > 已讨论、暂不实施的想法记录在 [TODO.md](TODO.md)，接手时一并查看。
 
+## 当前交接：诊断方案问题上限调整（2026-11-06）
+
+- 用户要求：单次自动生成问题上限 30 → 100，单个方案问题上限 200 → 500。
+- 改动：后端 `QuestionGenerateService.generate`（校验、提示文案、`@param`）、`GeoDiagnosisPlanService.validateQuestions`（校验与提示文案，补齐方法 Javadoc 参数与异常说明）；前端 `diagnose.html` 生成数量输入框 `max`、问题计数“/ 500”，`diagnosis-plans.js` 生成数量校验与方案上限三处提示；脚本版本改为 `diagnosis-plans.js?v=20261106-limit500`。设计文档 `诊断方案设计与接口.md`、`诊断任务实施计划.md` 同步上限（任务结果行最多 500 × 20 × 10 = 100000 条，仍按每 250 条批量写入）。
+- 验证：`QuestionGenerateServiceTest`（越界改为 101）3 项、`GeoDiagnosisPlanServiceTest`（新增 500 通过 / 501 拒绝）4 项通过（JDK ms-17、Maven 3.6.1 离线）；`diagnosis-plans.js` 语法检查通过。未运行全量测试，未真实调用模型生成 100 个问题。
+- 风险：一次生成 100 个问题要求模型输出完整 JSON 数组且数量严格相等，生成渠道 `max_tokens` 过小会截断导致解析失败，单次调用受 `http.llm.timeout-seconds=60` 限制；需用实际生成渠道试一次 100 个。服务未重启，改动未提交。
+
 ## 当前交接：诊断报告导出网页补全证据与回答，改为页签（2026-11-04）
 
 - 原因：导出时页面按钮全部去掉，「看证据」「看回答」在导出网页里没有内容。现在导出网页与系统页面一样：六个页签切换查看，「看证据」「看回答」弹窗打开，证据弹窗里可再叠开回答弹窗。

@@ -35,6 +35,15 @@ class GeoDiagnosisPlanServiceTest {
     }
 
     @Test
+    void shouldAcceptFiveHundredQuestionsAndRejectMore() {
+        List<GeoDiagnosisPlanQuestionEntity> fiveHundred = new java.util.ArrayList<>();
+        for (int index = 0; index < 500; index++) fiveHundred.add(question("企业知识库选型问题 " + index));
+        assertDoesNotThrow(() -> service.validateQuestions(project(), fiveHundred));
+        fiveHundred.add(question("企业知识库选型问题 500"));
+        assertThrows(IllegalArgumentException.class, () -> service.validateQuestions(project(), fiveHundred));
+    }
+
+    @Test
     void shouldRejectDisabledChannelsBeforeDatabaseWrite() {
         var projectDao = mock(GeoProjectInfoDao.class);
         var channelDao = mock(GeoLlmChannelDao.class);

@@ -62,7 +62,7 @@ class QuestionGenerateServiceTest {
 
     @Test
     void shouldRejectInvalidInputBeforeCallingModel() {
-        assertThrows(IllegalArgumentException.class, () -> service.generate(project, null, 31, "中文"));
+        assertThrows(IllegalArgumentException.class, () -> service.generate(project, null, 101, "中文"));
         assertThrows(IllegalArgumentException.class, () -> service.generate(project, null, 1, " "));
         verifyNoInteractions(client);
     }

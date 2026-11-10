@@ -29,15 +29,15 @@ public class QuestionGenerateService {
 	 * 使用内部生成渠道制题；默认渠道按现有数据库优先级选择，与被测渠道独立。
 	 * @param project 提供制题背景的项目资料
 	 * @param channelCode 可选制题渠道编码
-	 * @param count 请求的问题数量，范围为 1 到 30
+	 * @param count 请求的问题数量，范围为 1 到 100
 	 * @param language 问题语言
 	 * @return 经方案规则校验的候选问题，不保存
 	 */
 	public List<GeoDiagnosisPlanQuestionEntity> generate(GeoProjectInfoEntity project, String channelCode,
 	                                                     Integer count, String language) {
 		// 1. 限制生成规模和输入长度，避免一次请求失控。
-		if (count == null || count < 1 || count > 30) {
-			throw new IllegalArgumentException("每次生成 1 到 30 个问题");
+		if (count == null || count < 1 || count > 100) {
+			throw new IllegalArgumentException("每次生成 1 到 100 个问题");
 		}
 		if (language == null || language.isBlank() || language.length() > 100) {
 			throw new IllegalArgumentException("生成语言必填，最多 100 字符");

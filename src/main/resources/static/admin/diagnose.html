@@ -48,13 +48,13 @@
                         <h3 id="generator-title">根据项目信息生成候选</h3>
                         <div class="plan-grid">
                             <label>生成问题的模型<select id="generation-channel" aria-label="生成问题的模型"><option value="">按数据库优先级选择</option></select></label>
-                            <label>生成数量<input id="generation-count" type="number" min="1" max="30" value="12"></label>
+                            <label>生成数量<input id="generation-count" type="number" min="1" max="100" value="12"></label>
                             <label>问题语言<input id="generation-language" maxlength="100" value="中文"></label>
                         </div>
                         <div class="inline-controls"><button type="button" class="refresh-button" id="generate">生成候选问题</button><span id="generation-status" class="muted" role="status">结合用户意图、使用场景和侧面需求生成。</span></div>
                         <div id="candidates-panel" hidden><div class="section-heading"><h3>待确认候选</h3><button type="button" class="refresh-button" id="add-candidates">加入勾选候选</button></div><div id="candidate-list"></div><p class="help">已有问题保留，重复内容不重复加入。</p></div>
                     </section>
-                    <div class="section-heading"><h3>方案问题集合 <span id="question-count" class="muted">0 / 200</span></h3><button type="button" class="refresh-button" id="add-question">添加自定义问题</button></div>
+                    <div class="section-heading"><h3>方案问题集合 <span id="question-count" class="muted">0 / 500</span></h3><button type="button" class="refresh-button" id="add-question">添加自定义问题</button></div>
                     <p class="help">非品牌问题不含项目名称或别名。竞品比较与品牌认知单独标记，避免抬高自然发现率。</p>
                     <div id="question-list" class="question-table-scroll"></div>
                     <div class="question-pagination" id="question-pagination" hidden>
@@ -71,5 +71,5 @@
 </body>
 <script src="./shared/http.js?v=20261029-failure1" defer></script>
 <script src="./shared/pagination.js?v=20261017-lifecycle1" defer></script>
-<script src="./diagnosis-plans.js?v=20261029-no-mock1" defer></script>
+<script src="./diagnosis-plans.js?v=20261106-limit500" defer></script>
 </html>

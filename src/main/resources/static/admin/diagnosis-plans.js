@@ -212,13 +212,13 @@
     }
     function updateCount() {
         const selected = [...byId("test-channels").querySelectorAll("input:checked")].length;
-        byId("question-count").textContent = questions.length + " / 200";
+        byId("question-count").textContent = questions.length + " / 500";
         byId("sample-count").textContent = "预计 " + (questions.length * selected * (Number(form.elements.repeatCount.value) || 0)) + " 次诊断";
     }
     byId("generate").addEventListener("click", async () => {
         if (generating || saving) return;
         const projectId = Number(form.elements.projectId.value), count = Number(byId("generation-count").value), language = byId("generation-language").value.trim();
-        if (!projectId || !Number.isInteger(count) || count < 1 || count > 30 || !language) { error("请先选择项目，并填写 1 到 30 的生成数量及语言"); return; }
+        if (!projectId || !Number.isInteger(count) || count < 1 || count > 100 || !language) { error("请先选择项目，并填写 1 到 100 的生成数量及语言"); return; }
         const startedRevision = revision;
         generating = true; byId("generate").disabled = true; error("");
         byId("generation-status").textContent = "正在生成候选问题，请稍候…";
@@ -245,14 +245,14 @@
             const key = normalize(candidate.text);
             if (!existing.has(key)) { added.push({...candidate}); existing.add(key); }
         }
-        if (questions.length + added.length > 200) { error("每个方案最多 200 个问题"); return; }
+        if (questions.length + added.length > 500) { error("每个方案最多 500 个问题"); return; }
         if (added.length) questionPage = Math.floor(questions.length / questionPageSize);
         questions.push(...added); markDirty(); renderQuestions(); error("");
         byId("generation-status").textContent = "本次加入 " + added.length + " 个问题；重复内容已跳过。";
         byId("candidates-panel").hidden = true; candidates = [];
     });
     byId("add-question").addEventListener("click", () => {
-        if (questions.length >= 200) { error("每个方案最多 200 个问题"); return; }
+        if (questions.length >= 500) { error("每个方案最多 500 个问题"); return; }
         questions.push({text:"", source:"MANUAL", intent:"RECOMMENDATION", brandScope:"NON_BRAND", language:byId("generation-language").value.trim() || "中文"});
         questionPage = Math.floor((questions.length - 1) / questionPageSize);
         markDirty(); renderQuestions(); byId("question-list").querySelector("tbody tr:last-child textarea").focus();

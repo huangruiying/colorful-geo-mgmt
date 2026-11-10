@@ -89,11 +89,15 @@ public class GeoDiagnosisPlanService extends ServiceImpl<GeoDiagnosisPlanDao, Ge
 
 	/**
 	 * 生成与保存共用题目校验；非品牌题不能包含本项目名称或别名。
+	 * <p>单个方案 1 到 500 个问题；校验通过时就地去除问题与语言首尾空白，并按输入顺序回填排序号。</p>
+	 * @param project 诊断方案所属项目，提供项目名称与别名用于非品牌题检查
+	 * @param questions 待保存或生成的问题集合
+	 * @throws IllegalArgumentException 数量越界、内容重复、字段取值无效或非品牌题含项目名称时拒绝
 	 */
 	public void validateQuestions(GeoProjectInfoEntity project, List<GeoDiagnosisPlanQuestionEntity> questions) {
 		// 1. 拒绝空集合和重复文本，不把非法候选静默过滤成成功。
-		if (questions == null || questions.isEmpty() || questions.size() > 200)
-			throw new IllegalArgumentException("问题集合必须包含 1 到 200 个问题");
+		if (questions == null || questions.isEmpty() || questions.size() > 500)
+			throw new IllegalArgumentException("问题集合必须包含 1 到 500 个问题");
 		Set<String> texts = new HashSet<>();
 		List<String> brands = new ArrayList<>();
 		brands.add(project.getName());
